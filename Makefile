@@ -1,0 +1,40 @@
+CC = clang
+CF = -std=c23 -Isrc -Wall -Wextra -O2 -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer
+DF = -DDEBUG_MODE
+
+SRC_DIR = src
+BUILD_DIR = build
+BIN_DIR = $(BUILD_DIR)/bin
+
+STD_PATH = $(HOME)/.local/lily
+
+BINARY = $(BIN_DIR)/lilyc
+
+SRCS = $(shell find $(SRC_DIR) -name "*.c")
+OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
+
+# rm -rf $(STD_PATH)
+# mkdir -p $(STD_PATH)
+# cp -r ./stdlib $(STD_PATH)/std
+
+$(BINARY): $(OBJS) | $(BIN_DIR)
+	$(CC) $(CF) -o $@ $(OBJS)
+
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
+	mkdir -p $(dir $@)
+	$(CC) $(CF) -c $< -o $@
+
+$(BUILD_DIR):
+	mkdir -p $@
+
+$(BIN_DIR): | $(BUILD_DIR)
+	mkdir -p $@
+
+.PHONY: debug
+debug: CF += $(DF)
+debug: $(BINARY)
+
+.PHONY: clean
+clean:
+	rm -rvf $(BUILD_DIR)
+	rm -rvf $(BIN_DIR)

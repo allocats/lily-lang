@@ -1,0 +1,5 @@
+#import "std/io";
+
+main :: fn() {
+    println("Hello there - lily");
+}
