@@ -39,9 +39,74 @@ typedef struct {
     SpanU32 tokens;
 
     union {
+        /*
+         * directives
+         */
+        AstExecDirective    exec_directive;
+        AstImportDirective  import_directive;
+        AstIncludeDirective include_directive;
 
+        /*
+         * declarations
+         */
+        AstFunctionDeclaration  func_decl;
+        AstParameterDeclaration param_decl;
+
+        AstStructDeclaration struct_decl;
+        AstUnionDeclaration  union_decl;
+        AstFieldDeclaration  field_decl;
+
+        AstEnumDeclaration    enum_decl;
+        AstVariantDeclaration variant_decl;
+
+        AstVariableDeclaration variable_decl;
+
+        AstTypeAliasDeclaration type_alias_decl;
+
+        /*
+         * statements 
+         */
+        AstBlock block;
+
+        AstDeferStatement  defer_stmt;
+        AstReturnStatement return_stmt;
+
+        AstIfStatement if_stmt;
+        AstBranch branch;
+
+        AstWhileLoop while_loop;
+        AstForLoop   for_loop;
+
+        AstBreak    break_stmt;
+        AstContinue continue_stmt;
+
+        /*
+         * expressions
+         */
+        AstIdentifier identifier;
+        AstLiteral literal;
+
+        AstBinaryOp binary_op;
+        AstUnaryOp unary_op;
+
+        AstFunctionCall func_call;
+        AstMemberAcess member_access;
+        AstIndex index;
+
+        /*
+         * types
+         */
+        AstTypeBase base_type;
+        AstTypeArray array_type;
+        AstTypePointer pointer_type;
+        AstTypeFunction function_type;
+        AstTypeVariadic variadic_type;
     } as;
 } AstNode;
+
+
+[[deprecated("Do not use this, just to see size here")]] 
+static constexpr u64 __ast_node_size = sizeof(AstNode);
 
 /*
  *
