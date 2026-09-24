@@ -1,3 +1,4 @@
+#include "diagnostics/diagnostics.h"
 #include "files/files.h"
 #include "files/types.h"
 #include "hash/hash.h"
@@ -96,22 +97,22 @@ inline void file_interner_destroy(FileInterner* interner) {
  *
  */
 
-FileId file_intern(FileInterner* interner, str8 path) {
+FileId file_intern(FileInterner* interner, str8 input_path) {
     assert(interner != null);
-    assert(path.ptr != null);
-    assert(path.len != 0);
+    assert(input_path.ptr != null);
+    assert(input_path.len != 0);
 
-    path = get_absolute_path(path);
+    str8 path = get_absolute_path(input_path);
 
     if (path.ptr == null) {
-        // diagnostic_add_generic("cant find file");
+        diagnostic_add_generic(DIAG_ERROR, "cannot find file %.*s", input_path.len, input_path.ptr);
         return FILE_ID_NONE;
     }
 
     str8 buffer = {0};
 
     if (!allocate_buffer(interner, path, &buffer)) {
-        // diagnostic_add_generic("cant alocate file");
+        diagnostic_add_generic(DIAG_ERROR, "cannot allocate buffer for file %.*s", path.len, path.ptr);
         return FILE_ID_NONE;
     }
 
@@ -177,6 +178,9 @@ FileId file_lookup(FileInterner* interner, str8 path) {
     assert(path.len != 0);
 
     path = get_absolute_path(path);
+
+    // In theory, should not be happening
+    assert(path.ptr != null);
 
     pthread_mutex_lock(&interner -> mutex);
 

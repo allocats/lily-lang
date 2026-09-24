@@ -1,5 +1,6 @@
 #include "driver/types.h"
 #include "files/files.h"
+#include "files/types.h"
 #include "ids.h"
 #include "lexer/lexer.h"
 #include "string_interner/interner.h"
@@ -87,5 +88,11 @@ static void lex_and_parse_workspace(Workspace* ws) {
 static void dispatch_lex_and_parse_file(void* arg) {
     File* file = (File*) arg;
 
-    lex_file(file);
+    if (file -> stage == FILE_ALLOCATED) {
+        lex_file(file);
+
+        if (file -> stage == FILE_LEXED) {
+            // parse_file(file);
+        }
+    }
 }

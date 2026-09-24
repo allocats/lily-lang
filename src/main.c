@@ -34,7 +34,12 @@ i32 main(i32 argc, char** argv) {
     driver_init(&driver, home_dir);
 
     if (!driver_parse_flags(&driver, argc - 1, argv + 1)) {
+        diagnostics_print();
+
         driver_destroy(&driver);
+
+        printf("\n%s%s%s:%s compiler %sfailed%s\n", ANSI_BOLD, ANSI_RED, argv[0], ANSI_RESET, ANSI_BOLD, ANSI_RESET);
+
         return 1;
     }
 

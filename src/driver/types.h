@@ -11,6 +11,8 @@ typedef struct {
 } DispatchFileArg;
 
 typedef struct {
+    Arena scratch_arena;
+
     ThreadPool thread_pool;
 
     DiagnosticEngine diagnostic_engine;

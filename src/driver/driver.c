@@ -8,13 +8,20 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 static void dispatch_file_intern_thread(void* argument);
 
 void driver_init(Driver* driver, const char* home) {
     assert(driver != null);
+
+    /*
+     *
+     * Scratch arena, used for temporary allocations to avoid small malloc/free calls
+     *
+     */
+    arena_init(&driver -> scratch_arena, ARENA_KB(2), ALIGN_DEFAULT);
 
     diagnostic_engine_init();
 
@@ -59,6 +66,8 @@ void driver_init(Driver* driver, const char* home) {
 void driver_destroy(Driver* driver) {
     threadpool_destroy(&driver -> thread_pool);
 
+    diagnostic_engine_destroy();
+
     for (u32 i = 0; i < driver -> workspace_count; i++) {
         workspace_destroy(driver -> workspaces[i]);
     }
@@ -95,17 +104,40 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
                 continue;
             }
 
+            /*
+             * path.lily (len = 9)
+             * ^ 
+             * 
+             * ptr + len?
+             * path.lily
+             *          ^
+             *
+             * so then we do ptr + len - 1
+             * path.lily
+             *         ^
+             *
+             * subtract 4 from that, ptr + len - 5
+             * path.lily
+             *     ^
+             *
+             * then strncmp(ptr, ".lily", 5) :3
+             *
+             */
+
+            char* extension_ptr = arg + (arg_len - 5);
+
+            if (strncmp(extension_ptr, ".lily", 5) != 0) {
+                diagnostic_add_generic(DIAG_ERROR, "%s is not a lily file", arg);
+                result = false;
+                continue;
+            }
+
             str8 path = {
                 .ptr = arg,
                 .len = arg_len
             };
 
-            // DispatchFileArg dispatch_arg = {
-            //     .ws = driver -> workspaces[0],
-            //     .path = path
-            // };
-
-            DispatchFileArg* dispatch_arg = malloc(sizeof(DispatchFileArg));
+            DispatchFileArg* dispatch_arg = arena_alloc(&driver -> scratch_arena, sizeof(DispatchFileArg));
 
             dispatch_arg -> ws = driver -> workspaces[0];
             dispatch_arg -> path = path;
@@ -116,6 +148,13 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
 
     threadpool_wait(&driver -> thread_pool);
 
+    /*
+     *
+     * ensure that this is called after `threadpool_wait()`, lifetimes moment
+     *
+     */
+    arena_reset(&driver -> scratch_arena);
+
     return result;
 }
 
@@ -123,6 +162,4 @@ static void dispatch_file_intern_thread(void* argument) {
     DispatchFileArg* arg = (DispatchFileArg*) argument;
 
     file_intern(&arg -> ws -> file_interner, arg -> path);
-
-    free(arg);
 }

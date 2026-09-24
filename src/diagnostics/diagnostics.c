@@ -18,7 +18,12 @@ static constexpr u64 diagnostic_init_arena_size_kb = 4;
 static constexpr u64 diagnostic_default_threshold  = 32;
 
 static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagnostic_init_arena_size_kb));
-static_assert(diagnostic_init_arena_size_kb > 0);
+
+/*
+ *
+ * creation and deletions
+ *
+ */
 
 void diagnostic_engine_init(void) {
     DiagnosticEngine* diag_engine = &driver.diagnostic_engine;
@@ -35,6 +40,17 @@ void diagnostic_engine_init(void) {
 
     pthread_mutex_init(&diag_engine -> mutex, null);
 }
+
+inline void diagnostic_engine_destroy(void) {
+    arena_destroy(&driver.diagnostic_engine.arena);
+    pthread_mutex_destroy(&driver.diagnostic_engine.mutex);
+}
+
+/*
+ *
+ * helpers for a prettty output :3
+ *
+ */
 
 static const char* match_level_colour(DiagKind kind) {
     switch (kind) {
@@ -124,6 +140,12 @@ static str8 get_source_line(const char* buffer, u32 line) {
     };
 }
 
+/*
+ *
+ * allocate a new diagnostic, this does lock
+ *
+ */
+
 static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
     assert(engine != null);
 
@@ -144,6 +166,12 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
 
     return diag;
 }
+
+/*
+ *
+ * actual diagnostics 
+ *
+ */
 
 void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
@@ -300,6 +328,13 @@ void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const ch
     diag -> workspace = driver.workspaces[file -> workspace_id];
 }
 
+/*
+ *
+ * the flush function, prints all diagnostics up to the threshold_value
+ * returns true if errors were found else returns false if no errors
+ *
+ */
+
 bool diagnostics_print() {
     DiagnosticEngine* engine = &driver.diagnostic_engine;
 
@@ -307,22 +342,19 @@ bool diagnostics_print() {
 
     u32 count = MIN(engine -> count, engine -> threshold_value);
     
-    FILE* fd = stderr;
-
-    if (engine -> dump_path != null) {
-        fd = fopen((char*) engine -> dump_path, "w+");
-
-        if (fd == null) {
-            // TODO: add diag for this
-            fd = stderr;
-        }
-    }
+    FILE* fd = stdout;
 
     for (u32 i = 0; i < count; i++) {
         Diagnostic diag = engine -> diags[i];
 
         const char* level_colour = match_level_colour(diag.kind); 
         const char* level = match_level(diag.kind); 
+
+        if (diag.kind == DIAG_ERROR) {
+            fd = stderr;
+        } else {
+            fd = stdout;
+        }
 
         if (diag.is_generic) {
             fprintf(
@@ -405,11 +437,8 @@ bool diagnostics_print() {
         fprintf(fd, "%s %s|%s\n\n", line_indent, ANSI_BOLD, ANSI_RESET);
     }
 
-    fflush(fd);
-
-    if (fd != stderr) {
-        fclose(fd);
-    }
+    fflush(stdout);
+    fflush(stderr);
 
     return has_errors;
 }
