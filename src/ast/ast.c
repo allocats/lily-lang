@@ -6,6 +6,12 @@
 
 static constexpr u32 init_cap = 64;
 
+/*
+ *
+ * creation and deletion
+ *
+ */
+
 void ast_init(Ast* ast) {
     assert(ast != null);
 
@@ -29,6 +35,12 @@ inline void ast_destroy(Ast* ast) {
     arena_destroy(&ast -> nodes_arena);
 }
 
+/*
+ *
+ * grow AST nodes array if need be and return the AstNodeId
+ *
+ */
+
 AstNodeId ast_alloc_node(Ast* ast) {
     assert(ast != null);
     assert(ast -> capacity != 0);
@@ -44,4 +56,10 @@ AstNodeId ast_alloc_node(Ast* ast) {
     }
 
     return ast -> count++;
+}
+
+inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
+    assert(ast != null);
+    assert(id < ast -> count);
+    return &ast -> nodes[id];
 }
