@@ -3,6 +3,7 @@
 #include "files/types.h"
 #include "ids.h"
 #include "lexer/lexer.h"
+#include "parser/parser.h"
 #include "string_interner/interner.h"
 #include "threadpool/threadpool.h"
 #include "utils/timer.h"
@@ -28,6 +29,7 @@ void workspace_init(Workspace* ws, WorkspaceId id, const char* name) {
 
     ws -> id = id;
     ws -> name = STR8_FROM_CSTR(name);
+    ws -> target_os = OS_LINUX;
 
     file_interner_init(&ws -> file_interner);
 
@@ -92,7 +94,7 @@ static void dispatch_lex_and_parse_file(void* arg) {
         lex_file(file);
 
         if (file -> stage == FILE_LEXED) {
-            // parse_file(file);
+            parse_file(file);
         }
     }
 }

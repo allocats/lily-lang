@@ -6,11 +6,6 @@
 #include "workspace/types.h"
 
 typedef struct {
-    Workspace* ws;
-    str8 path;
-} DispatchFileArg;
-
-typedef struct {
     Arena scratch_arena;
 
     ThreadPool thread_pool;

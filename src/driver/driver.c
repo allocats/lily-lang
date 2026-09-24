@@ -10,6 +10,17 @@
 #include <string.h>
 #include <unistd.h>
 
+/*
+ *
+ * simply used for dispatching threads
+ *
+ */
+typedef struct {
+    Workspace* ws;
+    str8 path;
+} DispatchFileArg;
+
+
 static void dispatch_file_intern_thread(void* argument);
 
 void driver_init(Driver* driver, const char* home) {
@@ -76,7 +87,12 @@ void driver_destroy(Driver* driver) {
 
 /*
  *
- * Command line flag parsing, interns files
+ * Command line flag parsing, interns files.
+ *
+ * TODO: think we make workspaces call this for their own options/flags
+ *       first worksapce always should take in from the comppiler directly
+ *       the first workspace is essentially the driver workspace that orchestrates
+ *       the entire compilation. 
  * 
  */
 
@@ -148,7 +164,7 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
 
     /*
      *
-     * ensure that this is called after `threadpool_wait()`, lifetimes moment
+     * ensure that this is called after `threadpool_wait()`, #lifetimes moment
      *
      */
     arena_reset(&driver -> scratch_arena);

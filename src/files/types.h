@@ -45,7 +45,7 @@ typedef struct {
     Arena interner_arena;
 
     FileBucket* buckets;
-    File** entries;
+    File** entries; // we keep this an array of pointers for lifetimes!
 
     u32 bucket_capacity;
     u32 entry_capacity;

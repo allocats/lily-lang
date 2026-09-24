@@ -7,9 +7,21 @@
 #include "utils/timer.h"
 #include "utils/types.h"
 
+/*
+ *
+ * TODO: need to make this configurable and actually impact things!
+ *
+ */
+typedef enum {
+    OS_LINUX,
+    OS_WINDOWS,
+} TargetOS;
+
 typedef struct {
     WorkspaceId id;
     str8 name;
+
+    TargetOS target_os;
 
     FileInterner file_interner;
 
