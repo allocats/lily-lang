@@ -74,6 +74,14 @@ void driver_init(Driver* driver, const char* home) {
 }
 
 void driver_destroy(Driver* driver) {
+    /*
+     *
+     * Just in case.
+     * TODO: maybe rather assert that the threadpool isn't busy?
+     *
+     */
+    threadpool_wait(&driver -> thread_pool);
+
     threadpool_destroy(&driver -> thread_pool);
 
     diagnostic_engine_destroy();
@@ -83,6 +91,8 @@ void driver_destroy(Driver* driver) {
     }
 
     arena_destroy(&driver -> workspace_arena);
+
+    arena_destroy(&driver->scratch_arena);
 }
 
 /*

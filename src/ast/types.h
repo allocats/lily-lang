@@ -125,8 +125,10 @@ typedef struct {
     u32 count;
     u32 capacity;
 
-    // this covers ALL declarations, including top level declarations and scope
-    // declarations, i.e. variables inside of functions, for loops, parameters etc.
+    /* 
+     * this covers ALL declarations, including top level declarations and scope
+     * declarations, i.e. variables inside of functions, for loops, parameters etc.
+    */
     u32 total_declaration_count;
 
     /* 

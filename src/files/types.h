@@ -1,6 +1,7 @@
 #ifndef LILY_FILES_TYPES_H
 #define LILY_FILES_TYPES_H
 
+#include "ast/types.h"
 #include "ids.h"
 #include "meowrena/meowrena.h"
 #include "tokens/types.h"
@@ -35,6 +36,8 @@ typedef struct {
 
     TokenArray tokens;
     SourceLocationArray source_locations;
+
+    Ast ast;
 
     u32 lines_of_code;
 } File;

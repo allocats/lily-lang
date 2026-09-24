@@ -1,3 +1,4 @@
+#include "ast/ast.h"
 #include "diagnostics/diagnostics.h"
 #include "files/files.h"
 #include "files/types.h"
@@ -278,6 +279,18 @@ static void file_init(File* file, FileId id, str8 path, u32 path_hash, str8 buff
 
     token_array_init(&file -> tokens);
     source_location_array_init(&file -> source_locations);
+
+    ast_init(&file -> ast);
+}
+
+inline void file_destroy(File* file) {
+    assert(file);
+
+    free(file -> path.ptr);
+
+    token_array_destroy(&file -> tokens);
+    source_location_array_destroy(&file -> source_locations);
+    ast_destroy(&file -> ast);
 }
 
 static bool allocate_buffer(FileInterner* interner, str8 path, str8* buffer) {
@@ -331,15 +344,6 @@ static bool allocate_buffer(FileInterner* interner, str8 path, str8* buffer) {
     debug_log("Allocated file (%u bytes): %.*s", buffer_size, path.len, path.ptr);
 
     return true;
-}
-
-inline void file_destroy(File* file) {
-    assert(file);
-
-    free(file -> path.ptr);
-
-    token_array_destroy(&file -> tokens);
-    source_location_array_destroy(&file -> source_locations);
 }
 
 /*
