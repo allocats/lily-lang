@@ -7,7 +7,6 @@
 #include "workspace/workspace.h"
 
 #include <assert.h>
-#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -89,8 +88,7 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
         usize arg_len = strlen(arg);
 
         if (arg_len < 2) {
-            // TODO: diagnostics
-            printf("invalid argument\n");
+            diagnostic_add_generic(DIAG_ERROR, "invalid argument: %.*s", arg_len, arg);
             result = false;
             continue;
         }
@@ -99,7 +97,7 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
 
         } else {
             if (arg_len < 6) {
-                printf("invalid arg");
+                diagnostic_add_generic(DIAG_ERROR, "invalid file: %.*s", arg_len, arg);
                 result = false;
                 continue;
             }
