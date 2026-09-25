@@ -13,12 +13,12 @@ BINARY = $(BIN_DIR)/lilyc
 SRCS = $(shell find $(SRC_DIR) -name "*.c")
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
-# rm -rf $(STD_PATH)
-# mkdir -p $(STD_PATH)
-# cp -r ./stdlib $(STD_PATH)/std
 
 $(BINARY): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CF) -o $@ $(OBJS)
+	rm -rf $(STD_PATH)
+	mkdir -p $(STD_PATH)
+	cp -r ./stdlib $(STD_PATH)/std
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	mkdir -p $(dir $@)
