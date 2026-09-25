@@ -61,6 +61,41 @@ void string_interner_init(StringInterner* interner) {
     debug_log("Allocated %u bytes for entries", init_entry_size);
 
     pthread_rwlock_init(&interner -> mutex, null);
+
+    /*
+     *
+     * intern all the keywords and directives :3
+     *
+     */
+    string_intern_cstr(interner, "import");
+    string_intern_cstr(interner, "include");
+    string_intern_cstr(interner, "execute");
+
+    string_intern_cstr(interner, "fn");
+    string_intern_cstr(interner, "enum");
+    string_intern_cstr(interner, "struct");
+    string_intern_cstr(interner, "union");
+
+    string_intern_cstr(interner, "intrinsic");
+    string_intern_cstr(interner, "foreign");
+    string_intern_cstr(interner, "noinline");
+    string_intern_cstr(interner, "inline");
+
+    string_intern_cstr(interner, "const");
+
+    string_intern_cstr(interner, "if");
+    string_intern_cstr(interner, "else");
+    string_intern_cstr(interner, "for");
+    string_intern_cstr(interner, "in");
+    string_intern_cstr(interner, "while");
+    string_intern_cstr(interner, "continue");
+    string_intern_cstr(interner, "break");
+    string_intern_cstr(interner, "defer");
+    string_intern_cstr(interner, "return");
+
+    string_intern_cstr(interner, "false");
+    string_intern_cstr(interner, "true");
+    string_intern_cstr(interner, "null");
 }
 
 inline void string_interner_destroy(StringInterner* interner) {
@@ -210,6 +245,46 @@ inline StringId string_intern_cstr(StringInterner* interner, const char* str) {
 
 inline StringId string_lookup_cstr(StringInterner* interner, const char* str) {
     return string_lookup_str8(interner, (str8) { .ptr = (char*) str, .len = strlen(str)});
+}
+
+/*
+ *
+ *  Intering strings from tokens
+ * 
+ */
+
+StringId string_intern_token(StringInterner* interner, File* file, Token token) {
+    str8 str = {
+        .ptr = file -> buffer.ptr + token.start,
+        .len = token.length
+    };
+
+    assert(str.ptr < (file -> buffer.ptr + file -> buffer.len));
+    assert(str.ptr + str.len < (file -> buffer.ptr + file -> buffer.len));
+
+    return string_intern_str8(interner, str);
+}
+
+StringId string_lookup_token(StringInterner* interner, File* file, Token token) {
+    str8 str = {
+        .ptr = file -> buffer.ptr + token.start,
+        .len = token.length
+    };
+
+    assert(str.ptr < (file -> buffer.ptr + file -> buffer.len));
+    assert(str.ptr + str.len < (file -> buffer.ptr + file -> buffer.len));
+
+    return string_lookup_str8(interner, str);
+}
+
+/*
+ *
+ *  helper to get str8 from a StringId
+ * 
+ */
+
+inline str8 string_get_str8_from_id(StringInterner* interner, StringId id) {
+    return interner -> entries[id].str;
 }
 
 /*

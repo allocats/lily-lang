@@ -1,0 +1,11 @@
+#ifndef LILY_PARSER_RECOVERY_TYEPS_H
+#define LILY_PARSER_RECOVERY_TYEPS_H
+
+typedef enum {
+    RECOVERY_NONE,
+    RECOVERY_DECLARATION,
+    RECOVERY_STATEMENT,
+    RECOVERY_EXPRESSION, // includes type expressions
+} RecoveryKind;
+
+#endif // !LILY_PARSER_RECOVERY_TYEPS_H

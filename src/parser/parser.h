@@ -1,7 +1,9 @@
 #ifndef LILY_PARSER_H
 #define LILY_PARSER_H
 
+#include "ast/types.h"
 #include "files/types.h"
+#include "ids.h"
 #include "parser/types.h"
 #include "tokens/kinds.h"
 
@@ -11,6 +13,16 @@
  *
  */
 void parse_file(File* file);
+
+/*
+ *
+ * AST wrappers for the parser for convenience
+ *
+ */
+AstNodeId parser_create_node(Parser* p);
+AstNode*  parser_get_node(Parser* p, AstNodeId id);
+bool      parser_is_node(Parser* p, AstNodeId id, AstKind kind);
+void      parser_set_node_flags(Parser* p, AstNodeId id, AstFlag flags);
 
 /*
  *

@@ -1,14 +1,23 @@
 #include "driver/driver.h"
+#include "ast/types.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "files/files.h"
+#include "ids.h"
 #include "threadpool/threadpool.h"
+#include "utils/macros.h"
 #include "workspace/types.h"
 #include "workspace/workspace.h"
 
 #include <assert.h>
+#include <dirent.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+
+#define STDLIB_DIR ".local/lily/std"
+
+static char standard_library_path[PATH_MAX] = {0};
 
 /*
  *
@@ -22,6 +31,7 @@ typedef struct {
 
 
 static void dispatch_file_intern_thread(void* argument);
+static void standard_library_list_init(Driver* driver);
 
 void driver_init(Driver* driver, const char* home) {
     assert(driver != null);
@@ -50,6 +60,19 @@ void driver_init(Driver* driver, const char* home) {
     threadpool_init(&driver -> thread_pool, thread_count);
 
     /*
+     *
+     * Home directory & standard library directory
+     *
+     */
+    driver -> home_directory = home;
+
+    snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
+
+    driver -> standard_library_directory = standard_library_path;
+
+    standard_library_list_init(driver);
+
+    /*
     *
     * Workspaces
     *
@@ -61,16 +84,9 @@ void driver_init(Driver* driver, const char* home) {
     driver -> workspaces = arena_calloc(&driver -> workspace_arena, sizeof(Workspace*));
     driver -> workspace_count = 1;
 
-    driver -> workspaces[0] = arena_alloc(&driver -> workspace_arena, sizeof(Workspace));
+    driver -> workspaces[0] = arena_calloc(&driver -> workspace_arena, sizeof(Workspace));
 
     workspace_init(driver -> workspaces[0], 0, "Lily Program <3");
-
-    /*
-     *
-     * Home directory for standard library
-     *
-     */
-    driver -> home_directory = home;
 }
 
 void driver_destroy(Driver* driver) {
@@ -92,7 +108,9 @@ void driver_destroy(Driver* driver) {
 
     arena_destroy(&driver -> workspace_arena);
 
-    arena_destroy(&driver->scratch_arena);
+    arena_destroy(&driver -> scratch_arena);
+
+    arena_destroy(&driver -> standard_library_path_list.arena);
 }
 
 /*
@@ -185,5 +203,69 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
 static void dispatch_file_intern_thread(void* argument) {
     DispatchFileArg* arg = (DispatchFileArg*) argument;
 
-    file_intern(&arg -> ws -> file_interner, arg -> path);
+    FileId id = file_intern(&arg -> ws -> file_interner, arg -> path);
+
+    if (id == FILE_ID_NONE) {
+        diagnostic_add_generic(DIAG_ERROR, "cannot find file '%.*s'", STR8_FMT(arg -> path));
+    }
+}
+
+/*
+ *
+ * Standard Library Path Mapping
+ *
+ */
+static void standard_library_list_init(Driver* driver) {
+    StandardLibraryList* list = &driver -> standard_library_path_list;
+
+    constexpr u32 init_kb = 1;
+    constexpr u32 init_capacity = ARENA_KB(init_kb) / sizeof(str8);
+
+    arena_init(&list -> arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
+
+    list -> paths = arena_calloc(&list -> arena, init_capacity * sizeof(str8));
+    list -> count = 0;
+    list -> capacity = init_capacity;
+
+    DIR* directory = opendir(driver -> standard_library_directory);
+
+    if (!directory) {
+        diagnostic_add_generic(
+            DIAG_ERROR,
+            "unable to load standard library!\nPath: %s",
+            driver -> standard_library_directory
+        );
+
+        return;
+    }
+
+    struct dirent* entry = null;
+
+    while ((entry = readdir(directory)) != null) {
+        if (entry -> d_type != DT_DIR) continue;
+
+        if (strcmp(entry -> d_name, "." ) == 0) continue;
+        if (strcmp(entry -> d_name, "..") == 0) continue;
+
+        char* name = arena_alloc(&list -> arena, strlen(entry -> d_name) + sizeof("std/"));
+
+        i32 length = snprintf(name, sizeof(name), "std/%s", entry -> d_name);
+
+        str8 path = {
+            .ptr = name,
+            .len = length
+        };
+
+        if (UNLIKELY(list -> count >= list -> capacity)) {
+            u64 old_size = list -> capacity * sizeof(str8);
+            u64 new_size = old_size * 2;
+
+            list -> paths = arena_realloc(&list -> arena, list -> paths, old_size, new_size);
+            list -> capacity *= 2;
+        }
+
+        list -> paths[list -> count++] = path;
+    }
+
+    closedir(directory);
 }

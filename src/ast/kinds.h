@@ -16,9 +16,11 @@
 #define AST(X)                  \
     X(AST_ERROR)                \
                                 \
-    X(AST_EXEC_DIRECTIVE)       \
+    X(AST_EXECUTE_DIRECTIVE)    \
     X(AST_IMPORT_DIRECTIVE)     \
     X(AST_INCLUDE_DIRECTIVE)    \
+                                \
+    X(AST_IMPORT_DECL)          \
                                 \
     X(AST_FUNCTION_DECL)        \
     X(AST_PARAMETER_DECL)       \
@@ -124,8 +126,7 @@ typedef struct {
 } AstExecDirective;
 
 typedef struct {
-    StringId binding;
-    StringId path;
+    StringId module;
     FileId file_id;
 } AstImportDirective;
 
@@ -134,6 +135,11 @@ typedef struct {
     FileId file_id;
 } AstIncludeDirective;
 
+
+typedef struct {
+    StringId  name;
+    AstNodeId import;
+} AstImportDeclaration;
 
 typedef struct {
     StringId name;

@@ -6,6 +6,8 @@
 #include <assert.h>
 
 #define TOKENS(X)       \
+    X(TOK_EOF)          \
+                        \
     X(TOK_KW_FN)        \
     X(TOK_KW_STRUCT)    \
     X(TOK_KW_UNION)     \
@@ -104,7 +106,6 @@
     X(TOK_SHR)          \
     X(TOK_SHR_EQ)       \
                         \
-    X(TOK_EOF)          \
     X(TOK_ERROR)        \
                         \
     X(TOKEN_KIND_COUNT) \

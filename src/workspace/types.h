@@ -9,6 +9,34 @@
 
 /*
  *
+ * maps StringId -> path to that module
+ *
+ * Example:
+ *   intern("std/io") -> /home/angel/.local/lily/std/io/module.lily
+ *
+ */
+typedef struct {
+    Arena arena;
+
+    /*
+     *
+     *  indexing by StringId - range.start
+     *
+     */
+    str8* paths;
+    u32 count;
+
+    /*
+     *
+     * range.start = lowest StringId
+     * range.end = highest StringId
+     *
+     */
+    SpanU32 range;
+} StandardLibraryMap;
+
+/*
+ *
  * TODO: need to make this configurable and actually impact things!
  *
  */
@@ -22,6 +50,8 @@ typedef struct {
     str8 name;
 
     TargetOS target_os;
+
+    StandardLibraryMap standard_library_map;
 
     FileInterner file_interner;
 

@@ -62,7 +62,7 @@ void file_interner_init(FileInterner* interner) {
     debug_log("Init buffer arena with %uKB", ARENA_KB(init_buffer_kb));
 
     interner -> buckets = arena_alloc(&interner -> interner_arena, init_bucket_size);
-    interner -> entries = arena_alloc(&interner -> interner_arena, init_entry_size);
+    interner -> entries = arena_calloc(&interner -> interner_arena, init_entry_size);
 
     interner -> bucket_capacity = init_cap;
     interner -> entry_capacity = init_cap;
@@ -103,10 +103,12 @@ FileId file_intern(FileInterner* interner, str8 input_path) {
     assert(input_path.ptr != null);
     assert(input_path.len != 0);
 
+    debug_log("Looking to intern %.*s", STR8_FMT(input_path));
+
     str8 path = get_absolute_path(input_path);
 
     if (path.ptr == null) {
-        diagnostic_add_generic(DIAG_ERROR, "cannot find file %.*s", input_path.len, input_path.ptr);
+        // diagnostic_add_generic(DIAG_ERROR, "cannot find file %.*s", input_path.len, input_path.ptr);
         return FILE_ID_NONE;
     }
 
@@ -156,7 +158,7 @@ FileId file_intern(FileInterner* interner, str8 input_path) {
     interner -> buckets[index].id = id;
     interner -> buckets[index].hash = hash;
 
-    File* file = arena_alloc(&interner -> interner_arena, sizeof(File));
+    File* file = arena_calloc(&interner -> interner_arena, sizeof(File));
 
     interner -> entries[id] = file;
 
@@ -326,7 +328,7 @@ static bool allocate_buffer(FileInterner* interner, str8 path, str8* buffer) {
                 continue;
             }
 
-            // diagnostic_add_generic(DIAG_ERROR, "failed to read file '%.*s'", STR8_FMT(path));
+            diagnostic_add_generic(DIAG_ERROR, "failed to read file '%.*s'", STR8_FMT(path));
 
             buffer -> ptr = null;
             buffer -> len = 0;

@@ -15,11 +15,18 @@
 
 #define UNUSED(n) ((void) n)
 
-#define UNREACHABLE(fmt, ...)                                       \
-    do {                                                            \
-        fprintf(stderr, "UNREACHABLE: %s\n", fmt, ##__VA_ARGS__);   \
-        abort();                                                    \
-    } while(0);
+#define UNREACHABLE(fmt, ...)                                               \
+    do {                                                                    \
+        fprintf(                                                            \
+            stderr,                                                         \
+            "UNREACHABLE at %s:%d in %s(): " fmt "\n",                      \
+            __FILE__,                                                       \
+            __LINE__,                                                       \
+            __func__,                                                       \
+            ##__VA_ARGS__                                                   \
+        );                                                                  \
+        abort();                                                            \
+    } while(0)
 
 #define DA_RESIZE(da, arena)                                                            \
     do {                                                                                \

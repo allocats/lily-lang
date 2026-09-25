@@ -49,6 +49,8 @@ typedef struct {
         /*
          * declarations
          */
+        AstImportDeclaration import_decl;;
+
         AstFunctionDeclaration  func_decl;
         AstParameterDeclaration param_decl;
 
