@@ -143,8 +143,9 @@ typedef struct {
 
 typedef struct {
     StringId name;
-    AstNodeId return_type_expr;
     AstNodeIdList parameters;
+    AstNodeId return_type_expr;
+    AstNodeId body;
 } AstFunctionDeclaration;
 
 typedef struct {

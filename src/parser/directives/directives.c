@@ -152,8 +152,6 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    parser_advance(p); // advance past ';'
-
     if (module_tok.length == 2) {
         diagnostic_add_token(
             p -> file,
@@ -188,6 +186,11 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     FileId module_file_id = FILE_ID_NONE;
 
+    /*
+     *
+     *  check to see if the module is a standard library module
+     *
+     */
     str8 stdlib_path_maybe = standard_library_map_get_module(
         &p -> workspace -> standard_library_map,
         module_string_id
@@ -203,7 +206,6 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
          * bulid path for a relative module
          *
          */
-
         i32 bytes_written_relative = snprintf(
             relative_scratch,
             sizeof(relative_scratch),
@@ -234,6 +236,9 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     }
 
     node -> as.import_directive.file_id = module_file_id;
+    node -> tokens.end = p -> cursor;
+
+    parser_advance(p); // advance past ';'
 
     File* file = workspace_get_file(p -> workspace, module_file_id);
 
@@ -270,8 +275,6 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 
         return parser_error(p, id, RECOVERY_NONE);
     }
-
-    parser_advance(p); // advance past ';'
 
     if (file_tok.length == 2) {
         diagnostic_add_token(
@@ -347,6 +350,9 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     }
 
     node -> as.include_directive.file_id = file_id;
+    node -> tokens.end = p -> cursor;
+
+    parser_advance(p); // advance past ';'
 
     File* file = workspace_get_file(p -> workspace, file_id);
 
@@ -356,5 +362,11 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 }
 
 static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
+    AstNodeId expr_id = AST_NODE_ID_NONE; //= parse_expression(p);
 
+    AstNode* node = parser_get_node(p, id);
+
+    node -> as.exec_directive.expr = expr_id;
+
+    return id;
 }

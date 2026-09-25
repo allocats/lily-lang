@@ -1,4 +1,6 @@
 #include "ast/ast.h"
+#include "ast/kinds.h"
+#include "ids.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 
@@ -62,4 +64,36 @@ inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
     assert(ast != null);
     assert(id < ast -> count);
     return &ast -> nodes[id];
+}
+
+/*
+ *
+ * AST ID list helpers
+ *
+ */
+
+void ast_id_list_init(Ast* ast, AstNodeIdList* list, u32 count) {
+    assert(count != 0);
+
+    u32 size = sizeof(AstNodeId) * count;
+
+    list -> ids = arena_alloc(&ast -> gpa, size);
+    list -> count = 0;
+    list -> capacity = count;
+
+    arena_memset(list -> ids, 0xff, size);
+}
+
+void ast_append_id_list(Ast* ast, AstNodeIdList* list, AstNodeId id) {
+    assert(list -> ids != null);
+
+    if (UNLIKELY(list -> count >= list -> capacity)) {
+        u64 old_size = list -> capacity * sizeof(AstNodeId);
+        u64 new_size = old_size * 2; 
+
+        list -> ids = arena_realloc(&ast -> gpa, list -> ids, old_size, new_size);
+        list -> capacity *= 2;
+    }
+
+    list -> ids[list -> count++] = id;
 }

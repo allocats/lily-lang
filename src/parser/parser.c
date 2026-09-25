@@ -36,15 +36,9 @@ void parse_file(File* file) {
         .file = file,
         .cursor = 0,
         .token_count = file -> tokens.count,
-        .is_parsing_type_expr = false,
-        .is_foreign_allowed = true,
     };
 
     while (p.cursor < p.token_count) {
-        // just incase it is not set back because of some error
-        // or something
-        p.is_foreign_allowed = true;
-
         Token token = parser_peek(&p);
 
         switch (token.kind) {
@@ -65,6 +59,8 @@ void parse_file(File* file) {
             
             case TOK_IDENTIFIER: {
                 AstNodeId node_id = parser_create_node(&p);
+
+                parser_set_node_flags(&p, node_id, AST_FLAG_TOP_DECL);
 
                 Token operator = parser_peek_ahead_by(&p, 1);
 
@@ -137,6 +133,10 @@ inline bool parser_is_node(Parser* p, AstNodeId id, AstKind kind) {
 inline void parser_set_node_flags(Parser* p, AstNodeId id, AstFlag flags) {
     AstNode* node = parser_get_node(p, id);
     node -> flags |= flags;
+}
+
+inline void parser_init_id_list(Parser* p, AstNodeIdList* list, u32 count) {
+    ast_id_list_init(&p -> file -> ast, list, count);
 }
 
 /*

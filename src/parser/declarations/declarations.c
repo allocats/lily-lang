@@ -8,6 +8,7 @@
 
 AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
     Token identifier = parser_peek(p);
+
     StringId name_id = string_intern_token(&p -> workspace -> string_interner, p -> file, identifier);
 
     parser_advance(p); // advance past 'identifier'
@@ -21,7 +22,7 @@ AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
         case TOK_KW_NOINLINE:
         case TOK_KW_INLINE:
         case TOK_KW_FN:
-            // return parse_function_declaration(p, id, name_id);
+            return parse_function_declaration(p, id, name_id);
 
         default: {
             diagnostic_add_token(
