@@ -1,4 +1,3 @@
-#include "ast/ast.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
@@ -195,7 +194,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 return parser_error(p, id, RECOVERY_EXPRESSION);
             }
 
-            ast_append_id_list(&p -> file -> ast, &fn_node -> as.function_type.parameters, param_type_id);
+            parser_append_id_list(p, &fn_node -> as.function_type.parameters, param_type_id);
 
             if (parser_check(p, TOK_COMMA)) {
                 parser_advance(p);

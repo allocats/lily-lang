@@ -3,6 +3,7 @@
 #include "utils/debug.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static constexpr u32 init_cap = 128;
@@ -44,6 +45,25 @@ inline void token_array_destroy(TokenArray* array) {
 inline void source_location_array_destroy(SourceLocationArray* array) {
     assert(array);
     arena_destroy(&array -> arena);
+}
+
+/*
+ *
+ * helper functions!
+ *
+ */
+
+SourceLocation token_get_source_location(File* file, Token* token) {
+    usize bytes = token - file -> tokens.items;
+
+    u32 index = bytes / sizeof(Token);
+
+    printf("index = %u\n", index);
+    printf("count = %lu\n", file -> tokens.count);
+
+    assert(index < file -> tokens.count);
+
+    return file -> source_locations.items[index];
 }
 
 /*

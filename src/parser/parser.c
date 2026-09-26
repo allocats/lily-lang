@@ -1,9 +1,11 @@
 #include "ast/ast.h"
+#include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/types.h"
+#include "ids.h"
 #include "parser/declarations/declarations.h"
 #include "parser/directives/directives.h"
 #include "parser/parser.h"
@@ -58,19 +60,19 @@ void parse_file(File* file) {
             } break;
             
             case TOK_IDENTIFIER: {
-                AstNodeId node_id = parser_create_node(&p);
-
-                parser_set_node_flags(&p, node_id, AST_FLAG_TOP_DECL);
+                AstNodeId id = AST_NODE_ID_NONE;
 
                 Token operator = parser_peek_ahead_by(&p, 1);
 
                 switch (operator.kind) {
                     case TOK_COLON: {
-                        // parse_variable_declaration()
+                        id = parse_variable_declaration(&p);
                     } break;
 
                     case TOK_COLON_COLON: {
-                        parse_top_level_declaration(&p, node_id);
+                        id = parser_create_node(&p);
+
+                        parse_top_level_declaration(&p, id);
                     } break;
 
                     default: {
@@ -83,9 +85,41 @@ void parse_file(File* file) {
                             "expected (':' | '::') after identifier"
                         );
 
-                        parser_error(&p, node_id, RECOVERY_DECLARATION);
+                        id = parser_create_node(&p);
+
+                        parser_error(&p, id, RECOVERY_DECLARATION);
                     } break;
                 }
+
+                /*
+                 *
+                 * recover should the top level parsing fail and restart the loop
+                 * more of a backup recovery, as most nodes will recover correctly 
+                 * on their own.
+                 *
+                 */
+                if (parser_is_node(&p, id, AST_ERROR)) {
+                    parser_recover(&p, RECOVERY_DECLARATION);
+
+                    continue;
+                }
+
+                /*
+                 *
+                 * mark the node as a top level declaration node
+                 *
+                 */
+                parser_set_node_flags(&p, id, AST_FLAG_TOP_DECL);
+
+
+                /*
+                 *
+                 * increment the number of top level declarations, this 
+                 * is used to allocate once for the file's scope, the
+                 * scope that holds all the top level symbols
+                 *
+                 */
+                p.file -> ast.top_level_declaration_count += 1;
             } break;
 
             default: {
@@ -137,6 +171,10 @@ inline void parser_set_node_flags(Parser* p, AstNodeId id, AstFlag flags) {
 
 inline void parser_init_id_list(Parser* p, AstNodeIdList* list, u32 count) {
     ast_id_list_init(&p -> file -> ast, list, count);
+}
+
+inline void parser_append_id_list(Parser* p, AstNodeIdList* list, AstNodeId id) {
+    ast_append_id_list(&p -> file -> ast, list, id);
 }
 
 /*

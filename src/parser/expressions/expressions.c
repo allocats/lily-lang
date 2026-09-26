@@ -1,4 +1,3 @@
-#include "ast/ast.h"
 #include "ast/kinds.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
@@ -34,49 +33,52 @@ static thread_local OpInfo op_info_table[] = {
     [TOK_PIPE_EQ]       = R(10),
     [TOK_CARET_EQ]      = R(10),
 
+    // Ranges
+    [TOK_DOT_DOT]       = L(20),
+
     // Logical OR 
-    [TOK_PIPE_PIPE]     = L(20),
+    [TOK_PIPE_PIPE]     = L(30),
 
     // Logical AND
-    [TOK_AMP_AMP]       = L(30),
+    [TOK_AMP_AMP]       = L(40),
 
     // Bitwise OR 
-    [TOK_PIPE]          = L(40),
+    [TOK_PIPE]          = L(50),
 
     // Bitwise XOR 
-    [TOK_CARET]         = L(50),
+    [TOK_CARET]         = L(60),
 
     // Bitwise AND
-    [TOK_AMP]           = L(60),
+    [TOK_AMP]           = L(70),
 
     // Equality
-    [TOK_BANG_EQ]       = L(70),
-    [TOK_EQ_EQ]         = L(70),
+    [TOK_BANG_EQ]       = L(80),
+    [TOK_EQ_EQ]         = L(80),
 
     // Relational 
-    [TOK_LT]            = L(80),
-    [TOK_LT_EQ]         = L(80),
-    [TOK_GT]            = L(80),
-    [TOK_GT_EQ]         = L(80),
+    [TOK_LT]            = L(90),
+    [TOK_LT_EQ]         = L(90),
+    [TOK_GT]            = L(90),
+    [TOK_GT_EQ]         = L(90),
 
     // Shift
-    [TOK_SHL]           = L(90),
-    [TOK_SHR]           = L(90),
+    [TOK_SHL]           = L(100),
+    [TOK_SHR]           = L(100),
 
     // Additive 
-    [TOK_PLUS]          = L(100),
-    [TOK_MINUS]         = L(100),
+    [TOK_PLUS]          = L(110),
+    [TOK_MINUS]         = L(110),
 
     // Multiplicative 
-    [TOK_STAR]          = L(110),
-    [TOK_SLASH]         = L(110),
-    [TOK_PERCENT]       = L(110),
+    [TOK_STAR]          = L(120),
+    [TOK_SLASH]         = L(120),
+    [TOK_PERCENT]       = L(120),
 
     // Postfix
-    [TOK_L_PAREN]       = L(120),
-    [TOK_L_BRACKET]     = L(120),
-    [TOK_ARROW]         = L(120),
-    [TOK_DOT]           = L(120),
+    [TOK_L_PAREN]       = L(130),
+    [TOK_L_BRACKET]     = L(130),
+    [TOK_ARROW]         = L(130),
+    [TOK_DOT]           = L(130),
 };
 
 static constexpr u32 op_table_length = (sizeof(op_info_table) / sizeof(op_info_table[0]));
@@ -417,7 +419,7 @@ static void parse_call_args(Parser* p, AstNodeId id) {
 
         call = parser_get_node(p, id);
 
-        ast_append_id_list(&p -> file -> ast, &call -> as.func_call.arguments, arg_id);
+        parser_append_id_list(p, &call -> as.func_call.arguments, arg_id);
 
         if (!parser_check(p, TOK_COMMA)) {
             break;

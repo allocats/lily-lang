@@ -191,7 +191,7 @@ typedef struct {
 
 typedef struct {
     // This could be a block
-    AstNodeId stmt;
+    AstNodeId expr;
 } AstDeferStatement;
 
 typedef struct {

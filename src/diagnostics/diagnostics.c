@@ -225,6 +225,9 @@ void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const c
     u32 line = 1;
     u32 col = 1;
 
+    // TODO: SourceLocation locaction = token_get_source_location(file, tok); 
+    // WIll need to change parser functions to return pointers and not stack copies
+
     char* cursor = file -> buffer.ptr;
     char* tok_start = file -> buffer.ptr + tok -> start;
 

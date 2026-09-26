@@ -244,8 +244,8 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
                 return parser_error(p, id, RECOVERY_DECLARATION);
             }
 
-            ast_append_id_list(
-                &p -> file -> ast,
+            parser_append_id_list(
+                p,
                 &node -> as.func_decl.parameters,
                 parameter_id
             );
@@ -254,8 +254,8 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             break;
         }
 
-        ast_append_id_list(
-            &p -> file -> ast,
+        parser_append_id_list(
+            p,
             &node -> as.func_decl.parameters,
             parameter_id
         );
@@ -283,6 +283,16 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         return parser_error(p, id, RECOVERY_DECLARATION);
     }
+
+    node = parser_get_node(p, id);
+
+    /*
+     *
+     * increment the total number of declarations with the number of parameters
+     *
+     */
+    p -> file -> ast.total_declaration_count += node -> as.func_decl.parameters.count;
+
 
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p); // advance past '->'
@@ -321,7 +331,6 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         parser_advance(p); // advance past ';'
 
         p -> file -> ast.total_declaration_count += 1;
-        p -> file -> ast.top_level_declaration_count += 1;
 
         return id;
     }
@@ -351,8 +360,6 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
     node -> as.func_decl.body = block_id;
     node -> tokens.end = p -> cursor;
-
-    p -> file -> ast.total_declaration_count += node -> as.func_decl.parameters.count;
 
     return id;
 }
