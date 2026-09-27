@@ -55,8 +55,36 @@ AstNodeId parse_statement(Parser* p) {
             return parse_block(p);
         }
 
+        case TOK_KW_FOR: {
+            bool previous_loop_context = p -> in_loop_context;
+
+            p -> in_loop_context = true;
+
+            AstNodeId id = parser_for_loop(p);
+
+            p -> in_loop_context = previous_loop_context;
+
+            return id;
+        }
+
         case TOK_KW_WHILE: {
-            return parser_while_loop(p);
+            bool previous_loop_context = p -> in_loop_context;
+
+            p -> in_loop_context = true;
+
+            AstNodeId id = parser_while_loop(p);
+
+            p -> in_loop_context = previous_loop_context;
+
+            return id;
+        }
+
+        case TOK_KW_BREAK: {
+            return parser_break_statement(p);
+        }
+
+        case TOK_KW_CONTINUE: {
+            return parser_continue_statement(p);
         }
 
         case TOK_KW_DEFER: {

@@ -142,7 +142,6 @@ void lex_file(File* file) {
 
 static void lex_whitespace(Lexer* lexer) {
     while (IS_WHITESPACE(lexer_current(lexer))) {
-        // TODO: perhaps profile this, might be a nothing burger
         if (lexer_current(lexer) == '\n') {
             lexer -> line += 1;
             lexer -> col = 0; // set this to zero because advance will make it 1

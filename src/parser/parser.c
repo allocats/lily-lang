@@ -38,6 +38,7 @@ void parse_file(File* file) {
         .file = file,
         .cursor = 0,
         .token_count = file -> tokens.count,
+        .in_loop_context = false,
     };
 
     while (p.cursor < p.token_count) {

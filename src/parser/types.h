@@ -13,6 +13,8 @@ typedef struct {
     u32 token_count;
 
     AstNodeId last_allocated_node_id;
+
+    bool in_loop_context;
 } Parser;
 
 #endif // !LILY_PARSER_TYPES_H

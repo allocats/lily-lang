@@ -41,9 +41,6 @@ typedef struct {
     // TODO: Add support to read from flags
     u32 threshold_value;
 
-    // TODO: path to dump output, null if none which defaults to stdout/stderr
-    u8* dump_path;
-
     u32 error_count;
 
     u32 count;

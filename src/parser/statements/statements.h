@@ -17,6 +17,8 @@ AstNodeId parse_return_statement(Parser* p);
 AstNodeId parser_for_loop(Parser* p);
 AstNodeId parser_while_loop(Parser* p);
 
+AstNodeId parser_break_statement(Parser* p);
+AstNodeId parser_continue_statement(Parser* p);
 /*
  *
  * recursively making blocks! will create new blocks inside of it

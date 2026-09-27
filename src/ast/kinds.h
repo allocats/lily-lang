@@ -208,48 +208,58 @@ typedef struct {
     AstNodeId else_block;
 } AstIfStatement;
 
-typedef enum {
-    /*
-     *
-     *  the standard C style for loops
-     *  example:
-     *      for i: i32 = 0; i < 10; i += 1 { ... }
-     *
-     */
-    FOR_C_STYLE,
-
-    /*
-     *
-     *  iterate over a range loop
-     *  example:
-     *      for i: i32 in xs {}
-     *
-     *  Need to figure out iterating with reference maybe this?
-     *
-     *      for &i: i32 in xs {}
-     *
-     */
-    FOR_IN,
-} ForLoopKind;
+// typedef enum {
+//     /*
+//      *
+//      *  the standard C style for loops
+//      *  example:
+//      *      for i: i32 = 0; i < 10; i += 1 { ... }
+//      *
+//      */
+//     FOR_C_STYLE,
+//
+//     /*
+//      *
+//      *  iterate over a range loop
+//      *  example:
+//      *      for i: i32 in xs {}
+//      *
+//      *  Need to figure out iterating with reference maybe this?
+//      *
+//      *      for &i: i32 in xs {}
+//      *
+//      */
+//     FOR_IN,
+// } ForLoopKind;
+//
+// typedef struct {
+//     ForLoopKind kind;
+//
+//     union {
+//         struct {
+//             AstNodeId init;
+//             AstNodeId cond;
+//             AstNodeId step;
+//         } c_style;
+//
+//         struct {
+//             AstNodeId iterator;
+//             AstNodeId range;
+//         } in;
+//     } as;
+//
+//     AstNodeId body;
+//     StringId label;
+// } AstForLoop;
 
 typedef struct {
-    ForLoopKind kind;
+    StringId label;
 
-    union {
-        struct {
-            AstNodeId init;
-            AstNodeId cond;
-            AstNodeId step;
-        } c_style;
-
-        struct {
-            AstNodeId iterator;
-            AstNodeId range;
-        } in;
-    } as;
+    AstNodeId init;
+    AstNodeId cond;
+    AstNodeId step;
 
     AstNodeId body;
-    StringId label;
 } AstForLoop;
 
 typedef struct {
