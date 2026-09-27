@@ -10,116 +10,400 @@
 #include "tokens/kinds.h"
 #include "tokens/tokens.h"
 
-// helper: L(n) = left associativity at level n, R(n) = right associativity at level n
-#define L(n) { (n), (n) - 1 }
-#define R(n) { (n), (n) }
-
-typedef struct {
-    u8 lbp;
-    u8 rbp;
-} OpInfo;
-
-static thread_local OpInfo op_info_table[] = {
-    // Assignment
-    [TOK_EQ]            = R(10),
-    [TOK_PLUS_EQ]       = R(10),
-    [TOK_MINUS_EQ]      = R(10),
-    [TOK_STAR_EQ]       = R(10),
-    [TOK_SLASH_EQ]      = R(10),
-    [TOK_PERCENT_EQ]    = R(10),
-    [TOK_SHL_EQ]        = R(10),
-    [TOK_SHR_EQ]        = R(10),
-    [TOK_AMP_EQ]        = R(10),
-    [TOK_PIPE_EQ]       = R(10),
-    [TOK_CARET_EQ]      = R(10),
-
-    // Ranges
-    [TOK_DOT_DOT]       = L(20),
-
-    // Logical OR 
-    [TOK_PIPE_PIPE]     = L(30),
-
-    // Logical AND
-    [TOK_AMP_AMP]       = L(40),
-
-    // Bitwise OR 
-    [TOK_PIPE]          = L(50),
-
-    // Bitwise XOR 
-    [TOK_CARET]         = L(60),
-
-    // Bitwise AND
-    [TOK_AMP]           = L(70),
-
-    // Equality
-    [TOK_BANG_EQ]       = L(80),
-    [TOK_EQ_EQ]         = L(80),
-
-    // Relational 
-    [TOK_LT]            = L(90),
-    [TOK_LT_EQ]         = L(90),
-    [TOK_GT]            = L(90),
-    [TOK_GT_EQ]         = L(90),
-
-    // Shift
-    [TOK_SHL]           = L(100),
-    [TOK_SHR]           = L(100),
-
-    // Additive 
-    [TOK_PLUS]          = L(110),
-    [TOK_MINUS]         = L(110),
-
-    // Multiplicative 
-    [TOK_STAR]          = L(120),
-    [TOK_SLASH]         = L(120),
-    [TOK_PERCENT]       = L(120),
-
-    // Postfix
-    [TOK_L_PAREN]       = L(130),
-    [TOK_L_BRACKET]     = L(130),
-    [TOK_ARROW]         = L(130),
-    [TOK_DOT]           = L(130),
-};
-
-static constexpr u32 op_table_length = (sizeof(op_info_table) / sizeof(op_info_table[0]));
-
-static AstNodeId nud(Parser* p, Token token);
-static AstNodeId led(Parser* p, Token token, AstNodeId left);
-
-static void parse_call_args(Parser* p, AstNodeId id);
-
-static u8 lbp_of(TokenKind kind);
+/*
+ *
+ * all the parsing levels
+ *
+ */
+static AstNodeId parse_assignment(Parser* p);
+static AstNodeId parse_range(Parser* p);
+static AstNodeId parse_logical_or(Parser* p);
+static AstNodeId parse_logical_and(Parser* p);
+static AstNodeId parse_bitwise_or(Parser* p);
+static AstNodeId parse_bitwise_xor(Parser* p);
+static AstNodeId parse_bitwise_and(Parser* p);
+static AstNodeId parse_equality(Parser* p);
+static AstNodeId parse_relational(Parser* p);
+static AstNodeId parse_shift(Parser* p);
+static AstNodeId parse_additive(Parser* p);
+static AstNodeId parse_multiplicative(Parser* p);
+static AstNodeId parse_unary(Parser* p);
+static AstNodeId parse_postfix(Parser* p);
+static AstNodeId parse_primary(Parser* p);
 
 /*
  *
- * entry point expression parsing function for pratt parser
+ * abstracted parsing functions
  *
  */
 
-AstNodeId parse_expression(Parser* p, u32 prec) {
-    u32 starting_token_index = p -> cursor;
+static AstNodeId parse_call(Parser* p, AstNodeId left);
+static AstNodeId parse_index(Parser* p, AstNodeId left);
+static AstNodeId parse_member_access(Parser* p, AstNodeId left);
+static void      parse_call_args(Parser* p, AstNodeId id);
 
-    Token token = parser_advance(p);
+/*
+ *
+ * helpers
+ *
+ */
 
-    AstNodeId left = nud(p, token);
+static AstNodeId make_binary_node(Parser* p, u32 starting_token_index, TokenKind op, AstNodeId lhs, AstNodeId rhs);
+static bool      is_assignment_op(TokenKind kind);
+static bool      is_unary_op(TokenKind kind);
 
-    while (lbp_of(parser_peek(p).kind) > prec) {
-        Token op = parser_advance(p);
+/*
+ *
+ * expression parser entry point
+ *
+ */
 
-        left = led(p, op, left);
-    }
-
-    u32 end_token_index = p -> cursor - 1;
-
-    AstNode* node = parser_get_node(p, left);
-
-    node -> tokens.start = starting_token_index;
-    node -> tokens.end = end_token_index;
-
-    return left;
+inline AstNodeId parse_expression(Parser* p) {
+    return parse_assignment(p);
 }
 
-static AstNodeId nud(Parser* p, Token token) {
+/*
+ *
+ * entry point for type expressions! we need to skip the assignment level
+ * no parser flag by doing it this way
+ *
+ */
+inline AstNodeId parse_expression_for_type_expression(Parser* p) {
+    return parse_range(p);
+}
+
+/*
+ *
+ * Assignment: Is right associative so it recurses into itself for the RHS
+ *
+ */
+static AstNodeId parse_assignment(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_range(p);
+
+    Token operator_tok = parser_peek(p);
+
+    if (is_assignment_op(operator_tok.kind)) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_assignment(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Ranges
+ *
+ */
+static AstNodeId parse_range(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_logical_or(p);
+
+    while (parser_check(p, TOK_DOT_DOT)) {
+        Token range_operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_logical_or(p);
+
+        lhs = make_binary_node(p, starting_token_index, range_operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Logical OR the `||` token
+ *
+ */
+static AstNodeId parse_logical_or(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_logical_and(p);
+
+    while (parser_check(p, TOK_PIPE_PIPE)) {
+        Token operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_logical_and(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Logical AND the `&&` token
+ *
+ */
+static AstNodeId parse_logical_and(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_bitwise_or(p);
+
+    while (parser_check(p, TOK_AMP_AMP)) {
+        Token operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_bitwise_or(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Bitwise OR the `|` token
+ *
+ */
+static AstNodeId parse_bitwise_or(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_bitwise_xor(p);
+
+    while (parser_check(p, TOK_PIPE)) {
+        Token operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_bitwise_xor(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Bitwise XOR the `^` token
+ *
+ */
+static AstNodeId parse_bitwise_xor(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_bitwise_and(p);
+
+    while (parser_check(p, TOK_CARET)) {
+        Token operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_bitwise_and(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Bitwise AND the `&` token
+ *
+ */
+static AstNodeId parse_bitwise_and(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_equality(p);
+
+    while (parser_check(p, TOK_AMP)) {
+        Token operator_tok = parser_advance(p);
+
+        AstNodeId rhs = parse_equality(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Equality the `!=` and `==` tokens
+ *
+ */
+static AstNodeId parse_equality(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_relational(p);
+
+    Token operator_tok = parser_peek(p);
+
+    while (operator_tok.kind == TOK_BANG_EQ || operator_tok.kind == TOK_EQ_EQ) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_relational(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+
+        operator_tok = parser_peek(p);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Relational the `>=`, `>`, `<`, `<=` tokens
+ *
+ */
+static AstNodeId parse_relational(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_shift(p);
+
+    Token operator_tok = parser_peek(p);
+
+    while (
+        operator_tok.kind == TOK_LT_EQ || operator_tok.kind == TOK_LT ||
+        operator_tok.kind == TOK_GT_EQ || operator_tok.kind ==  TOK_GT
+    ) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_shift(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+
+        operator_tok = parser_peek(p);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Bitshifting the `<<` and `>>` operators
+ *
+ */
+static AstNodeId parse_shift(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_additive(p);
+
+    Token operator_tok = parser_peek(p);
+
+    while (operator_tok.kind == TOK_SHL || operator_tok.kind == TOK_SHR) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_additive(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+
+        operator_tok = parser_peek(p);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Additive the `-` and `+` tokens
+ *
+ */
+static AstNodeId parse_additive(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_multiplicative(p);
+
+    Token operator_tok = parser_peek(p);
+
+    while (operator_tok.kind == TOK_PLUS || operator_tok.kind == TOK_MINUS) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_multiplicative(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+
+        operator_tok = parser_peek(p);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Multiplicative the `*`, `/` and the `%` tokkens
+ *
+ */
+static AstNodeId parse_multiplicative(Parser* p) {
+    u32 starting_token_index = p -> cursor;
+
+    AstNodeId lhs = parse_unary(p);
+
+    Token operator_tok = parser_peek(p);
+
+    while (operator_tok.kind == TOK_STAR || operator_tok.kind == TOK_SLASH || operator_tok.kind == TOK_PERCENT) {
+        parser_advance(p);
+
+        AstNodeId rhs = parse_unary(p);
+
+        lhs = make_binary_node(p, starting_token_index, operator_tok.kind, lhs, rhs);
+
+        operator_tok = parser_peek(p);
+    }
+
+    return lhs;
+}
+
+/*
+ *
+ * Unary operator, right associative
+ *
+ */
+static AstNodeId parse_unary(Parser* p) {
+    Token operator_tok = parser_peek(p);
+
+    if (is_unary_op(operator_tok.kind)) {
+        u32 starting_token_index = p -> cursor;
+
+        parser_advance(p); // advance past `operator`
+
+        AstNodeId operand_id = parse_unary(p);
+
+        AstNodeId id  = parser_create_node(p);
+        AstNode* node = parser_get_node(p, id);
+
+        node -> kind = AST_UNARY_OP;
+
+        node -> as.unary_op.op = operator_tok.kind;
+        node -> as.unary_op.operand = operand_id;
+
+        node -> tokens.start = starting_token_index;
+        node -> tokens.end = p -> cursor - 1;
+
+        return id;
+    }
+
+    return parse_postfix(p);
+}
+
+static AstNodeId parse_postfix(Parser* p) {
+    AstNodeId lhs = parse_primary(p);
+
+    while (true) {
+        Token operator_tok = parser_peek(p);
+
+        if (operator_tok.kind == TOK_L_PAREN) {
+            lhs = parse_call(p, lhs);
+        } else if (operator_tok.kind == TOK_L_BRACKET) {
+            lhs = parse_index(p, lhs);
+        } else if (operator_tok.kind == TOK_DOT) {
+            lhs = parse_member_access(p, lhs);
+        } else {
+            break;
+        }
+    }
+
+    return lhs;
+}
+
+static AstNodeId parse_primary(Parser* p) {
+    Token token = parser_advance(p);
+
     switch (token.kind) {
         case TOK_INTEGER_LIT: {
             AstNodeId id  = parser_create_node(p);
@@ -127,6 +411,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_INTEGER;
             node -> as.literal.as.integer = get_integer_literal_from_token(p -> file, token);
@@ -140,6 +425,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_FLOATING;
             node -> as.literal.as.floating = get_floating_literal_from_token(p -> file, token);
@@ -153,6 +439,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_CHAR;
             node -> as.literal.as.character = get_character_literal_from_token(p -> file, token);
@@ -166,6 +453,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_STRING;
             node -> as.literal.as.string = string_intern_token(&p -> workspace -> string_interner, p -> file, token);
@@ -180,6 +468,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_BOOL;
             node -> as.literal.as.boolean = token.kind == TOK_KW_TRUE;
@@ -193,6 +482,7 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_LITERAL;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_NULL;
 
@@ -205,32 +495,15 @@ static AstNodeId nud(Parser* p, Token token) {
 
             node -> kind = AST_IDENTIFIER;
             node -> tokens.start -= 1;
+            node -> tokens.end = node -> tokens.start;
 
             node -> as.identifier.name = string_intern_token(&p -> workspace -> string_interner, p -> file, token);
 
             return id;
         }
 
-        case TOK_STAR:
-        case TOK_PLUS:
-        case TOK_MINUS:
-        case TOK_BANG:
-        case TOK_TILDE:
-        case TOK_AMP: {
-            AstNodeId id  = parser_create_node(p);
-            AstNode* node = parser_get_node(p, id);
-
-            node -> kind = AST_UNARY_OP;
-            node -> tokens.start -= 1;
-
-            node -> as.unary_op.op = token.kind;
-            node -> as.unary_op.operand = parse_expression(p, 119);
-
-            return id;
-        }
-
         case TOK_L_PAREN: {
-            AstNodeId id = parse_expression(p, 0);
+            AstNodeId id = parse_expression(p);
 
             if (!parser_check(p, TOK_R_PAREN)) {
                 Token previous = parser_peek_behind_by(p, 1);
@@ -252,6 +525,39 @@ static AstNodeId nud(Parser* p, Token token) {
             return id;
         }
 
+        case TOK_HASHTAG: {
+            AstNodeId id  = parser_create_node(p);
+            AstNode* node = parser_get_node(p, id);
+
+            node -> kind = AST_EXECUTE_DIRECTIVE;
+            node -> tokens.start -= 1;
+
+            Token directive_tok = parser_advance(p);
+
+            if (!string_lookup_token(&p -> workspace -> string_interner, p -> file, directive_tok)) {
+                diagnostic_add_token(
+                    p -> file,
+                    DIAG_ERROR,
+                    &token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid directive in expression",
+                    "only the `#execute` directive is allowed in expressions"
+                );
+
+                return parser_error(p, id, RECOVERY_EXPRESSION);
+            }
+
+            AstNodeId expr_id = parse_unary(p);
+
+            node = parser_get_node(p, id);
+
+            node -> as.exec_directive.expr = expr_id;
+
+            node -> tokens.end = p -> cursor - 1;
+
+            return id;
+        }
+
         default: {
             diagnostic_add_token(
                 p -> file,
@@ -268,143 +574,136 @@ static AstNodeId nud(Parser* p, Token token) {
             node -> tokens.start = p -> cursor - 1;
 
             return parser_error(p, id, RECOVERY_EXPRESSION);
-        } 
+        }
     }
 }
 
-static AstNodeId led(Parser* p, Token token, AstNodeId left) {
-    switch (token.kind) {
-        case TOK_L_PAREN: {
-            AstNodeId id  = parser_create_node(p);
-            AstNode* node = parser_get_node(p, id);
+/*
+ *
+ * abstracted parsing functions
+ *
+ */
 
-            node -> kind = AST_FUNCTION_CALL;
-            node -> tokens.start -= 2;
+static AstNodeId parse_call(Parser* p, AstNodeId left) {
+    parser_advance(p);
 
-            node -> as.func_call.identifier = left;
+    AstNodeId id  = parser_create_node(p);
+    AstNode* node = parser_get_node(p, id);
 
-            parser_init_id_list(p, &node -> as.func_call.arguments, 4);
+    node -> kind = AST_FUNCTION_CALL;
+    node -> tokens.start -= 2;
 
-            parse_call_args(p, id);
+    node -> as.func_call.identifier = left;
 
-            if (!parser_check(p, TOK_R_PAREN)) {
-                Token previous = parser_peek_behind_by(p, 1);
+    parser_init_id_list(p, &node -> as.func_call.arguments, 4);
 
-                diagnostic_add_token(
-                    p -> file,
-                    DIAG_ERROR,
-                    &previous,
-                    DIAG_LOC_END_OF_TOK,
-                    "expected ')'",
-                    "add a ')' here" 
-                );
+    parse_call_args(p, id);
 
-                return parser_error(p, id, RECOVERY_EXPRESSION);
-            }
+    if (!parser_check(p, TOK_R_PAREN)) {
+        Token previous = parser_peek_behind_by(p, 1);
 
-            node = parser_get_node(p, id);
-            node -> tokens.end = p -> cursor;
+        diagnostic_add_token(
+            p -> file,
+            DIAG_ERROR,
+            &previous,
+            DIAG_LOC_END_OF_TOK,
+            "expected ')'",
+            "add a ')' here"
+        );
 
-            parser_advance(p);
-
-            return id;
-        }
-
-        case TOK_L_BRACKET: {
-            AstNodeId id  = parser_create_node(p);
-            AstNode* node = parser_get_node(p, id);
-
-            node -> kind = AST_INDEX;
-            node -> tokens.start -= 2;
-
-            node -> as.index.identifier = left;
-
-            AstNodeId index_expr_id = parse_expression(p, 0);
-
-            node = parser_get_node(p, id);
-            node -> as.index.index_expr = index_expr_id;
-
-            if (!parser_check(p, TOK_R_BRACKET)) {
-                Token previous = parser_peek_behind_by(p, 1);
-
-                diagnostic_add_token(
-                    p -> file,
-                    DIAG_ERROR,
-                    &previous,
-                    DIAG_LOC_END_OF_TOK,
-                    "expected ']'",
-                    "add a ']' here" 
-                );
-
-                return parser_error(p, id, RECOVERY_EXPRESSION);
-            }
-
-            node -> tokens.end = p -> cursor;
-
-            parser_advance(p);
-
-            return id;
-        }
-
-        case TOK_DOT: {
-            AstNodeId id  = parser_create_node(p);
-            AstNode* node = parser_get_node(p, id);
-
-            node -> kind = AST_MEMBER_ACCESS; 
-            node -> tokens.start -= 2;
-
-            if (!parser_check(p, TOK_IDENTIFIER)) {
-                Token bad_token = parser_peek(p);
-
-                diagnostic_add_token(
-                    p -> file,
-                    DIAG_ERROR,
-                    &bad_token,
-                    DIAG_LOC_WHOLE_TOK,
-                    "expected identifier",
-                    "member access requires an identifier"
-                );
-
-                return parser_error(p, id, RECOVERY_EXPRESSION);
-            }
-
-            Token member_token = parser_advance(p);
-
-            AstNodeId member_id  = parser_create_node(p);
-            AstNode* member_node = parser_get_node(p, member_id);
-
-            member_node -> kind = AST_IDENTIFIER;
-            member_node -> as.identifier.name = string_intern_token(
-                &p -> workspace -> string_interner,
-                p -> file,
-                member_token
-            );
-
-            node = parser_get_node(p, id);
-
-            node -> as.member_access.object = left;
-            node -> as.member_access.member = member_id;
-
-            return id;
-        }
-
-        default: {
-            AstNodeId id  = parser_create_node(p);
-            AstNode* node = parser_get_node(p, id);
-
-            node -> kind = AST_BINARY_OP; 
-
-            AstNodeId right = parse_expression(p, op_info_table[token.kind].rbp);
-
-            node = parser_get_node(p, id);
-
-            node -> as.binary_op.op = token.kind;
-            node -> as.binary_op.lhs = left;
-            node -> as.binary_op.rhs = right;
-
-            return id;
-        }
+        return parser_error(p, id, RECOVERY_EXPRESSION);
     }
+
+    node = parser_get_node(p, id);
+    node -> tokens.end = p -> cursor;
+
+    parser_advance(p);
+
+    return id;
+}
+
+static AstNodeId parse_index(Parser* p, AstNodeId left) {
+    parser_advance(p); // advance past `[`
+
+    AstNodeId id  = parser_create_node(p);
+    AstNode* node = parser_get_node(p, id);
+
+    node -> kind = AST_INDEX;
+    node -> tokens.start -= 2;
+
+    node -> as.index.identifier = left;
+
+    AstNodeId index_expr_id = parse_expression(p);
+
+    node = parser_get_node(p, id);
+    node -> as.index.index_expr = index_expr_id;
+
+    if (!parser_check(p, TOK_R_BRACKET)) {
+        Token previous = parser_peek_behind_by(p, 1);
+
+        diagnostic_add_token(
+            p -> file,
+            DIAG_ERROR,
+            &previous,
+            DIAG_LOC_END_OF_TOK,
+            "expected ']'",
+            "add a ']' here"
+        );
+
+        return parser_error(p, id, RECOVERY_EXPRESSION);
+    }
+
+    node -> tokens.end = p -> cursor;
+
+    parser_advance(p);
+
+    return id;
+}
+
+static AstNodeId parse_member_access(Parser* p, AstNodeId left) {
+    parser_advance(p); // advance past `.`
+
+    AstNodeId id  = parser_create_node(p);
+    AstNode* node = parser_get_node(p, id);
+
+    node -> kind = AST_MEMBER_ACCESS;
+    node -> tokens.start -= 2;
+
+    if (!parser_check(p, TOK_IDENTIFIER)) {
+        Token bad_token = parser_peek(p);
+
+        diagnostic_add_token(
+            p -> file,
+            DIAG_ERROR,
+            &bad_token,
+            DIAG_LOC_WHOLE_TOK,
+            "expected identifier",
+            "member access requires an identifier"
+        );
+
+        return parser_error(p, id, RECOVERY_EXPRESSION);
+    }
+
+    Token member_token = parser_advance(p);
+
+    AstNodeId member_id  = parser_create_node(p);
+    AstNode* member_node = parser_get_node(p, member_id);
+
+    member_node -> kind = AST_IDENTIFIER;
+    member_node -> as.identifier.name = string_intern_token(
+        &p -> workspace -> string_interner,
+        p -> file,
+        member_token
+    );
+
+    node = parser_get_node(p, id);
+
+    node -> as.member_access.object = left;
+    node -> as.member_access.member = member_id;
+
+    node -> tokens.end = p -> cursor - 1;
+
+    return id;
 }
 
 static void parse_call_args(Parser* p, AstNodeId id) {
@@ -415,7 +714,7 @@ static void parse_call_args(Parser* p, AstNodeId id) {
     }
 
     do {
-        AstNodeId arg_id = parse_expression(p, 0);
+        AstNodeId arg_id = parse_expression(p);
 
         call = parser_get_node(p, id);
 
@@ -431,14 +730,57 @@ static void parse_call_args(Parser* p, AstNodeId id) {
 
 /*
  *
- * lbp helper
+ * helpers
  *
  */
 
-static inline u8 lbp_of(TokenKind kind) {
-    if (kind > op_table_length) {
-        return 0;
-    }
+static AstNodeId make_binary_node(Parser* p, u32 starting_token_index, TokenKind op, AstNodeId lhs, AstNodeId rhs) {
+    AstNodeId id  = parser_create_node(p);
+    AstNode* node = parser_get_node(p, id);
 
-    return op_info_table[kind].lbp;
+    node -> kind = AST_BINARY_OP;
+
+    node -> as.binary_op.op = op;
+    node -> as.binary_op.lhs = lhs;
+    node -> as.binary_op.rhs = rhs;
+
+    node -> tokens.start = starting_token_index;
+    node -> tokens.end = p -> cursor - 1;
+
+    return id;
+}
+
+static bool is_assignment_op(TokenKind kind) {
+    switch (kind) {
+        case TOK_EQ:
+        case TOK_PLUS_EQ:
+        case TOK_MINUS_EQ:
+        case TOK_STAR_EQ:
+        case TOK_SLASH_EQ:
+        case TOK_PERCENT_EQ:
+        case TOK_SHL_EQ:
+        case TOK_SHR_EQ:
+        case TOK_AMP_EQ:
+        case TOK_PIPE_EQ:
+        case TOK_CARET_EQ:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+static bool is_unary_op(TokenKind kind) {
+    switch (kind) {
+        case TOK_AMP:
+        case TOK_STAR:
+        case TOK_PLUS:
+        case TOK_MINUS:
+        case TOK_BANG:
+        case TOK_TILDE:
+            return true;
+
+        default:
+            return false;
+    }
 }

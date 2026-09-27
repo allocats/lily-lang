@@ -6,6 +6,7 @@
 #include "files/files.h"
 #include "ids.h"
 #include "parser/directives/directives.h"
+#include "parser/expressions/expressions.h"
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
@@ -362,11 +363,30 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 }
 
 static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
-    AstNodeId expr_id = AST_NODE_ID_NONE; //= parse_expression(p);
+    AstNodeId expr_id = parse_expression(p);
 
     AstNode* node = parser_get_node(p, id);
 
     node -> as.exec_directive.expr = expr_id;
+
+    node -> tokens.end = p -> cursor;
+
+    if (!parser_check(p, TOK_SEMI)) {
+        Token previous = parser_peek_behind_by(p, 1);
+
+        diagnostic_add_token(
+            p -> file,
+            DIAG_ERROR,
+            &previous,
+            DIAG_LOC_END_OF_TOK,
+            "expetced ';'",
+            "add a ';' here"
+        );
+
+        return parser_error(p, id, RECOVERY_NONE);
+    }
+
+    parser_advance(p); // advance past `;`
 
     return id;
 }

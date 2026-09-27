@@ -51,7 +51,7 @@ AstNodeId parse_variable_declaration(Parser* p) {
     if (parser_check(p, TOK_EQ)) {
         parser_advance(p);
 
-        AstNodeId initializer_id = parse_expression(p, 0);
+        AstNodeId initializer_id = parse_expression(p);
 
         if (parser_is_node(p, initializer_id, AST_ERROR)) {
             return parser_error(p, id, RECOVERY_NONE);

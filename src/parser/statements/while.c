@@ -21,7 +21,7 @@ AstNodeId parser_while_loop(Parser* p) {
 
     parser_advance(p); // advance past `while`
 
-    AstNodeId condition_id = parse_expression(p, 0);
+    AstNodeId condition_id = parse_expression(p);
 
     if (parser_is_node(p, condition_id, AST_ERROR)) {
         return parser_error(p, id, RECOVERY_STATEMENT);

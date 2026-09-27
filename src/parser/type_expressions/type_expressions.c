@@ -87,7 +87,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 continue;
             }
 
-            AstNodeId size_expr = parse_expression(p, 0);
+            AstNodeId size_expr = parse_expression(p);
 
             if (!parser_check(p, TOK_R_BRACKET)) {
                 Token token = parser_peek_behind_by(p, 1);
@@ -257,7 +257,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
         // regular type
 
-        AstNodeId primary_id = parse_expression(p, 119);
+        AstNodeId primary_id = parse_expression_for_type_expression(p);
 
         if (parser_is_node(p, primary_id, AST_ERROR)) {
             AstNodeId id = parser_create_node(p);

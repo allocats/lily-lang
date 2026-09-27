@@ -1,4 +1,3 @@
-#include "ast/ast.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"

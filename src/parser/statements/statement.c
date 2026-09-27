@@ -20,7 +20,7 @@ AstNodeId parse_statement(Parser* p) {
             if (parser_peek_ahead_by(p, 1).kind == TOK_COLON) {
                 return parse_variable_declaration(p);
             } else {
-                AstNodeId id = parse_expression(p, 0);
+                AstNodeId id = parse_expression(p);
 
                 if (parser_is_node(p, id, AST_ERROR)) {
                     return id;
@@ -96,7 +96,7 @@ AstNodeId parse_statement(Parser* p) {
         }
 
         default: {
-            AstNodeId id = parse_expression(p, 0);
+            AstNodeId id = parse_expression(p);
 
             if (parser_is_node(p, id, AST_ERROR)) {
                 return id;

@@ -37,7 +37,7 @@ AstNodeId parser_for_loop(Parser* p) {
         return parser_error(p, id, RECOVERY_STATEMENT);
     }
 
-    AstNodeId condition_id = parse_expression(p, 0);
+    AstNodeId condition_id = parse_expression(p);
 
     if (!parser_check(p, TOK_SEMI)) {
         Token previous = parser_peek_behind_by(p, 1);
@@ -56,7 +56,7 @@ AstNodeId parser_for_loop(Parser* p) {
 
     parser_advance(p); // advance past `;`
 
-    AstNodeId step_id = parse_expression(p, 0);
+    AstNodeId step_id = parse_expression(p);
     
     if (!parser_check(p, TOK_L_BRACE)) {
         Token previous = parser_peek_behind_by(p, 1);

@@ -18,7 +18,7 @@ AstNodeId parse_return_statement(Parser* p) {
 
     parser_advance(p); // advance past `return`
 
-    AstNodeId expression_id = parse_expression(p, 0);
+    AstNodeId expression_id = parse_expression(p);
 
     if (!parser_check(p, TOK_SEMI)) {
         Token previous = parser_peek_behind_by(p, 1);
