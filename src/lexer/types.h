@@ -4,7 +4,7 @@
 #include "files/types.h"
 #include "utils/types.h"
 
-static constexpr u32 DELIMITER_STACK_MAX_DEPTH = 2048;
+static constexpr u32 DELIMITER_STACK_MAX_DEPTH = 512;
 
 typedef struct {
     u32 top;
@@ -12,18 +12,17 @@ typedef struct {
 } DelimiterStack;
 
 typedef struct {
-    DelimiterStack stack;
-
     File* file;
 
     const char* cursor;
     const char* end;
 
     u32 line;
-    u32 col;
+
+    DelimiterStack stack;
 } Lexer;
 
-static const thread_local char CHAR_MAP[] = {
+static const char CHAR_MAP[256] = {
     ['0' ... '9'] = 1,
 
     ['a' ... 'z'] = 2,

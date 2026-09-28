@@ -35,7 +35,6 @@ typedef struct {
     str8 buffer;
 
     TokenArray tokens;
-    SourceLocationArray source_locations;
 
     Ast ast;
 

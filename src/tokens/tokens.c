@@ -3,67 +3,29 @@
 #include "utils/debug.h"
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 
-static constexpr u32 init_cap = 128;
-static constexpr u32 init_size = init_cap * sizeof(Token);
-static constexpr u32 init_kb = (init_cap * sizeof(Token)) / ARENA_KB(1);
-
-static_assert(init_cap > 0);
-static_assert(init_cap % 2 == 0);
-
-void token_array_init(TokenArray* array) {
+void token_array_init(TokenArray* array, u64 capacity) {
     assert(array != null);
+    assert(capacity % 2 == 0 && "capacity is not power of two");
 
-    arena_init(&array -> arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
+    u64 size = sizeof(Token) * capacity;
 
-    array -> items = arena_alloc(&array -> arena, init_size);
+    arena_init(&array -> arena, size, ALIGN_DEFAULT);
+
+    array -> items = arena_alloc(&array -> arena, size);
     array -> count = 0;
-    array -> capacity = init_cap;
+    array -> capacity = capacity;
 
-    debug_log("Created new token array");
-}
-
-void source_location_array_init(SourceLocationArray* array) {
-    assert(array != null);
-
-    arena_init(&array -> arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
-
-    array -> items = arena_alloc(&array -> arena, init_size);
-    array -> count = 0;
-    array -> capacity = init_cap;
-
-    debug_log("Created new source location array");
+    debug_log("Created new token array with capacty %lu", capacity);
 }
 
 inline void token_array_destroy(TokenArray* array) {
     assert(array);
+    
+    debug_log("Deleting TokenArray: Count=%lu Capacity=%lu", array -> count, array -> capacity);
+
     arena_destroy(&array -> arena);
-}
-
-inline void source_location_array_destroy(SourceLocationArray* array) {
-    assert(array);
-    arena_destroy(&array -> arena);
-}
-
-/*
- *
- * helper functions!
- *
- */
-
-SourceLocation token_get_source_location(File* file, Token* token) {
-    usize bytes = token - file -> tokens.items;
-
-    u32 index = bytes / sizeof(Token);
-
-    printf("index = %u\n", index);
-    printf("count = %lu\n", file -> tokens.count);
-
-    assert(index < file -> tokens.count);
-
-    return file -> source_locations.items[index];
 }
 
 /*

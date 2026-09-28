@@ -32,16 +32,11 @@ static void lex_char_lit(Lexer* lexer);
 static void lex_string_lit(Lexer* lexer);
 static void lex_invalid(Lexer* lexer);
 
-static void lexer_advance(Lexer* lexer);
-static void lexer_advance_by(Lexer* lexer, u32 n);
-static char lexer_current(Lexer* lexer);
-
-static void set_source_location(Lexer* lexer);
 static Token* tokens_get_new_token(Lexer* lexer);
 
 typedef void (*LexFn)(Lexer*);
 
-static const thread_local LexFn LEXER_DISPATCH[] = {
+static const LexFn LEXER_DISPATCH[256] = {
     ['0' ... '9'] = lex_number,
 
     ['a' ... 'z'] = lex_word,
@@ -100,11 +95,10 @@ void lex_file(File* file) {
 
     Lexer lexer = {
         .file = file,
-        .stack = {0},
+        .stack = { .top = 0 },
         .cursor = buffer_start,
         .end = buffer_end,
         .line = 1,
-        .col = 1
     };
 
     while (lexer.cursor < lexer.end) {
@@ -141,30 +135,39 @@ void lex_file(File* file) {
 }
 
 static void lex_whitespace(Lexer* lexer) {
-    while (IS_WHITESPACE(lexer_current(lexer))) {
-        if (lexer_current(lexer) == '\n') {
-            lexer -> line += 1;
-            lexer -> col = 0; // set this to zero because advance will make it 1
+    const char* cursor = lexer -> cursor;
+
+    u32 line = lexer -> line;
+
+    while (IS_WHITESPACE(*cursor)) {
+        if (*cursor == '\n') {
+            line += 1;
         } 
 
-        lexer_advance(lexer);
+        cursor += 1;
     }
+
+    lexer -> cursor = cursor;
+    lexer -> line = line;
 }
 
 static void lex_word(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
+
+    const char* cursor = lexer -> cursor;
     const char* start = lexer -> cursor;
 
-    while (IS_ALPHA_NUMERIC(lexer_current(lexer))) {
-        lexer_advance(lexer);
+    while (IS_ALPHA_NUMERIC(*cursor)) {
+        cursor += 1;
     }
 
-    u32 length = lexer -> cursor - start;
+    u32 length = cursor - start;
 
-    assert(length < U16_MAX);
+    assert(length < U16_MAX && "Tokens cannot be more than 65535 characters in length");
 
-    token -> start  = start - lexer -> file -> buffer.ptr;
+    token -> start  = start - buffer_ptr;
     token -> length = length;
 
     switch (length) {
@@ -258,40 +261,50 @@ static void lex_word(Lexer* lexer) {
             token -> kind = TOK_IDENTIFIER;
         } break;
     }
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_number(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
+
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
+
     bool is_floating_point = false;
 
-    const char* start = lexer -> cursor;
-
-    while (IS_DIGIT(lexer_current(lexer))) {
-        lexer_advance(lexer);
+    while (IS_DIGIT(*cursor)) {
+        cursor += 1;
     }
 
-    if (lexer_current(lexer) == '.') {
+    if (*cursor == '.') {
         is_floating_point = true;
 
-        lexer_advance(lexer);
+        cursor += 1;
 
-        while (IS_DIGIT(lexer_current(lexer))) {
-            lexer_advance(lexer);
+        while (IS_DIGIT(*cursor)) {
+            cursor += 1;
         }
     }
 
     token -> kind = is_floating_point ? TOK_FLOAT_LIT : TOK_INTEGER_LIT;
-    token -> start  = start - lexer -> file -> buffer.ptr;
-    token -> length = lexer -> cursor - start;
+    token -> start  = start - buffer_ptr;
+    token -> length = cursor - start;
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_operator(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
-    const char* start = lexer -> cursor;
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
 
-    lexer_advance(lexer);
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
+
+    cursor += 1;
 
     switch (*start) {
         case '@': {
@@ -311,9 +324,9 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '=': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_EQ_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -321,9 +334,9 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '!': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_BANG_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -331,18 +344,18 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '+': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_PLUS_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '+') {
-                lexer_advance(lexer);
+            if (*cursor == '+') {
+                cursor += 1;
 
                 token -> kind = TOK_ERROR;
-                token -> start  = start - lexer -> file -> buffer.ptr;
-                token -> length = lexer -> cursor - start;
+                token -> start  = start - buffer_ptr;
+                token -> length = cursor - start;
 
                 diagnostic_add_token(
                     lexer -> file,
@@ -362,18 +375,18 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '-': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_MINUS_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '-') {
-                lexer_advance(lexer);
+            if (*cursor == '-') {
+                cursor += 1;
 
                 token -> kind = TOK_ERROR;
-                token -> start  = start - lexer -> file -> buffer.ptr;
-                token -> length = lexer -> cursor - start;
+                token -> start  = start - buffer_ptr;
+                token -> length = cursor - start;
 
                 diagnostic_add_token(
                     lexer -> file,
@@ -389,9 +402,9 @@ static void lex_operator(Lexer* lexer) {
                 break;
             }
 
-            if (lexer_current(lexer) == '>') {
+            if (*cursor == '>') {
                 token -> kind = TOK_ARROW;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -399,9 +412,9 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '*': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_STAR_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -409,22 +422,21 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '/': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_SLASH_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '/') {
+            if (*cursor == '/') {
                 lexer -> file -> tokens.count--;
-                lexer -> file -> source_locations.count--;
 
-                while (lexer_current(lexer) != 0 && lexer_current(lexer) != '\n') {
-                    lexer_advance(lexer);
+                while (*cursor != 0 && *cursor != '\n') {
+                    cursor += 1;
                 }
 
-                if (lexer_current(lexer) != 0) {
-                    lexer_advance(lexer);
+                if (*cursor != 0) {
+                    cursor += 1;
                 }
 
                 break;
@@ -434,9 +446,9 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '%': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_PERCENT_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -448,9 +460,9 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '^': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_CARET_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -458,15 +470,15 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '&': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_AMP_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '&') {
+            if (*cursor == '&') {
                 token -> kind = TOK_AMP_AMP;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -474,15 +486,15 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '|': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_PIPE_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '|') {
+            if (*cursor == '|') {
                 token -> kind = TOK_PIPE_PIPE;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
@@ -490,19 +502,19 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '>': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_GT_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '>') {
+            if (*cursor == '>') {
                 token -> kind = TOK_SHR;
-                lexer_advance(lexer);
+                cursor += 1;
 
-                if (lexer_current(lexer) == '=') {
+                if (*cursor == '=') {
                     token -> kind = TOK_SHR_EQ;
-                    lexer_advance(lexer);
+                    cursor += 1;
                 }
 
                 break;
@@ -512,19 +524,19 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '<': {
-            if (lexer_current(lexer) == '=') {
+            if (*cursor == '=') {
                 token -> kind = TOK_LT_EQ;
-                lexer_advance(lexer);
+                cursor += 1;
                 break;
             }
 
-            if (lexer_current(lexer) == '<') {
+            if (*cursor == '<') {
                 token -> kind = TOK_SHL;
-                lexer_advance(lexer);
+                cursor += 1;
 
-                if (lexer_current(lexer) == '=') {
+                if (*cursor == '=') {
                     token -> kind = TOK_SHL_EQ;
-                    lexer_advance(lexer);
+                    cursor += 1;
                 }
 
                 break;
@@ -534,13 +546,13 @@ static void lex_operator(Lexer* lexer) {
         } break;
 
         case '.': {
-            if (lexer_current(lexer) == '.') {
+            if (*cursor == '.') {
                 token -> kind = TOK_DOT_DOT;
-                lexer_advance(lexer);
+                cursor += 1;
 
-                if (lexer_current(lexer) == '.') {
+                if (*cursor == '.') {
                     token -> kind = TOK_ELLIPSIS;
-                    lexer_advance(lexer);
+                    cursor += 1;
                 }
 
                 break;
@@ -550,19 +562,24 @@ static void lex_operator(Lexer* lexer) {
         } break;
     }
 
-    token -> start  = start - lexer -> file -> buffer.ptr;
-    token -> length = lexer -> cursor - start;
+    token -> start  = start - buffer_ptr;
+    token -> length = cursor - start;
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_delimiter(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
-    const char* start = lexer -> cursor;
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
 
-    lexer_advance(lexer);
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
+
+    cursor += 1;
     
-    token -> start = start - lexer -> file -> buffer.ptr;
-    token -> length = lexer -> cursor - start;
+    token -> start = start - buffer_ptr;
+    token -> length = cursor - start;
 
     switch (*start) {
         case ',': {
@@ -576,11 +593,11 @@ static void lex_delimiter(Lexer* lexer) {
         case ':': {
             token -> kind = TOK_COLON;
 
-            if (lexer_current(lexer) == ':') {
+            if (*cursor == ':') {
                 token -> kind = TOK_COLON_COLON;
                 token -> length += 1;
 
-                lexer_advance(lexer);
+                cursor += 1;
             }
         } break;
 
@@ -623,25 +640,30 @@ static void lex_delimiter(Lexer* lexer) {
         case '\0': {
             token -> kind = TOK_EOF;
 
-            lexer -> cursor = lexer -> end;
+            cursor = lexer -> end;
         } break;
     }
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_char_lit(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
+
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
+
     token -> kind = TOK_CHAR_LIT;
-    token -> start = lexer -> cursor - lexer -> file -> buffer.ptr; 
+    token -> start = cursor - buffer_ptr; 
 
-    const char* start = lexer -> cursor;
-
-    lexer_advance(lexer);
+    cursor += 1;
 
     // empty char literal
-    if (lexer_current(lexer) == '\'') {
+    if (*cursor == '\'') {
         token -> kind = TOK_ERROR;
-        token -> length = lexer -> cursor - start;
+        token -> length = cursor - start;
 
         lexer -> file -> stage = FILE_ERROR;
 
@@ -654,19 +676,21 @@ static void lex_char_lit(Lexer* lexer) {
             "add a char to this literal"
         );
 
+        lexer -> cursor = cursor;
+
         return;
     }
 
-    if (lexer_current(lexer) == '\\') {
-        lexer_advance(lexer);
+    if (*cursor == '\\') {
+        cursor += 1;
     }
 
-    lexer_advance(lexer);
+    cursor += 1;
 
     // unterminated char literal
-    if (lexer_current(lexer) != '\'') {
+    if (*cursor != '\'') {
         token -> kind = TOK_ERROR;
-        token -> length = lexer -> cursor - start;
+        token -> length = cursor - start;
 
         lexer -> file -> stage = FILE_ERROR;
 
@@ -679,37 +703,44 @@ static void lex_char_lit(Lexer* lexer) {
             "add the closing delimiter to this char literal"
         );
 
-        lexer_advance(lexer);
+        cursor += 1;
+
+        lexer -> cursor = cursor;
 
         return;
     }
 
-    token -> start = start - lexer -> file -> buffer.ptr;
-    token -> length = ++lexer -> cursor - start; 
+    token -> start = start - buffer_ptr;
+    token -> length = ++cursor - start; 
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_string_lit(Lexer* lexer) {
     Token* token = tokens_get_new_token(lexer);
 
-    const char* start = lexer -> cursor;
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
+
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
 
     token -> kind = TOK_STRING_LIT;
-    token -> start = start - lexer -> file -> buffer.ptr; 
+    token -> start = start - buffer_ptr; 
 
-    lexer_advance(lexer);
+    cursor += 1;
 
-    while (lexer_current(lexer) != '\"' && lexer_current(lexer) != 0) {
-        lexer_advance(lexer);
+    while (*cursor != '\"' && *cursor != 0) {
+        cursor += 1;
 
-        if (lexer_current(lexer) == '\\') {
-            lexer_advance_by(lexer, 2);
+        if (*cursor == '\\') {
+            cursor += 2;
         }
     }
 
     // unterminated string literal
-    if (lexer_current(lexer) != '\"') {
+    if (*cursor != '\"') {
         token -> kind = TOK_ERROR;
-        token -> length = lexer -> cursor - start;
+        token -> length = cursor - start;
 
         lexer -> file -> stage = FILE_ERROR;
 
@@ -723,13 +754,15 @@ static void lex_string_lit(Lexer* lexer) {
         );
     }
 
-    lexer_advance(lexer);
+    cursor += 1;
 
-    u32 length = lexer -> cursor - start;
+    u32 length = cursor - start;
 
     assert(length < U16_MAX);
 
     token -> length = length;
+
+    lexer -> cursor = cursor;
 }
 
 static void lex_invalid(Lexer* lexer) {
@@ -737,24 +770,27 @@ static void lex_invalid(Lexer* lexer) {
 
     Token* token = tokens_get_new_token(lexer);
 
-    const char* start = lexer -> cursor;
+    const char* buffer_ptr = lexer -> file -> buffer.ptr;
+
+    const char* cursor = lexer -> cursor;
+    const char* start = cursor;
 
     while (
-        !IS_ALPHA(lexer_current(lexer))            &&
-        !IS_DIGIT(lexer_current(lexer))            &&
-        !IS_OPERATOR(lexer_current(lexer))         &&
-        !IS_CHAR_DELIM(lexer_current(lexer))       &&
-        !IS_STRING_DELIM(lexer_current(lexer))     &&
-        !IS_DELIMITER(lexer_current(lexer))        &&
-        !IS_WHITESPACE(lexer_current(lexer))
+        !IS_ALPHA(*cursor)            &&
+        !IS_DIGIT(*cursor)            &&
+        !IS_OPERATOR(*cursor)         &&
+        !IS_CHAR_DELIM(*cursor)       &&
+        !IS_STRING_DELIM(*cursor)     &&
+        !IS_DELIMITER(*cursor)        &&
+        !IS_WHITESPACE(*cursor)
     ) {
-        lexer_advance(lexer);
+        cursor += 1;
     }
 
     token -> kind = TOK_ERROR;
-    token -> start = start - lexer -> file -> buffer.ptr;
+    token -> start = start - buffer_ptr;
 
-    u32 length = lexer -> cursor - start;
+    u32 length = cursor - start;
 
     assert(length < U16_MAX);
 
@@ -768,6 +804,8 @@ static void lex_invalid(Lexer* lexer) {
         "unknown token",
         null 
     );
+
+    lexer -> cursor = cursor;
 }
 
 static bool delimiter_matches(TokenKind open, TokenKind close) {
@@ -818,44 +856,6 @@ static void delimiter_stack_push(Lexer* lexer, u32 index) {
     lexer -> stack.items[lexer -> stack.top++] = index;
 }
 
-static inline void lexer_advance(Lexer* lexer) {
-    lexer -> cursor++;
-    lexer -> col++;
-}
-
-static inline void lexer_advance_by(Lexer* lexer, u32 n) {
-    lexer -> cursor += n;
-    lexer -> col += n;
-}
-
-static inline char lexer_current(Lexer* lexer) {
-    return *(lexer -> cursor);
-}
-
-// asserts that tokens.count == locations.count
-static void set_source_location(Lexer* lexer) {
-    SourceLocationArray* arr = &lexer -> file -> source_locations;
-
-    if (UNLIKELY(arr -> count >= arr -> capacity)) {
-        u64 old_size = arr -> capacity * sizeof(SourceLocation);
-        u64 new_size = old_size * 2;
-
-        assert(new_size > old_size);
-
-        arr -> items = arena_realloc(&arr -> arena, arr -> items, old_size, new_size);
-        arr -> capacity *= 2;
-
-        debug_log("Reallocated SourceLocationArray arr -> items from %lu to %lu bytes", old_size, new_size);
-    }
-
-    arr -> items[arr -> count++] = (SourceLocation) {
-        .line = lexer -> line,
-        .col = lexer -> col
-    };
-
-    assert(lexer -> file -> tokens.count == arr -> count);
-}
-
 static Token* tokens_get_new_token(Lexer* lexer) {
     TokenArray* arr = &lexer -> file -> tokens;
 
@@ -876,9 +876,5 @@ static Token* tokens_get_new_token(Lexer* lexer) {
         debug_log("Reallocated TokenArray arr -> items from %lu to %lu bytes", old_size, new_size);
     }
 
-    Token* token = &arr -> items[arr -> count++];
-
-    set_source_location(lexer);
-
-    return token;
+    return &arr -> items[arr -> count++];
 }

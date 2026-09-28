@@ -20,7 +20,6 @@ typedef struct {
 
 static_assert(sizeof(Token) == 8);
 
-
 typedef struct {
     Arena arena;
 
@@ -28,26 +27,5 @@ typedef struct {
     u64 count;
     u64 capacity;
 } TokenArray;
-
-
-typedef struct {
-    u32 line;
-    u32 col;
-} SourceLocation;
-
-static_assert(sizeof(SourceLocation) == 8);
-
-
-typedef struct {
-    Arena arena;
-
-    SourceLocation* items;
-    u64 count;
-    u64 capacity;
-} SourceLocationArray;
-
-
-static_assert(sizeof(Token) == sizeof(SourceLocation));
-
 
 #endif // !LILY_TOKENS_TYPES_H

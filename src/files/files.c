@@ -279,8 +279,11 @@ static void file_init(File* file, FileId id, str8 path, u32 path_hash, str8 buff
 
     file -> buffer = buffer;
 
-    token_array_init(&file -> tokens);
-    source_location_array_init(&file -> source_locations);
+    u64 initial_token_capacity = NEXT_POWER_OF_TWO(buffer.len / 3);
+
+    debug_log("Creating token array with %lu tokens, buffer.len=%u", initial_token_capacity, buffer.len);
+
+    token_array_init(&file -> tokens, initial_token_capacity);
 
     ast_init(&file -> ast);
 }
@@ -291,7 +294,6 @@ inline void file_destroy(File* file) {
     free(file -> path.ptr);
 
     token_array_destroy(&file -> tokens);
-    source_location_array_destroy(&file -> source_locations);
     ast_destroy(&file -> ast);
 }
 

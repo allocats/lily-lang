@@ -86,7 +86,7 @@ void string_interner_init(StringInterner* interner) {
     string_intern_cstr(interner, "if");
     string_intern_cstr(interner, "else");
     string_intern_cstr(interner, "for");
-    string_intern_cstr(interner, "in");
+    // string_intern_cstr(interner, "in");
     string_intern_cstr(interner, "while");
     string_intern_cstr(interner, "continue");
     string_intern_cstr(interner, "break");
