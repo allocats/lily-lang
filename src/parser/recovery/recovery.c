@@ -23,6 +23,9 @@ static constexpr u64 stmt_sync_tokens = (u64)  0
 
 static constexpr u64 expr_sync_tokens = (u64)  0
                                       | ((u64) 1 << TOK_EOF)
+                                      | ((u64) 1 << TOK_L_PAREN)
+                                      | ((u64) 1 << TOK_L_BRACE)
+                                      | ((u64) 1 << TOK_L_BRACKET)
                                       | ((u64) 1 << TOK_R_PAREN)
                                       | ((u64) 1 << TOK_R_BRACE)
                                       | ((u64) 1 << TOK_R_BRACKET)

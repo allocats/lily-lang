@@ -70,6 +70,8 @@ void string_interner_init(StringInterner* interner) {
     string_intern_cstr(interner, "import");
     string_intern_cstr(interner, "include");
     string_intern_cstr(interner, "execute");
+    string_intern_cstr(interner, "packed");
+    string_intern_cstr(interner, "align");
 
     string_intern_cstr(interner, "fn");
     string_intern_cstr(interner, "enum");

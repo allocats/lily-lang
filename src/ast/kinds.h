@@ -19,6 +19,8 @@
     X(AST_EXECUTE_DIRECTIVE)    \
     X(AST_IMPORT_DIRECTIVE)     \
     X(AST_INCLUDE_DIRECTIVE)    \
+    X(AST_PACKED_DIRECTIVE)     \
+    X(AST_ALIGN_DIRECTIVE)      \
                                 \
     X(AST_IMPORT_DECL)          \
                                 \
@@ -137,6 +139,10 @@ typedef struct {
     FileId file_id;
 } AstIncludeDirective;
 
+typedef struct {
+    AstNodeId expr;
+} AstAlignDirective;
+
 
 typedef struct {
     StringId  name;
@@ -158,6 +164,25 @@ typedef struct {
 typedef struct {
     StringId name;
     AstNodeIdList fields;
+
+    /*
+     *
+     * The `PACKED` attribute will be on `node -> flags`
+     *
+     * Optional, NONE if == AST_NODE_ID_NONE, otherwise can be an expression that 
+     * must evaluate to a power of two. TODO: Interpreter to compute this
+     *
+     * Example 0:
+     *   Foo :: struct #align(64) { ... }
+     *
+     * Example 1:
+     *   Foo :: struct #align 64 { ... }
+     *
+     * Example 2:
+     *   Foo :: struct #align #execute calculate_alignment(Os.Linux) { ... }
+     *
+     */
+    AstNodeId alignment_directive;
 } AstStructDeclaration, AstUnionDeclaration;
 
 typedef struct {

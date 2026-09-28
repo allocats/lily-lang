@@ -33,7 +33,7 @@ static thread_local char relative_scratch[PATH_MAX] = {0};
  * this MUST be updated as new directives are added
  *
  */
-static constexpr u32 directive_count = 3;
+static constexpr u32 directive_count = 5;
 static AstKind directive_lut[directive_count] = {0};
 
 /*
@@ -45,6 +45,7 @@ static AstKind directive_lut[directive_count] = {0};
 static AstNodeId parse_import_directive(Parser* p, AstNodeId id);
 static AstNodeId parse_include_directive(Parser* p, AstNodeId id);
 static AstNodeId parse_execute_directive(Parser* p, AstNodeId id);
+static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
 
 /*
  *
@@ -58,6 +59,8 @@ void init_directive_lut(Workspace* ws) {
     directive_lut[string_intern_cstr(&ws -> string_interner, "import")]  = AST_IMPORT_DIRECTIVE;
     directive_lut[string_intern_cstr(&ws -> string_interner, "include")] = AST_INCLUDE_DIRECTIVE;
     directive_lut[string_intern_cstr(&ws -> string_interner, "execute")] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[string_intern_cstr(&ws -> string_interner, "packed")]  = AST_PACKED_DIRECTIVE;
+    directive_lut[string_intern_cstr(&ws -> string_interner, "align")]   = AST_ALIGN_DIRECTIVE;
 
     debug_log("Directive lookup table has been set up");
 }
@@ -118,6 +121,12 @@ AstNodeId parse_directive(Parser* p) {
 
         case AST_EXECUTE_DIRECTIVE:
             return parse_execute_directive(p, id);
+
+        case AST_PACKED_DIRECTIVE:
+            return id;
+
+        case AST_ALIGN_DIRECTIVE:
+            return parse_align_directive(p, id);
 
         default:
             UNREACHABLE("Found %s", AST_KIND_STRINGS[directive_kind]);
@@ -387,6 +396,18 @@ static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
     }
 
     parser_advance(p); // advance past `;`
+
+    return id;
+}
+
+static AstNodeId parse_align_directive(Parser* p, AstNodeId id) {
+    AstNodeId alignment_expression_id = parse_expression(p);
+
+    AstNode* node = parser_get_node(p, id);
+
+    node -> as.align_directive.expr = alignment_expression_id;
+
+    node -> tokens.end = p -> cursor - 1;
 
     return id;
 }

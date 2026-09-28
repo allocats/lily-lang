@@ -22,7 +22,8 @@ typedef enum : u16 {
     AST_FLAG_INLINE    = 1 << 3,
     AST_FLAG_NOINLINE  = 1 << 4,
     AST_FLAG_VARIADIC  = 1 << 5,
-    AST_FLAG_CONSTANT  = 1 << 6,
+    AST_FLAG_PACKED    = 1 << 6,
+    AST_FLAG_CONSTANT  = 1 << 7,
 } AstFlag;
 
 /*
@@ -45,6 +46,7 @@ typedef struct {
         AstExecDirective    exec_directive;
         AstImportDirective  import_directive;
         AstIncludeDirective include_directive;
+        AstAlignDirective   align_directive;
 
         /*
          * declarations
