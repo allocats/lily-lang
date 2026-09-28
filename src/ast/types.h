@@ -95,6 +95,9 @@ typedef struct {
         AstMemberAcess member_access;
         AstIndex index;
 
+        AstStructLiteral struct_literal;
+        AstFieldInit     field_init;
+
         /*
          * types
          */

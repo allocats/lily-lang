@@ -39,5 +39,6 @@ Token parser_peek_ahead_by(Parser* p, u32 offset);
 Token parser_peek_behind_by(Parser* p, u32 offset);
 Token parser_advance(Parser* p);
 bool  parser_check(Parser* p, TokenKind kind);
+bool  parser_check_ahead_by(Parser* p, TokenKind kind, u32 offset);
 
 #endif // !LILY_PARSER_H

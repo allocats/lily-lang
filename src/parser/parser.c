@@ -208,3 +208,7 @@ inline Token parser_advance(Parser* p) {
 inline bool parser_check(Parser* p, TokenKind kind) {
     return parser_peek(p).kind == kind;
 }
+
+inline bool parser_check_ahead_by(Parser* p, TokenKind kind, u32 offset) {
+    return (parser_peek_ahead_by(p, offset).kind == kind);
+}

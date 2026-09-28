@@ -57,6 +57,8 @@
     X(AST_FUNCTION_CALL)        \
     X(AST_INDEX)                \
     X(AST_MEMBER_ACCESS)        \
+    X(AST_STRUCT_LITERAL)       \
+    X(AST_STRUCT_FIELD_INIT)    \
                                 \
     X(AST_TYPE_BASE)            \
     X(AST_TYPE_ARRAY)           \
@@ -313,6 +315,25 @@ typedef struct {
     AstNodeId object;
     AstNodeId member;
 } AstMemberAcess;
+
+typedef struct {
+    /*
+     *
+     * The actual struct it should resolve to 
+     * Example:
+     *   MyStruct.{ ... };
+     *   ^^^^^^^^
+     *
+     */
+    AstNodeId type_expr;
+
+    AstNodeIdList field_inits;
+} AstStructLiteral;
+
+typedef struct {
+    StringId  field;
+    AstNodeId value;
+} AstFieldInit;
 
 /*
  *

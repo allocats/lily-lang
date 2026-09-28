@@ -9,6 +9,7 @@
 #include "string_interner/interner.h"
 #include "tokens/kinds.h"
 #include "tokens/tokens.h"
+#include "tokens/types.h"
 
 /*
  *
@@ -40,6 +41,7 @@ static AstNodeId parse_primary(Parser* p);
 static AstNodeId parse_call(Parser* p, AstNodeId left);
 static AstNodeId parse_index(Parser* p, AstNodeId left);
 static AstNodeId parse_member_access(Parser* p, AstNodeId left);
+static AstNodeId parse_struct_literal(Parser* p, AstNodeId left);
 static void      parse_call_args(Parser* p, AstNodeId id);
 
 /*
@@ -391,6 +393,8 @@ static AstNodeId parse_postfix(Parser* p) {
             lhs = parse_call(p, lhs);
         } else if (operator_tok.kind == TOK_L_BRACKET) {
             lhs = parse_index(p, lhs);
+        } else if (operator_tok.kind == TOK_DOT && parser_check_ahead_by(p, TOK_L_BRACE, 1)) {
+            lhs = parse_struct_literal(p, lhs);
         } else if (operator_tok.kind == TOK_DOT) {
             lhs = parse_member_access(p, lhs);
         } else {
@@ -704,6 +708,97 @@ static AstNodeId parse_member_access(Parser* p, AstNodeId left) {
     node -> tokens.end = p -> cursor - 1;
 
     return id;
+}
+
+static AstNodeId parse_struct_literal(Parser* p, AstNodeId left) {
+    AstNodeId id  = parser_create_node(p);
+    AstNode* node = parser_get_node(p, id);
+
+    node -> kind = AST_STRUCT_LITERAL;
+
+    node -> as.struct_literal.type_expr = left;
+
+    parser_init_id_list(p, &node -> as.struct_literal.field_inits, 4);
+
+    parser_advance(p); // advance past `.`
+    parser_advance(p); // advance past `{`
+
+    while (!parser_check(p, TOK_R_BRACE)) {
+        Token field_name_tok = parser_peek(p);
+
+        if (field_name_tok.kind != TOK_IDENTIFIER) {
+            diagnostic_add_token(
+                p -> file,
+                DIAG_ERROR,
+                &field_name_tok,
+                DIAG_LOC_WHOLE_TOK,
+                "invalid field name",
+                "field names must be identifier"
+            );
+
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
+
+        StringId field_name_id = string_intern_token(&p -> workspace -> string_interner, p -> file, field_name_tok);
+
+        parser_advance(p); // advance past `identifier`
+
+        if (!parser_check(p, TOK_EQ)) {
+            diagnostic_add_token(
+                p -> file,
+                DIAG_ERROR,
+                &field_name_tok,
+                DIAG_LOC_END_OF_TOK,
+                "expected '=' for struct field initializer",
+                "add a '=' here"
+            );
+
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
+
+        parser_advance(p); // advance past `=`
+
+        AstNodeId value_expr = parse_expression(p);
+
+        AstNodeId field_init_id  = parser_create_node(p);
+        AstNode* field_init_node = parser_get_node(p, field_init_id);
+
+        field_init_node -> kind = AST_STRUCT_FIELD_INIT;
+
+        field_init_node -> as.field_init.field = field_name_id;
+        field_init_node -> as.field_init.value = value_expr;
+
+        node = parser_get_node(p, id);
+
+        parser_append_id_list(p, &node -> as.struct_literal.field_inits, field_init_id);
+
+        if (parser_check(p, TOK_COMMA)) {
+             parser_advance(p);
+             continue;
+        }
+
+        if (!parser_check(p, TOK_R_BRACE)) {
+            Token previous = parser_peek_behind_by(p, 1);
+
+            diagnostic_add_token(
+                p -> file,
+                DIAG_ERROR,
+                &previous,
+                DIAG_LOC_END_OF_TOK,
+                "expected ',' or '}'",
+                "add a ',' or '}' here"
+            );
+
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
+    }
+
+    node = parser_get_node(p, id);
+    node -> tokens.end = p -> cursor;
+    
+    parser_advance(p); // advance past `}`
+
+    return id;;
 }
 
 static void parse_call_args(Parser* p, AstNodeId id) {
