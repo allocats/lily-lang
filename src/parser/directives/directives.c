@@ -201,13 +201,10 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
      *  check to see if the module is a standard library module
      *
      */
-    str8 stdlib_path_maybe = standard_library_map_get_module(
-        &p -> workspace -> standard_library_map,
-        module_string_id
-    );
+    FileId stdlib_id = standard_library_map_get_module(&p -> workspace -> standard_library_map, module_string_id);
 
-    if (stdlib_path_maybe.ptr != null) {
-        module_file_id = file_intern(&p -> workspace -> file_interner, stdlib_path_maybe);
+    if (stdlib_id != FILE_ID_NONE) {
+        module_file_id = stdlib_id;
     } else {
         str8 module_name_str = string_get_str8_from_id(&p -> workspace -> string_interner, module_string_id);
 

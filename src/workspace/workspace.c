@@ -121,6 +121,11 @@ void workspace_dispatch_lex_and_parse_file(void* arg) {
  *
  * Standard Library Mapping
  *
+ * TODO: Perhaps make it its own interner, ideally in lily :p I could just 
+ *       run code at compile time to calculate the number of entries and get 
+ *       a list of said entries, and actually probably be able to create the whole 
+ *       map for standard library at compile time. sighh
+ *
  */
 
 static void standard_library_map_init(Workspace* ws) {
@@ -130,7 +135,7 @@ static void standard_library_map_init(Workspace* ws) {
 
     arena_init(&map -> arena, list -> count * 256, ALIGN_DEFAULT);
 
-    map -> paths = arena_alloc(&map -> arena, sizeof(str8) * list -> count);
+    map -> entries = arena_alloc(&map -> arena, sizeof(StandardLibraryEntry) * list -> count);
     map -> count = list -> count;
 
     for (u32 i = 0; i < list -> count; i += 1) {
@@ -158,27 +163,32 @@ static void standard_library_map_init(Workspace* ws) {
             STR8_FMT(list -> paths[i])
         );
 
-        debug_log("Mapping std module: %.*s\n", n, scratch);
+        debug_log("Mapping std module: %.*s", n, scratch);
 
         char* ptr = arena_alloc(&map -> arena, n + 1);
 
         snprintf(ptr, n + 1, "%.*s", n, scratch);
 
-        map -> paths[i].ptr = ptr;
-        map -> paths[i].len = n;
+        str8 path = {
+            .ptr = ptr,
+            .len = n
+        };
+
+        map -> entries[i].path = path;
+        map -> entries[i].file_id = file_intern(&ws -> file_interner, path);
     }
 
     debug_log("Set Workspace %u standard library", ws -> id);
 }
 
-str8 standard_library_map_get_module(StandardLibraryMap* map, StringId id) {
+FileId standard_library_map_get_module(StandardLibraryMap* map, StringId id) {
     if (id < map -> range.start || id > map -> range.end) {
-        return (str8) { .ptr = null, .len = 0 };
+        return FILE_ID_NONE;
     }
 
     u32 index = id - map -> range.start;
 
     assert(index < map -> count);
 
-    return map -> paths[index];
+    return map -> entries[index].file_id;
 }

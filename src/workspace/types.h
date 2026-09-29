@@ -7,6 +7,11 @@
 #include "utils/timer.h"
 #include "utils/types.h"
 
+typedef struct {
+    str8    path;
+    FileId  file_id;
+} StandardLibraryEntry;
+
 /*
  *
  * maps StringId -> path to that module
@@ -23,7 +28,7 @@ typedef struct {
      *  indexing by StringId - range.start
      *
      */
-    str8* paths;
+    StandardLibraryEntry* entries;
     u32 count;
 
     /*
