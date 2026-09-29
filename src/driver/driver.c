@@ -247,9 +247,11 @@ static void standard_library_list_init(Driver* driver) {
         if (strcmp(entry -> d_name, "." ) == 0) continue;
         if (strcmp(entry -> d_name, "..") == 0) continue;
 
-        char* name = arena_alloc(&list -> arena, strlen(entry -> d_name) + sizeof("std/"));
+        const usize size = strlen(entry -> d_name) + sizeof("std/");
 
-        i32 length = snprintf(name, sizeof(name), "std/%s", entry -> d_name);
+        char* name = arena_alloc(&list -> arena, size);
+
+        i32 length = snprintf(name, size, "std/%s", entry -> d_name);
 
         str8 path = {
             .ptr = name,
