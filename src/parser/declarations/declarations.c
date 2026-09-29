@@ -27,6 +27,12 @@ AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
         case TOK_KW_STRUCT:
             return parse_struct_declaration(p, id, name_id);
 
+        case TOK_KW_UNION:
+            return parse_union_declaration(p, id, name_id);
+
+        case TOK_KW_ENUM:
+            return parse_enum_declaration(p, id, name_id);
+
         default: {
             diagnostic_add_token(
                 p -> file,

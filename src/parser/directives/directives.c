@@ -165,7 +165,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     if (module_tok.length == 2) {
         diagnostic_add_token(
             p -> file,
-            DIAG_LOC_WHOLE_TOK,
+            DIAG_ERROR,
             &module_tok,
             DIAG_LOC_WHOLE_TOK,
             "no module provided for import",
@@ -289,7 +289,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     if (file_tok.length == 2) {
         diagnostic_add_token(
             p -> file,
-            DIAG_LOC_WHOLE_TOK,
+            DIAG_ERROR,
             &file_tok,
             DIAG_LOC_WHOLE_TOK,
             "no file path provided for include",

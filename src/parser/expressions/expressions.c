@@ -538,7 +538,10 @@ static AstNodeId parse_primary(Parser* p) {
 
             Token directive_tok = parser_advance(p);
 
-            if (!string_lookup_token(&p -> workspace -> string_interner, p -> file, directive_tok)) {
+            StringId execute_string_id = string_lookup_cstr(&p -> workspace -> string_interner, "execute");
+            StringId directive_id = string_lookup_token(&p -> workspace -> string_interner, p -> file, directive_tok);
+
+            if (execute_string_id != directive_id) {
                 diagnostic_add_token(
                     p -> file,
                     DIAG_ERROR,

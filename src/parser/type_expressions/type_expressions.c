@@ -267,16 +267,16 @@ AstNodeId parse_type_expression(Parser* p) {
         AstNode* primary_node = parser_get_node(p, primary_id);
 
         if (
-            primary_node -> kind != AST_IDENTIFIER      &&
-            primary_node -> kind != AST_FUNCTION_CALL   &&
-            primary_node -> kind != AST_MEMBER_ACCESS
+            primary_node -> kind != AST_IDENTIFIER          &&
+            primary_node -> kind != AST_MEMBER_ACCESS       &&
+            primary_node -> kind != AST_EXECUTE_DIRECTIVE
         ) {
             diagnostic_add_token_span(
                 p -> file,
                 DIAG_ERROR,
                 primary_node -> tokens,
-                "expected type name, member access, function type, or function call",
-                "type must be an identifier, member access, function type, or function call"
+                "expected type name, member access, or #execute call",
+                "base type must be an identifier, member access, or #execute call"
             );
 
             AstNodeId id = parser_create_node(p);
