@@ -4,12 +4,15 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "string_interner/interner.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
+
+extern ThreadContext thread_context;
 
 AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
     Token identifier = parser_peek(p);
 
-    StringId name_id = string_intern_token(&p -> workspace -> string_interner, p -> file, identifier);
+    StringId name_id = string_intern_token(thread_context.string_interner, p -> file, identifier);
 
     parser_advance(p); // advance past 'identifier'
     parser_advance(p); // advance past '::'

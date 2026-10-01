@@ -4,6 +4,7 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
+#include "string_interner/interner.h"
 #include "threadpool/threadpool.h"
 #include "utils/macros.h"
 #include "workspace/types.h"
@@ -12,6 +13,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -56,8 +58,25 @@ void driver_init(Driver* driver, const char* home) {
         thread_count = 1; // default to 1 thread if sysconf fails
     }
 
-    // This function can assert 
-    threadpool_init(&driver -> thread_pool, thread_count);
+    /*
+     *
+     * for each thread there exists a string interner attached to said thread
+     *
+     */
+    driver -> string_interners = malloc(sizeof(StringInterner) * thread_count);
+    driver -> string_interner_count = thread_count;
+
+    for (i32 i = 0; i < thread_count; i += 1) {
+        string_interner_init(&driver -> string_interners[i]);
+    }
+
+    /*
+     *
+     * this function can assert, it also assigns the corresponding string interner 
+     * to each thread, for example Thread 0 gets driver.string_interners[0] 
+     *
+     */
+    threadpool_init(driver, thread_count);
 
     /*
      *
@@ -100,8 +119,29 @@ void driver_destroy(Driver* driver) {
 
     threadpool_destroy(&driver -> thread_pool);
 
+    /*
+     *
+     * diagnostics, TODO: might want to make this a per thread thing?
+     *
+     */
     diagnostic_engine_destroy();
 
+    /*
+     *
+     * string interners, first free the interners then the array holding them
+     *
+     */
+    for (u32 i = 0; i < driver -> string_interner_count; i++) {
+        string_interner_destroy(&driver -> string_interners[i]);
+    }
+
+    free(driver -> string_interners);
+
+    /*
+     *
+     * workspaces, first free the workspaces then the array holding them
+     *
+     */
     for (u32 i = 0; i < driver -> workspace_count; i++) {
         workspace_destroy(driver -> workspaces[i]);
     }

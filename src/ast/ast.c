@@ -3,6 +3,7 @@
 #include "ids.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 
 #include <assert.h>
 
@@ -81,7 +82,7 @@ void ast_id_list_init(Ast* ast, AstNodeIdList* list, u32 count) {
     list -> count = 0;
     list -> capacity = count;
 
-    arena_memset(list -> ids, 0xff, size);
+    arena_memset(list -> ids, U8_MAX, size);
 }
 
 void ast_append_id_list(Ast* ast, AstNodeIdList* list, AstNodeId id) {

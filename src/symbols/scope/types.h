@@ -1,0 +1,26 @@
+#ifndef LILY_SYMBOLS_SCOPE_TYPES_H
+#define LILY_SYMBOLS_SCOPE_TYPES_H
+
+#include "ids.h"
+#include "utils/types.h"
+
+static constexpr u32 scope_init_capacity = 8;
+
+typedef struct {
+    u32 hash;
+    StringId string_id;
+} ScopeBucket;
+
+typedef struct {
+    ScopeBucket* buckets;
+    SymbolId* entries;
+
+    u32 count;
+    u32 capacity; // must be power of two
+
+    u32 resize_threshold_as_u32;
+
+    ScopeId parent; // SCOPE_ID_NONE for no parent
+} Scope;
+
+#endif // !LILY_SYMBOLS_SCOPE_TYPES_H

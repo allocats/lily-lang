@@ -84,7 +84,7 @@ static const LexFn LEXER_DISPATCH[256] = {
 };
 
 void lex_file(File* file) {
-    assert(file -> stage == FILE_ALLOCATED);
+    assert(file -> stage == FILE_LEXING);
 
     debug_log("Lexing file %u", file -> id);
 

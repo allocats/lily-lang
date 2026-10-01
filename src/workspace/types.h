@@ -4,6 +4,9 @@
 #include "files/types.h"
 #include "ids.h"
 #include "string_interner/types.h"
+#include "symbols/table/types.h"
+#include "types/builtins/types.h"
+#include "types/table/types.h"
 #include "utils/timer.h"
 #include "utils/types.h"
 
@@ -61,6 +64,20 @@ typedef struct {
     FileInterner file_interner;
 
     StringInterner string_interner;
+
+    SymbolTable symbol_table;
+
+    TypeTable type_table;
+
+    BuiltinTypes builtin_types;
+
+    /*
+     *
+     * looks for `main` function, going to make a rule that 
+     * `main` cannot contain arguments nor a return type
+     *
+     */
+    SymbolId entry_point_id;
 
     // Maybe maker timers per workspace
     Timer frontend_timer;

@@ -8,12 +8,16 @@
 #include "utils/debug.h"
 #include "utils/types.h"
 
+static constexpr u64 __ARENA_BLOCK_ALIGN = 64;
+
 typedef struct Arena      Arena;
 typedef struct ArenaBlock ArenaBlock;
 
 typedef enum {
-    ALIGN_DEFAULT = alignof(max_align_t),
+    ALIGN_DEFAULT = 8,
+
     ALIGN_2       = 2,
+    ALIGN_4       = 4,
     ALIGN_8       = 8,
     ALIGN_16      = 16,
     ALIGN_32      = 32,
@@ -22,7 +26,9 @@ typedef enum {
 
 typedef struct Arena {
     u64 default_capacity;
+
     Alignment byte_alignment;
+
     ArenaBlock* current;
     ArenaBlock* start;
     ArenaBlock* end;
@@ -34,12 +40,14 @@ typedef struct Arena {
     u64 total_used;
 } Arena;
 
+static_assert(sizeof(Arena) == 64);
+
 typedef struct ArenaBlock {
     ArenaBlock* next;
     u64 used;
     u64 capacity;
-    u8 __padding[40];
-    u8 data[]; 
+
+    alignas(__ARENA_BLOCK_ALIGN) u8 data[]; 
 } ArenaBlock;
 
 #define ARENA_KB(n) ((n) * 1024)
@@ -83,6 +91,7 @@ static ArenaBlock* __arena_new_block(Arena* arena, u64 size);
 
 void arena_init(Arena* arena, u64 default_capacity, Alignment arena_alignment) {
     assert(arena && "Arena is null in arena_init(arena, capacity, align)\n");
+    assert(arena_alignment <= __ARENA_BLOCK_ALIGN);
     
     arena -> default_capacity = ARENA_ALIGN_UP(arena_alignment, default_capacity);
     arena -> byte_alignment = arena_alignment;
@@ -164,7 +173,7 @@ void* arena_realloc(Arena* arena, void* ptr, u64 old_size, u64 new_size) {
 
     u64 aligned_new_size = ARENA_ALIGN_UP(arena -> byte_alignment, new_size);
 
-    if (cached == ptr) {
+    if (cached != null && cached == ptr) {
         ArenaBlock* block = arena -> current;
 
         u64 offset = (u64) ((u8*) ptr - block -> data);
@@ -249,11 +258,13 @@ u64 arena_total_capacity(Arena* arena) {
 
 static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
     u64 capacity = arena -> default_capacity;
+    u64 needed   = ARENA_ALIGN_UP(ALIGN_64, size);
 
-    while (size > capacity) capacity *= 2;
+    if (needed > capacity) {
+        capacity = needed;
+    }
 
-    u64 aligned_capacity = ARENA_ALIGN_UP(arena -> byte_alignment, capacity);
-    u64 total_size       = ARENA_ALIGN_UP(arena -> byte_alignment, sizeof(ArenaBlock) + aligned_capacity);
+    u64 total_size = sizeof(ArenaBlock) + capacity;
 
     debug_log("Requesting %zu bytes: %p", total_size, arena);
 
@@ -262,13 +273,11 @@ static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
 
     debug_log("Allocated %lu bytes for arena: %p", total_size, arena);
 
-    arena_memset(block, 0, sizeof(ArenaBlock));
-
     block -> next = null;
     block -> used = 0;
-    block -> capacity = aligned_capacity;
+    block -> capacity = capacity;
 
-    arena -> total_capacity += aligned_capacity;
+    arena -> total_capacity += capacity;
 
     return block;
 }

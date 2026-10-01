@@ -9,6 +9,9 @@
 #include "parser/recovery/types.h"
 #include "parser/type_expressions/type_expressions.h"
 #include "string_interner/interner.h"
+#include "threadpool/types.h"
+
+extern ThreadContext thread_context;
 
 AstNodeId parse_variable_declaration(Parser* p) {
     AstNodeId id  = parser_create_node(p);
@@ -27,7 +30,7 @@ AstNodeId parse_variable_declaration(Parser* p) {
 
     Token name_token = parser_peek(p);
 
-    node -> as.variable_decl.name = string_intern_token(&p -> workspace -> string_interner, p -> file, name_token);
+    node -> as.variable_decl.name = string_intern_token(thread_context.string_interner, p -> file, name_token);
 
     /*
      * in theory should not have to check this because it's only possible to be 

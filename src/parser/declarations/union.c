@@ -10,7 +10,10 @@
 #include "parser/recovery/types.h"
 #include "parser/type_expressions/type_expressions.h"
 #include "string_interner/interner.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
+
+extern ThreadContext thread_context;
 
 AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `union`
@@ -85,7 +88,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_NONE);
         }
 
-        StringId field_name_id = string_intern_token(&p -> workspace -> string_interner, p -> file, field_name_tok);
+        StringId field_name_id = string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(

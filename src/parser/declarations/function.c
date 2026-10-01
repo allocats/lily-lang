@@ -10,7 +10,10 @@
 #include "parser/statements/statements.h"
 #include "parser/type_expressions/type_expressions.h"
 #include "string_interner/interner.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
+
+extern ThreadContext thread_context;
 
 AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
     AstNode* node = parser_get_node(p, id);
@@ -174,7 +177,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         }
 
         StringId parameter_name_id = string_intern_token(
-            &p -> workspace -> string_interner,
+            thread_context.string_interner,
             p -> file,
             parameter_name_tok
         );

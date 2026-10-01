@@ -11,7 +11,9 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "string_interner/interner.h"
+#include "string_interner/types.h"
 #include "threadpool/threadpool.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -25,6 +27,7 @@
 #include <threads.h>
 
 extern Driver driver;
+extern ThreadContext thread_context;
 
 static thread_local char relative_scratch[PATH_MAX] = {0}; 
 
@@ -53,14 +56,14 @@ static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
  *
  */
 
-void init_directive_lut(Workspace* ws) {
-    assert(string_intern_cstr(&ws -> string_interner, "import") == 0);
+void init_directive_lut(StringInterner* string_interner) {
+    assert(string_intern_cstr(string_interner, "import") == 0);
 
-    directive_lut[string_intern_cstr(&ws -> string_interner, "import")]  = AST_IMPORT_DIRECTIVE;
-    directive_lut[string_intern_cstr(&ws -> string_interner, "include")] = AST_INCLUDE_DIRECTIVE;
-    directive_lut[string_intern_cstr(&ws -> string_interner, "execute")] = AST_EXECUTE_DIRECTIVE;
-    directive_lut[string_intern_cstr(&ws -> string_interner, "packed")]  = AST_PACKED_DIRECTIVE;
-    directive_lut[string_intern_cstr(&ws -> string_interner, "align")]   = AST_ALIGN_DIRECTIVE;
+    directive_lut[string_intern_cstr(string_interner, "import")]  = AST_IMPORT_DIRECTIVE;
+    directive_lut[string_intern_cstr(string_interner, "include")] = AST_INCLUDE_DIRECTIVE;
+    directive_lut[string_intern_cstr(string_interner, "execute")] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[string_intern_cstr(string_interner, "packed")]  = AST_PACKED_DIRECTIVE;
+    directive_lut[string_intern_cstr(string_interner, "align")]   = AST_ALIGN_DIRECTIVE;
 
     debug_log("Directive lookup table has been set up");
 }
@@ -91,9 +94,9 @@ AstNodeId parse_directive(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    StringId string_id = string_lookup_token(&p -> workspace -> string_interner, p -> file, directive_token);
+    StringId string_id = string_lookup_token(thread_context.string_interner, p -> file, directive_token);
 
-    if (string_id > directive_count) {
+    if (string_id >= directive_count) {
         diagnostic_add_token(
             p -> file,
             DIAG_ERROR,
@@ -178,7 +181,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     module_tok.start  += 1;
     module_tok.length -= 2;
 
-    StringId module_string_id = string_intern_token(&p -> workspace -> string_interner, p -> file, module_tok);
+    StringId module_string_id = string_intern_token(thread_context.string_interner, p -> file, module_tok);
 
     module_tok.start  -= 1;
     module_tok.length += 2;
@@ -206,7 +209,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     if (stdlib_id != FILE_ID_NONE) {
         module_file_id = stdlib_id;
     } else {
-        str8 module_name_str = string_get_str8_from_id(&p -> workspace -> string_interner, module_string_id);
+        str8 module_name_str = string_get_str8_from_id(thread_context.string_interner, module_string_id);
 
         /*
          *
@@ -299,7 +302,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     file_tok.start  += 1;
     file_tok.length -= 2;
 
-    StringId file_string_id = string_intern_token(&p -> workspace -> string_interner, p -> file, file_tok);
+    StringId file_string_id = string_intern_token(thread_context.string_interner, p -> file, file_tok);
 
     file_tok.start  -= 1;
     file_tok.length += 2;
@@ -309,7 +312,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     node -> as.include_directive.path = file_string_id;
     node -> as.include_directive.file_id = FILE_ID_NONE;
 
-    str8 file_path_str = string_get_str8_from_id(&p -> workspace -> string_interner, file_string_id);
+    str8 file_path_str = string_get_str8_from_id(thread_context.string_interner, file_string_id);
 
     str8 current_path = p -> file -> path;
 

@@ -7,7 +7,9 @@
 #include "parser/directives/directives.h"
 #include "parser/parser.h"
 #include "string_interner/interner.h"
+#include "symbols/table/table.h"
 #include "threadpool/threadpool.h"
+#include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/timer.h"
@@ -17,6 +19,8 @@
 
 #include <assert.h>
 #include <linux/limits.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <threads.h>
 
@@ -37,23 +41,30 @@ void workspace_init(Workspace* ws, WorkspaceId id, const char* name) {
     ws -> id = id;
     ws -> name = STR8_FROM_CSTR(name);
     ws -> target_os = OS_LINUX;
+    ws -> entry_point_id = SYMBOL_ID_NONE;
 
     file_interner_init(&ws -> file_interner);
 
     string_interner_init(&ws -> string_interner);
-
-    standard_library_map_init(ws);
 
     /*
      *
      * used for AST parser, must be called after `string_interner_init()`
      *
      */
-    init_directive_lut(ws);
+    init_directive_lut(&driver.string_interners[0]);
+
+    standard_library_map_init(ws);
+
+    type_table_init(&ws -> type_table);
 }
 
 void workspace_destroy(Workspace* ws) {
     assert(ws != null);
+
+    type_table_destroy(&ws -> type_table);
+
+    symbol_table_destory(&ws -> symbol_table);
 
     string_interner_destroy(&ws -> string_interner);
 
@@ -69,8 +80,17 @@ void workspace_destroy(Workspace* ws) {
  */
 
 File* workspace_get_file(Workspace* ws, FileId id) {
-    assert(id < ws -> file_interner.count);
-    return ws -> file_interner.entries[id];
+    FileInterner* interner = &ws -> file_interner;
+    
+    pthread_mutex_lock(&interner -> mutex);
+
+    assert(id < interner -> count);
+
+    File* file = ws -> file_interner.entries[id];
+
+    pthread_mutex_unlock(&interner -> mutex);
+
+    return file;
 }
 
 /*
@@ -84,6 +104,18 @@ void compile_workspace(Workspace* ws) {
 
     lex_and_parse_workspace(ws);
 
+    u32 scope_count_estimate  = ws -> file_interner.count;
+    u32 symbol_count_estimate = 0;
+
+    for (u32 i = 0; i < ws -> file_interner.count; i += 1) {
+        File* file = ws -> file_interner.entries[i];
+
+        scope_count_estimate  += file -> ast.top_level_declaration_count;
+        symbol_count_estimate += file -> ast.total_declaration_count;
+    }
+
+    symbol_table_init(&ws -> symbol_table, scope_count_estimate, symbol_count_estimate);
+
     timer_end(&ws -> frontend_timer);
 
     timer_start(&ws -> backend_timer);
@@ -93,6 +125,11 @@ void compile_workspace(Workspace* ws) {
     timer_end(&ws -> linker_timer);
 }
 
+/*
+ *
+ * Does wait for threads to finish
+ *
+ */
 static void lex_and_parse_workspace(Workspace* ws) {
     u32 file_count = ws -> file_interner.count;
 
@@ -108,12 +145,16 @@ static void lex_and_parse_workspace(Workspace* ws) {
 void workspace_dispatch_lex_and_parse_file(void* arg) {
     File* file = (File*) arg;
 
-    if (file -> stage == FILE_ALLOCATED) {
-        lex_file(file);
+    FileStage expected_stage = FILE_ALLOCATED;
 
-        if (file -> stage == FILE_LEXED) {
-            parse_file(file);
-        }
+    if (!atomic_compare_exchange_strong(&file -> stage, &expected_stage, FILE_LEXING)) {
+        return;
+    }
+
+    lex_file(file);
+
+    if (file -> stage == FILE_LEXED) {
+        parse_file(file);
     }
 }
 
@@ -125,6 +166,8 @@ void workspace_dispatch_lex_and_parse_file(void* arg) {
  *       run code at compile time to calculate the number of entries and get 
  *       a list of said entries, and actually probably be able to create the whole 
  *       map for standard library at compile time. sighh
+ *
+ * TODO: Make this per thread? Need consistent IDs for it to function correctly
  *
  */
 

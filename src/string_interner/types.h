@@ -4,7 +4,6 @@
 #include "ids.h"
 #include "meowrena/meowrena.h"
 #include "utils/types.h"
-#include <bits/pthreadtypes.h>
 
 typedef struct {
     str8 str;
@@ -23,19 +22,17 @@ static_assert(sizeof(StringBucket) == 8);
 
 
 typedef struct {
-    Arena arena;
-
-    StringEntry* entries;
     StringBucket* buckets;
+    StringEntry* entries;
+
+    u32 entry_capacity;
+    u32 bucket_capacity;
 
     u32 count;
 
-    u32 bucket_capacity;
-    u32 entry_capacity;
-
     u32 resize_threshold_as_u32;
 
-    pthread_rwlock_t mutex;
+    Arena arena;
 } StringInterner;
 
 #endif // !LILY_STRING_INTERNER_TYPES_H

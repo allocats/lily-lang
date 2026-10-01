@@ -1,13 +1,12 @@
-#include "string_interner/interner.h"
 #include "hash/hash.h"
 #include "ids.h"
+#include "string_interner/interner.h"
 #include "string_interner/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
 
 #include <assert.h>
-#include <pthread.h>
 #include <string.h>
 
 /*
@@ -16,7 +15,7 @@
  *
  */
 
-static constexpr u32 init_cap = 128;
+static constexpr u32 init_cap = 256;
 static constexpr f32 load_factor = 0.75f;
 static constexpr u32 init_resize_factor = (u32)(load_factor * init_cap);
 
@@ -26,10 +25,6 @@ static constexpr u32 init_bucket_size = init_cap * sizeof(StringBucket);
 static constexpr u32 init_entry_size = init_cap * sizeof(StringEntry);
 
 static constexpr u32 init_kb = (init_bucket_size + init_entry_size) / ARENA_KB(1);
-
-// Functions that work around the locking
-static StringId string_intern_locked(StringInterner* interner, str8 str, u32 hash);
-static StringId string_lookup_locked(StringInterner* interner, str8 str, u32 hash);
 
 static void resize_buckets(StringInterner* interner);
 static void resize_entries(StringInterner* interner);
@@ -59,8 +54,6 @@ void string_interner_init(StringInterner* interner) {
 
     debug_log("Allocated %u bytes for buckets", init_bucket_size);
     debug_log("Allocated %u bytes for entries", init_entry_size);
-
-    pthread_rwlock_init(&interner -> mutex, null);
 
     /*
      *
@@ -104,8 +97,6 @@ inline void string_interner_destroy(StringInterner* interner) {
     assert(interner != null);
 
     arena_destroy(&interner -> arena);
-
-    pthread_rwlock_destroy(&interner -> mutex);
 }
 
 /*
@@ -121,76 +112,25 @@ StringId string_intern_str8(StringInterner* interner, str8 str) {
 
     debug_log("Intering string: %.*s", str.len, str.ptr);
 
-    u32 hash = hash_str8(str);
-
-    pthread_rwlock_rdlock(&interner -> mutex);
-
-    StringId id = string_lookup_locked(interner, str, hash);
-
-    // pthread_rwlock_unlock(&interner -> mutex);
-
-    if (id != STRING_ID_NONE) {
-        debug_log("Found string: %.*s", str.len, str.ptr);
-        pthread_rwlock_unlock(&interner -> mutex);
-        return id;
-    }
-
-    pthread_rwlock_unlock(&interner -> mutex);
-
-    pthread_rwlock_wrlock(&interner -> mutex);
-
-    id = string_lookup_locked(interner, str, hash);
-
-    if (id != STRING_ID_NONE) {
-        pthread_rwlock_unlock(&interner -> mutex);
-        debug_log("Found string (after race): %.*s", str.len, str.ptr);
-        return id;;
-    }
-
-    id = string_intern_locked(interner, str, hash);
-
-    pthread_rwlock_unlock(&interner -> mutex);
-
-    debug_assert(id == string_lookup_str8(interner, str));
-
-    debug_log("Interned string (id=%u): %.*s", id, str.len, str.ptr);
-
-    return id;
-}
-
-StringId string_lookup_str8(StringInterner* interner, str8 str) {
-    assert(interner != null);
-    assert(str.ptr != null);
-    assert(str.len != 0);
-
-    debug_log("Looking for string: %.*s", str.len, str.ptr);
-
-    u32 hash = hash_str8(str);
-
-    pthread_rwlock_rdlock(&interner -> mutex);
-
-    StringId id = string_lookup_locked(interner, str, hash);
-
-    pthread_rwlock_unlock(&interner -> mutex);
-
-    if (id != STRING_ID_NONE) {
-        debug_log("Found string (id=%u): %.*s", id, str.len, str.ptr);
-    } else {
-        debug_log("Could not find string: %.*s", str.len, str.ptr);
-    }
-
-    return id;
-}
-
-static StringId string_intern_locked(StringInterner* interner, str8 str, u32 hash) {
     if (UNLIKELY(interner -> count >= interner -> resize_threshold_as_u32)) {
         resize_buckets(interner);
     }
 
+    u32 hash  = hash_str8(str);
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
 
     while (interner -> buckets[index].id != STRING_ID_NONE) {
+        StringBucket bucket = interner -> buckets[index];
+
+        if (bucket.hash == hash) {
+            StringEntry entry = interner -> entries[bucket.id];
+
+            if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
+                return bucket.id;
+            }
+        }
+
         index = (index + 1) & mask;
     }
 
@@ -214,7 +154,14 @@ static StringId string_intern_locked(StringInterner* interner, str8 str, u32 has
     return id;
 }
 
-static StringId string_lookup_locked(StringInterner* interner, str8 str, u32 hash) {
+StringId string_lookup_str8(StringInterner* interner, str8 str) {
+    assert(interner != null);
+    assert(str.ptr != null);
+    assert(str.len != 0);
+
+    debug_log("Looking for string: %.*s", str.len, str.ptr);
+
+    u32 hash  = hash_str8(str);
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
 

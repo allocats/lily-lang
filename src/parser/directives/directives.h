@@ -3,8 +3,9 @@
 
 #include "ids.h"
 #include "parser/types.h"
+#include "string_interner/types.h"
 
-void init_directive_lut(Workspace* ws);
+void init_directive_lut(StringInterner* interner);
 
 AstNodeId parse_directive(Parser* p);
 

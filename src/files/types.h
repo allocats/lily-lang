@@ -12,6 +12,7 @@
 typedef enum {
     FILE_ERROR = 0,
     FILE_ALLOCATED,
+    FILE_LEXING,
     FILE_LEXED,
     FILE_PARSED,
     FILE_TYPECHECKED,
@@ -28,24 +29,20 @@ typedef struct {
     WorkspaceId workspace_id;
     FileId id;
 
-    FileStage stage;
+    _Atomic(FileStage) stage;
 
     u32  path_hash;
     str8 path;
     str8 buffer;
 
-    TokenArray tokens;
-
     Ast ast;
+
+    TokenArray tokens;
 
     u32 lines_of_code;
 } File;
 
 typedef struct {
-    Arena buffer_arena;
-
-    Arena interner_arena;
-
     FileBucket* buckets;
     File** entries; // we keep this an array of pointers for lifetimes!
 
@@ -57,6 +54,9 @@ typedef struct {
     u32 resize_threshold_as_u32;
 
     pthread_mutex_t mutex;
+
+    Arena buffer_arena;
+    Arena interner_arena;
 } FileInterner;
 
 #endif // !LILY_FILES_TYPES_H

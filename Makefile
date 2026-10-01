@@ -1,5 +1,7 @@
 CC = clang
-CF = -std=c23 -Isrc -Wall -Wextra -O2 -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer
+
+# TODO: remove `-g -fno-omit-frame-pointer` when done building the compiler, bloats the binary massively
+CF = -std=c23 -Isrc -Wall -Wextra -O2 -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer 
 DF = -DDEBUG_MODE
 
 SRC_DIR = src

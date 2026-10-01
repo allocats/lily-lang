@@ -1,12 +1,22 @@
+#include "driver/types.h"
 #include "meowrena/meowrena.h"
 #include "threadpool/threadpool.h"
 #include "threadpool/types.h"
 
 #include <assert.h>
 #include <pthread.h>
+#include <threads.h>
+
+thread_local ThreadContext thread_context;
 
 static void* threadpool_worker(void* arg) {
-    ThreadPool* pool = (ThreadPool*) arg;
+    ThreadContext* ctx = (ThreadContext*) arg;
+
+    thread_context = *ctx;
+
+    free(ctx);
+
+    ThreadPool* pool = thread_context.pool;
 
     while (true) {
         pthread_mutex_lock(&pool -> mutex);
@@ -49,8 +59,10 @@ static void* threadpool_worker(void* arg) {
     return null;
 }
 
-void threadpool_init(ThreadPool* pool, u32 count) {
+void threadpool_init(Driver* driver, u32 count) {
     assert(count > 0);
+
+    ThreadPool* pool = &driver -> thread_pool;
 
     arena_init(&pool -> task_arena, ARENA_KB(4), ALIGN_DEFAULT);
 
@@ -71,7 +83,17 @@ void threadpool_init(ThreadPool* pool, u32 count) {
     pthread_cond_init(&pool -> all_done, null);
 
     for (u32 i = 0; i < count; i++) {
-        pthread_create(&pool -> threads[i], null, threadpool_worker, pool);
+        ThreadContext *ctx = malloc(sizeof(ThreadContext));
+
+        assert(ctx != null);
+
+        *ctx = (ThreadContext) {
+            .pool = pool,
+            .index = i,
+            .string_interner = &driver -> string_interners[i]
+        };
+
+        pthread_create(&pool -> threads[i], null, threadpool_worker, ctx);
     }
 }
 

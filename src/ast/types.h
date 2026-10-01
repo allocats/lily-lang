@@ -122,12 +122,6 @@ static constexpr u64 __ast_node_size = sizeof(AstNode);
  */
 
 typedef struct {
-    // used for small vec allocations (i.e. parameter list)
-    Arena gpa;
-
-    // purely for the array
-    Arena nodes_arena;
-
     AstNode* nodes;
     u32 count;
     u32 capacity;
@@ -148,6 +142,12 @@ typedef struct {
      *   - type aliases (e.g. `TypeId :: u32;`)
     */
     u32 top_level_declaration_count;
+
+    // purely for the array
+    Arena nodes_arena;
+
+    // used for small vec allocations (i.e. parameter list)
+    Arena gpa;
 } Ast;
 
 #endif // !LILY_AST_TYPES_H
