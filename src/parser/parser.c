@@ -150,6 +150,7 @@ inline AstNodeId parser_create_node(Parser* p) {
     AstNodeId id = ast_alloc_node(&p -> file -> ast);
     AstNode* node = parser_get_node(p, id);
 
+    node -> flags = AST_FLAG_NONE;
     node -> tokens.start = p -> cursor;
 
     p -> last_allocated_node_id = id;

@@ -208,6 +208,8 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     if (stdlib_id != FILE_ID_NONE) {
         module_file_id = stdlib_id;
+
+        debug_log("Importing stdlib module: %u", module_file_id);
     } else {
         str8 module_name_str = string_get_str8_from_id(thread_context.string_interner, module_string_id);
 

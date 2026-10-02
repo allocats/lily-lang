@@ -1,3 +1,4 @@
+#include "driver/types.h"
 #include "hash/hash.h"
 #include "ids.h"
 #include "string_interner/interner.h"
@@ -8,6 +9,8 @@
 
 #include <assert.h>
 #include <string.h>
+
+extern Driver driver;
 
 /*
  *
@@ -91,6 +94,10 @@ void string_interner_init(StringInterner* interner) {
     string_intern_cstr(interner, "false");
     string_intern_cstr(interner, "true");
     string_intern_cstr(interner, "null");
+
+    for (u32 i = 0; i < driver.standard_library_path_list.count; i += 1) {
+        string_intern_str8(interner, driver.standard_library_path_list.paths[i]);
+    }
 }
 
 inline void string_interner_destroy(StringInterner* interner) {

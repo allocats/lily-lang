@@ -6,6 +6,7 @@
 #include "ids.h"
 #include "string_interner/interner.h"
 #include "threadpool/threadpool.h"
+#include "utils/debug.h"
 #include "utils/macros.h"
 #include "workspace/types.h"
 #include "workspace/workspace.h"
@@ -45,6 +46,26 @@ void driver_init(Driver* driver, const char* home) {
      */
     arena_init(&driver -> scratch_arena, ARENA_KB(2), ALIGN_DEFAULT);
 
+    /*
+     *
+     *
+     * Home directory & standard library directory
+     *
+     */
+    driver -> home_directory = home;
+
+    snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
+
+    driver -> standard_library_directory = standard_library_path;
+
+    standard_library_list_init(driver);
+
+    /*
+     *
+     * diagnostics
+     *
+     */
+
     diagnostic_engine_init();
 
     /*
@@ -57,6 +78,9 @@ void driver_init(Driver* driver, const char* home) {
     if (thread_count <= 0) {
         thread_count = 1; // default to 1 thread if sysconf fails
     }
+
+    debug_log("Creating %d threads", thread_count);
+    debug_log("Creating %d string interners", thread_count);
 
     /*
      *
@@ -77,19 +101,6 @@ void driver_init(Driver* driver, const char* home) {
      *
      */
     threadpool_init(driver, thread_count);
-
-    /*
-     *
-     * Home directory & standard library directory
-     *
-     */
-    driver -> home_directory = home;
-
-    snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
-
-    driver -> standard_library_directory = standard_library_path;
-
-    standard_library_list_init(driver);
 
     /*
     *

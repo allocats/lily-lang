@@ -14,8 +14,6 @@ static void* threadpool_worker(void* arg) {
 
     thread_context = *ctx;
 
-    free(ctx);
-
     ThreadPool* pool = thread_context.pool;
 
     while (true) {
@@ -83,7 +81,7 @@ void threadpool_init(Driver* driver, u32 count) {
     pthread_cond_init(&pool -> all_done, null);
 
     for (u32 i = 0; i < count; i++) {
-        ThreadContext *ctx = malloc(sizeof(ThreadContext));
+        ThreadContext *ctx = arena_alloc(&driver -> scratch_arena, sizeof(ThreadContext));
 
         assert(ctx != null);
 
@@ -95,6 +93,8 @@ void threadpool_init(Driver* driver, u32 count) {
 
         pthread_create(&pool -> threads[i], null, threadpool_worker, ctx);
     }
+
+    arena_reset(&driver -> scratch_arena);
 }
 
 void threadpool_destroy(ThreadPool* pool) {

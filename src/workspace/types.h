@@ -3,7 +3,6 @@
 
 #include "files/types.h"
 #include "ids.h"
-#include "string_interner/types.h"
 #include "symbols/table/types.h"
 #include "types/builtins/types.h"
 #include "types/table/types.h"
@@ -62,8 +61,6 @@ typedef struct {
     StandardLibraryMap standard_library_map;
 
     FileInterner file_interner;
-
-    StringInterner string_interner;
 
     SymbolTable symbol_table;
 

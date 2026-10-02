@@ -45,8 +45,6 @@ void workspace_init(Workspace* ws, WorkspaceId id, const char* name) {
 
     file_interner_init(&ws -> file_interner);
 
-    string_interner_init(&ws -> string_interner);
-
     /*
      *
      * used for AST parser, must be called after `string_interner_init()`
@@ -65,8 +63,6 @@ void workspace_destroy(Workspace* ws) {
     type_table_destroy(&ws -> type_table);
 
     symbol_table_destory(&ws -> symbol_table);
-
-    string_interner_destroy(&ws -> string_interner);
 
     file_interner_destroy(&ws -> file_interner);
 
@@ -184,7 +180,7 @@ static void standard_library_map_init(Workspace* ws) {
     for (u32 i = 0; i < list -> count; i += 1) {
         debug_log("Registering STD module: %.*s", STR8_FMT(list -> paths[i]));
 
-        StringId string_id = string_intern_str8(&ws -> string_interner, list -> paths[i]);
+        StringId string_id = string_lookup_str8(&driver.string_interners[0], list -> paths[i]);
 
         if (i == 0) {
             map -> range.start = string_id;
