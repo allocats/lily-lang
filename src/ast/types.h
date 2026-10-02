@@ -143,9 +143,6 @@ typedef struct {
     */
     u32 top_level_declaration_count;
 
-    // purely for the array
-    Arena nodes_arena;
-
     // used for small vec allocations (i.e. parameter list)
     Arena gpa;
 } Ast;

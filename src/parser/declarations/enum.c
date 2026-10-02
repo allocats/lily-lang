@@ -128,5 +128,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
 
     parser_advance(p); // advance past `{`
 
+    p -> file -> ast.total_declaration_count += node -> as.enum_decl.variants.count;
+
     return id;
 }

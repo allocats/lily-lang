@@ -34,7 +34,7 @@ static constexpr u32 init_bucket_size = init_cap * sizeof(FileBucket);
 static constexpr u32 init_entry_size = init_cap * sizeof(File*);
 
 static constexpr u32 init_interner_kb = 4;
-static constexpr u32 init_buffer_kb = 64;
+static constexpr u32 init_buffer_mb = 32;
 
 
 static void resize_buckets(FileInterner* interner);
@@ -58,11 +58,13 @@ void file_interner_init(FileInterner* interner) {
     arena_init(&interner -> interner_arena, ARENA_KB(init_interner_kb), ALIGN_DEFAULT);
     debug_log("Init interner arena with %uKB", ARENA_KB(init_interner_kb));
 
-    arena_init(&interner -> buffer_arena, ARENA_KB(init_buffer_kb), ALIGN_DEFAULT);
-    debug_log("Init buffer arena with %uKB", ARENA_KB(init_buffer_kb));
+    arena_init(&interner -> buffer_arena, ARENA_MB(init_buffer_mb), ALIGN_DEFAULT);
+    debug_log("Init buffer arena with %uMB", ARENA_KB(init_buffer_mb));
 
-    interner -> buckets = arena_alloc(&interner -> interner_arena, init_bucket_size);
-    interner -> entries = arena_calloc(&interner -> interner_arena, init_entry_size);
+    // interner -> buckets = arena_alloc(&interner -> interner_arena, init_bucket_size);
+    interner -> buckets = malloc(init_bucket_size);
+    // interner -> entries = arena_calloc(&interner -> interner_arena, init_entry_size);
+    interner -> entries = malloc(init_entry_size);
 
     interner -> bucket_capacity = init_cap;
     interner -> entry_capacity = init_cap;
@@ -74,7 +76,7 @@ void file_interner_init(FileInterner* interner) {
     debug_log("Allocated %u bytes for buckets", init_bucket_size);
     debug_log("Allocated %u bytes for entries", init_entry_size);
 
-    arena_memset(interner -> buckets, U8_MAX, init_bucket_size);
+    memset(interner -> buckets, U8_MAX, init_bucket_size);
 
     pthread_mutex_init(&interner -> mutex, null);
 }
@@ -88,6 +90,9 @@ inline void file_interner_destroy(FileInterner* interner) {
 
     arena_destroy(&interner -> interner_arena);
     arena_destroy(&interner -> buffer_arena);
+
+    free(interner -> buckets);
+    free(interner -> entries);
 
     pthread_mutex_destroy(&interner -> mutex);
 }
@@ -230,8 +235,9 @@ static void resize_buckets(FileInterner* interner) {
 
     u32 new_capacity = interner -> bucket_capacity * 2;
 
-    FileBucket* new_buckets = arena_realloc(&interner -> interner_arena, interner -> buckets, old_size, new_size);
-    arena_memset(new_buckets, U8_MAX, new_size);
+    // FileBucket* new_buckets = arena_realloc(&interner -> interner_arena, interner -> buckets, old_size, new_size);
+    FileBucket* new_buckets = realloc(interner -> buckets, new_size);
+    memset(new_buckets, U8_MAX, new_size);
 
     debug_log("Reallocated buckets from %lu -> %lu bytes", old_size , new_size);
 
@@ -257,7 +263,8 @@ static void resize_entries(FileInterner* interner) {
     u64 old_size = interner -> entry_capacity * sizeof(File*);
     u64 new_size = old_size * 2;
 
-    interner -> entries = arena_realloc(&interner -> interner_arena, interner -> entries, old_size, new_size);
+    // interner -> entries = arena_realloc(&interner -> interner_arena, interner -> entries, old_size, new_size);
+    interner -> entries = realloc(interner -> entries, new_size);
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated entries from %lu to %lu bytes", old_size, new_size);

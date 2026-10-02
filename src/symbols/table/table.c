@@ -19,15 +19,17 @@ void symbol_table_init(SymbolTable* table, u32 scope_count_estimate, u32 symbol_
     u64 scope_array_size  = sizeof(Scope)  * scope_count_estimate;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count_estimate;
 
-    arena_init(&table -> scope_array_arena, scope_array_size, ALIGN_DEFAULT);
-    arena_init(&table -> symbol_array_arena, symbol_array_size, ALIGN_DEFAULT);
+    // arena_init(&table -> scope_array_arena, scope_array_size, ALIGN_DEFAULT);
+    // arena_init(&table -> symbol_array_arena, symbol_array_size, ALIGN_DEFAULT);
 
-    table -> scopes = arena_alloc(&table -> scope_array_arena, scope_array_size);
+    // table -> scopes = arena_alloc(&table -> scope_array_arena, scope_array_size);
+    table -> scopes = malloc(scope_array_size);
     table -> scope_count = 1; // ScopeId 0 is reserved for the compiler
     table -> scope_capacity = scope_count_estimate;
     table -> scope_resize_threshold_as_u32 = (u32)(scope_count_estimate * load_factor);
 
-    table -> symbols = arena_alloc(&table -> symbol_array_arena, symbol_array_size);
+    // table -> symbols = arena_alloc(&table -> symbol_array_arena, symbol_array_size);
+    table -> symbols = malloc(symbol_array_size);
     table -> symbol_count = 0;
     table -> symbol_capacity = symbol_count_estimate;
     table -> symbol_resize_threshold_as_u32 = (u32)(symbol_count_estimate * load_factor);
@@ -49,7 +51,10 @@ void symbol_table_destory(SymbolTable* table) {
     // pthread_rwlock_destroy(&table -> mutex);
     
     arena_destroy(&table -> scope_data_arena);
-    arena_destroy(&table -> scope_array_arena);
+    // arena_destroy(&table -> scope_array_arena);
     arena_destroy(&table -> symbol_data_arena);
-    arena_destroy(&table -> symbol_array_arena);
+    // arena_destroy(&table -> symbol_array_arena);
+
+    free(table -> scopes);
+    free(table -> symbols);
 }

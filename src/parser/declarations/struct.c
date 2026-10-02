@@ -150,5 +150,7 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
 
     parser_advance(p);
 
+    p -> file -> ast.total_declaration_count += node -> as.struct_decl.fields.count;
+
     return id;
 }

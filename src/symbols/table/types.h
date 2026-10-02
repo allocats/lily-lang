@@ -18,9 +18,9 @@ typedef struct {
     u32 symbol_resize_threshold_as_u32;
     u32 scope_resize_threshold_as_u32;
 
-    Arena scope_array_arena;
+    // Arena scope_array_arena;
     Arena scope_data_arena;
-    Arena symbol_array_arena;
+    // Arena symbol_array_arena;
     Arena symbol_data_arena;
 } SymbolTable;
 

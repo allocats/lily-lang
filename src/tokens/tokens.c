@@ -11,9 +11,10 @@ void token_array_init(TokenArray* array, u64 capacity) {
 
     u64 size = sizeof(Token) * capacity;
 
-    arena_init(&array -> arena, size, ALIGN_DEFAULT);
+    // arena_init(&array -> arena, size, ALIGN_DEFAULT);
 
-    array -> items = arena_alloc(&array -> arena, size);
+    // array -> items = arena_alloc(&array -> arena, size);
+    array -> items = malloc(size);
     array -> count = 0;
     array -> capacity = capacity;
 
@@ -25,7 +26,9 @@ inline void token_array_destroy(TokenArray* array) {
     
     debug_log("Deleting TokenArray: Count=%lu Capacity=%lu", array -> count, array -> capacity);
 
-    arena_destroy(&array -> arena);
+    free(array -> items);
+
+    // arena_destroy(&array -> arena);
 }
 
 /*

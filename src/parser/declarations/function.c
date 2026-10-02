@@ -256,6 +256,8 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             break;
         }
 
+        node = parser_get_node(p, id);
+
         parser_append_id_list(
             p,
             &node -> as.func_decl.parameters,
@@ -331,8 +333,6 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         node -> tokens.end = p -> cursor;
 
         parser_advance(p); // advance past ';'
-
-        p -> file -> ast.total_declaration_count += 1;
 
         return id;
     }

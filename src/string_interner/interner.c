@@ -27,8 +27,6 @@ static_assert(init_resize_factor < init_cap);
 static constexpr u32 init_bucket_size = init_cap * sizeof(StringBucket); 
 static constexpr u32 init_entry_size = init_cap * sizeof(StringEntry);
 
-static constexpr u32 init_kb = (init_bucket_size + init_entry_size) / ARENA_KB(1);
-
 static void resize_buckets(StringInterner* interner);
 static void resize_entries(StringInterner* interner);
 
@@ -41,10 +39,8 @@ static void resize_entries(StringInterner* interner);
 void string_interner_init(StringInterner* interner) {
     assert(interner != null);
 
-    arena_init(&interner -> arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
-
-    interner -> buckets = arena_alloc(&interner -> arena, init_bucket_size);
-    interner -> entries = arena_alloc(&interner -> arena, init_entry_size);
+    interner -> buckets = malloc(init_bucket_size);
+    interner -> entries = malloc(init_entry_size);
 
     interner -> bucket_capacity = init_cap;
     interner -> entry_capacity = init_cap;
@@ -103,7 +99,8 @@ void string_interner_init(StringInterner* interner) {
 inline void string_interner_destroy(StringInterner* interner) {
     assert(interner != null);
 
-    arena_destroy(&interner -> arena);
+    free(interner -> buckets);
+    free(interner -> entries);
 }
 
 /*
@@ -252,11 +249,10 @@ inline str8 string_get_str8_from_id(StringInterner* interner, StringId id) {
 static void resize_buckets(StringInterner* interner) {
     u32 new_capacity = interner -> bucket_capacity * 2;
 
-    u64 old_size = sizeof(StringBucket) * interner -> bucket_capacity;
     u64 new_size = new_capacity * sizeof(StringBucket);
 
-    StringBucket* new_buckets = arena_realloc(&interner -> arena, interner -> buckets, old_size, new_size);
-    arena_memset(new_buckets, U8_MAX, new_size);
+    StringBucket* new_buckets = realloc(interner -> buckets, new_size);
+    memset(new_buckets, U8_MAX, new_size);
 
     debug_log("Reallocated buckets from %lu to %lu", new_size / 2, new_size);
 
@@ -283,7 +279,7 @@ static void resize_entries(StringInterner* interner) {
     u64 old_size = sizeof(StringEntry) * interner -> entry_capacity; 
     u64 new_size = old_size * 2;
 
-    interner -> entries = arena_realloc(&interner -> arena, interner -> entries, old_size, new_size);
+    interner -> entries = realloc(interner -> entries, new_size);
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated entries from %lu to %lu bytes", old_size, new_size);

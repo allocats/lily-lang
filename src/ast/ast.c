@@ -19,9 +19,8 @@ void ast_init(Ast* ast) {
     assert(ast != null);
 
     arena_init(&ast -> gpa, ARENA_KB(2), ALIGN_DEFAULT);
-    arena_init(&ast -> nodes_arena, ARENA_KB(8), ALIGN_DEFAULT);
 
-    ast -> nodes = arena_calloc(&ast -> nodes_arena, sizeof(AstNode) * init_cap);
+    ast -> nodes = calloc(init_cap, sizeof(AstNode));
     ast -> count = 0;
     ast -> capacity = init_cap;
 
@@ -33,9 +32,10 @@ void ast_init(Ast* ast) {
 
 inline void ast_destroy(Ast* ast) {
     assert(ast != null);
+
+    free(ast -> nodes);
     
     arena_destroy(&ast -> gpa);
-    arena_destroy(&ast -> nodes_arena);
 }
 
 /*
@@ -52,7 +52,7 @@ AstNodeId ast_alloc_node(Ast* ast) {
         u64 old_size = sizeof(AstNode) * ast -> capacity;
         u64 new_size = old_size * 2;
 
-        ast -> nodes = arena_realloc(&ast -> nodes_arena, ast -> nodes, old_size, new_size);
+        ast -> nodes = realloc(ast -> nodes, new_size);
         ast -> capacity *= 2;
 
         debug_log("Reallocated nodes from %lu to %lu bytes", old_size, new_size);
@@ -76,7 +76,7 @@ inline AstNode* ast_get_node(Ast* ast, AstNodeId id) {
 void ast_id_list_init(Ast* ast, AstNodeIdList* list, u32 count) {
     assert(count != 0);
 
-    u32 size = sizeof(AstNodeId) * count;
+    u64 size = sizeof(AstNodeId) * count;
 
     list -> ids = arena_alloc(&ast -> gpa, size);
     list -> count = 0;

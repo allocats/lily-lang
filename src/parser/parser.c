@@ -121,6 +121,7 @@ void parse_file(File* file) {
                  *
                  */
                 p.file -> ast.top_level_declaration_count += 1;
+                p.file -> ast.total_declaration_count += 1;
             } break;
 
             default: {
@@ -150,6 +151,7 @@ inline AstNodeId parser_create_node(Parser* p) {
     AstNodeId id = ast_alloc_node(&p -> file -> ast);
     AstNode* node = parser_get_node(p, id);
 
+    node -> id = id;
     node -> flags = AST_FLAG_NONE;
     node -> tokens.start = p -> cursor;
 

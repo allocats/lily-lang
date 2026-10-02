@@ -870,7 +870,8 @@ static Token* tokens_get_new_token(Lexer* lexer) {
 
         assert(new_size > old_size);
 
-        arr -> items = arena_realloc(&arr -> arena, arr -> items, old_size, new_size);
+        // arr -> items = arena_realloc(&arr -> arena, arr -> items, old_size, new_size);
+        arr -> items = realloc(arr -> items, new_size);
         arr -> capacity *= 2;
 
         debug_log("Reallocated TokenArray arr -> items from %lu to %lu bytes", old_size, new_size);

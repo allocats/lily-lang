@@ -25,7 +25,7 @@ typedef struct {
     u64 count;
     u64 capacity;
 
-    Arena arena;
+    // Arena arena;
 } TokenArray;
 
 #endif // !LILY_TOKENS_TYPES_H
