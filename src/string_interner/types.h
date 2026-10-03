@@ -31,6 +31,8 @@ typedef struct {
     u32 count;
 
     u32 resize_threshold_as_u32;
+
+    u8 id;
 } StringInterner;
 
 #endif // !LILY_STRING_INTERNER_TYPES_H

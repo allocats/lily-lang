@@ -8,6 +8,7 @@
 #include "threadpool/threadpool.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/types.h"
 #include "workspace/types.h"
 #include "workspace/workspace.h"
 
@@ -79,6 +80,10 @@ void driver_init(Driver* driver, const char* home) {
         thread_count = 1; // default to 1 thread if sysconf fails
     }
 
+    if (thread_count > U8_MAX) {
+        thread_count = U8_MAX;
+    }
+
     debug_log("Creating %d threads", thread_count);
     debug_log("Creating %d string interners", thread_count);
 
@@ -90,8 +95,8 @@ void driver_init(Driver* driver, const char* home) {
     driver -> string_interners = malloc(sizeof(StringInterner) * thread_count);
     driver -> string_interner_count = thread_count;
 
-    for (i32 i = 0; i < thread_count; i += 1) {
-        string_interner_init(&driver -> string_interners[i]);
+    for (u8 i = 0; i < thread_count; i += 1) {
+        string_interner_init(&driver -> string_interners[i], i);
     }
 
     /*

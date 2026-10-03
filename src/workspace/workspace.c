@@ -182,6 +182,8 @@ static void standard_library_map_init(Workspace* ws) {
 
         StringId string_id = string_lookup_str8(&driver.string_interners[0], list -> paths[i]);
 
+        string_id = get_local_string_id(string_id);
+
         if (i == 0) {
             map -> range.start = string_id;
         } else {
@@ -221,6 +223,8 @@ static void standard_library_map_init(Workspace* ws) {
 }
 
 FileId standard_library_map_get_module(StandardLibraryMap* map, StringId id) {
+    id = get_local_string_id(id);
+
     if (id < map -> range.start || id > map -> range.end) {
         return FILE_ID_NONE;
     }

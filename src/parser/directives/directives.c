@@ -57,13 +57,13 @@ static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
  */
 
 void init_directive_lut(StringInterner* string_interner) {
-    assert(string_intern_cstr(string_interner, "import") == 0);
+    assert(get_local_string_id(string_intern_cstr(string_interner, "import")) == 0);
 
-    directive_lut[string_intern_cstr(string_interner, "import")]  = AST_IMPORT_DIRECTIVE;
-    directive_lut[string_intern_cstr(string_interner, "include")] = AST_INCLUDE_DIRECTIVE;
-    directive_lut[string_intern_cstr(string_interner, "execute")] = AST_EXECUTE_DIRECTIVE;
-    directive_lut[string_intern_cstr(string_interner, "packed")]  = AST_PACKED_DIRECTIVE;
-    directive_lut[string_intern_cstr(string_interner, "align")]   = AST_ALIGN_DIRECTIVE;
+    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "import"))]  = AST_IMPORT_DIRECTIVE;
+    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "include"))] = AST_INCLUDE_DIRECTIVE;
+    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "execute"))] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "packed"))]  = AST_PACKED_DIRECTIVE;
+    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "align"))]   = AST_ALIGN_DIRECTIVE;
 
     debug_log("Directive lookup table has been set up");
 }
@@ -95,6 +95,8 @@ AstNodeId parse_directive(Parser* p) {
     }
 
     StringId string_id = string_lookup_token(thread_context.string_interner, p -> file, directive_token);
+
+    string_id = get_local_string_id(string_id);
 
     if (string_id >= directive_count) {
         diagnostic_add_token(

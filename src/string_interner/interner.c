@@ -36,7 +36,7 @@ static void resize_entries(StringInterner* interner);
  *
  */
 
-void string_interner_init(StringInterner* interner) {
+void string_interner_init(StringInterner* interner, u8 id) {
     assert(interner != null);
 
     interner -> buckets = malloc(init_bucket_size);
@@ -49,7 +49,11 @@ void string_interner_init(StringInterner* interner) {
 
     interner -> resize_threshold_as_u32 = init_resize_factor;
 
-    arena_memset(interner -> buckets, U8_MAX, init_bucket_size);
+    interner -> id = id;
+
+    for (u32 i = 0; i < init_cap; i += 1) {
+        interner -> buckets[i].id = create_string_id(id, STRING_ID_NONE);
+    }
 
     debug_log("Allocated %u bytes for buckets", init_bucket_size);
     debug_log("Allocated %u bytes for entries", init_entry_size);
@@ -124,11 +128,13 @@ StringId string_intern_str8(StringInterner* interner, str8 str) {
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
 
-    while (interner -> buckets[index].id != STRING_ID_NONE) {
+    while (get_local_string_id(interner -> buckets[index].id) != STRING_ID_NONE) {
         StringBucket bucket = interner -> buckets[index];
 
         if (bucket.hash == hash) {
-            StringEntry entry = interner -> entries[bucket.id];
+            StringId local_id = get_local_string_id(bucket.id);
+
+            StringEntry entry = interner -> entries[local_id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 return bucket.id;
@@ -142,12 +148,16 @@ StringId string_intern_str8(StringInterner* interner, str8 str) {
         resize_entries(interner);
     }
 
-    StringId id = interner -> count++;
+    StringId id = create_string_id(interner -> id, interner -> count++);
+
+    assert(interner -> count < STRING_ID_NONE);
 
     interner -> buckets[index].id = id;
     interner -> buckets[index].hash = hash;
 
-    interner -> entries[id] = (StringEntry) {
+    StringId local_id = get_local_string_id(id);
+
+    interner -> entries[local_id] = (StringEntry) {
         .str = {
             .ptr = str.ptr,
             .len = str.len,
@@ -169,11 +179,13 @@ StringId string_lookup_str8(StringInterner* interner, str8 str) {
     u32 mask  = interner -> bucket_capacity - 1;
     u32 index = hash & mask;
 
-    while (interner -> buckets[index].id != STRING_ID_NONE) {
+    while (get_local_string_id(interner -> buckets[index].id) != STRING_ID_NONE) {
         StringBucket bucket = interner -> buckets[index];
 
         if (bucket.hash == hash) {
-            StringEntry entry = interner -> entries[bucket.id];
+            StringId local_id = get_local_string_id(bucket.id);
+
+            StringEntry entry = interner -> entries[local_id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 return bucket.id;
@@ -237,7 +249,7 @@ StringId string_lookup_token(StringInterner* interner, File* file, Token token) 
  */
 
 inline str8 string_get_str8_from_id(StringInterner* interner, StringId id) {
-    return interner -> entries[id].str;
+    return interner -> entries[get_local_string_id(id)].str;
 }
 
 /*
@@ -252,7 +264,10 @@ static void resize_buckets(StringInterner* interner) {
     u64 new_size = new_capacity * sizeof(StringBucket);
 
     StringBucket* new_buckets = realloc(interner -> buckets, new_size);
-    memset(new_buckets, U8_MAX, new_size);
+
+    for (u32 i = 0; i < new_capacity; i += 1) {
+        new_buckets[i].id = create_string_id(interner -> id, STRING_ID_NONE);
+    }
 
     debug_log("Reallocated buckets from %lu to %lu", new_size / 2, new_size);
 
@@ -261,11 +276,11 @@ static void resize_buckets(StringInterner* interner) {
 
         u32 new_index = entry.hash & (new_capacity - 1);
 
-        while (new_buckets[new_index].id != STRING_ID_NONE) {
+        while (get_local_string_id(new_buckets[new_index].id) != STRING_ID_NONE) {
             new_index = (new_index + 1) & (new_capacity - 1);
         }
 
-        new_buckets[new_index].id = i;
+        new_buckets[new_index].id = create_string_id(interner -> id, i);
         new_buckets[new_index].hash = entry.hash;
     }
 
@@ -283,4 +298,48 @@ static void resize_entries(StringInterner* interner) {
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated entries from %lu to %lu bytes", old_size, new_size);
+}
+
+/*
+ *
+ * New helpers to make use of the new StringId system
+ *
+ */
+
+inline u8 get_string_interner_id(StringId id) {
+    return (id >> LOCAL_STRING_ID_BIT_OFFSET) & U8_MAX;
+}
+
+inline StringId get_local_string_id(StringId id) {
+    return id & STRING_ID_NONE;
+}
+
+inline StringId create_string_id(u8 interner_id, StringId string_id) {
+    return (interner_id << LOCAL_STRING_ID_BIT_OFFSET) | string_id;
+}
+
+bool are_strings_equal(StringId a, StringId b) {
+    if (a == b) {
+        return true;
+    }
+
+    u8 interner_b_id = get_string_interner_id(b);
+    u8 interner_a_id = get_string_interner_id(a);
+
+    if (interner_a_id == interner_b_id) {
+        return false;
+    }
+
+    StringEntry entry_a = driver.string_interners[interner_a_id].entries[get_local_string_id(a)];
+    StringEntry entry_b = driver.string_interners[interner_b_id].entries[get_local_string_id(b)];
+
+    if (
+        entry_a.hash == entry_b.hash && 
+        entry_a.str.len == entry_b.str.len && 
+        memcmp(entry_a.str.ptr, entry_b.str.ptr, entry_b.str.len) == 0
+    ) {
+        return true;
+    }
+
+    return false;
 }
