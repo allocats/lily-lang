@@ -4,7 +4,7 @@
 #include <pthread.h>
 
 #include "meowrena/meowrena.h"
-#include "string_interner/types.h"
+#include "string_interner/local/types.h"
 #include "utils/types.h"
 
 typedef struct ThreadTask ThreadTask;
@@ -43,7 +43,7 @@ typedef struct {
     ThreadPool* pool;
     u32 index;
 
-    StringInterner* string_interner;
+    LocalStringInterner* string_interner;
 } ThreadContext;
 
 #endif // !LILY_THREADPOOL_TYPES_H

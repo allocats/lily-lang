@@ -8,7 +8,7 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "parser/type_expressions/type_expressions.h"
-#include "string_interner/interner.h"
+#include "string_interner/local/interner.h"
 #include "threadpool/types.h"
 
 extern ThreadContext thread_context;
@@ -24,13 +24,13 @@ AstNodeId parse_variable_declaration(Parser* p) {
      * initiate the node's values, no unitialised bs please
      *
      */
-    node -> as.variable_decl.name = STRING_ID_NONE;
+    node -> as.variable_decl.name = LOCAL_STRING_ID_NONE;
     node -> as.variable_decl.type_expr = AST_NODE_ID_NONE;
     node -> as.variable_decl.init_expr = AST_NODE_ID_NONE;
 
     Token name_token = parser_peek(p);
 
-    node -> as.variable_decl.name = string_intern_token(thread_context.string_interner, p -> file, name_token);
+    node -> as.variable_decl.name = local_string_intern_token(thread_context.string_interner, p -> file, name_token);
 
     /*
      * in theory should not have to check this because it's only possible to be 

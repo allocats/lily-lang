@@ -6,7 +6,7 @@
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
-#include "string_interner/interner.h"
+#include "string_interner/local/interner.h"
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 #include "tokens/tokens.h"
@@ -463,7 +463,7 @@ static AstNodeId parse_primary(Parser* p) {
             node -> tokens.end = node -> tokens.start;
 
             node -> as.literal.kind = LITERAL_STRING;
-            node -> as.literal.as.string = string_intern_token(thread_context.string_interner, p -> file, token);
+            node -> as.literal.as.string = local_string_intern_token(thread_context.string_interner, p -> file, token);
 
             return id;
         }
@@ -504,7 +504,7 @@ static AstNodeId parse_primary(Parser* p) {
             node -> tokens.start -= 1;
             node -> tokens.end = node -> tokens.start;
 
-            node -> as.identifier.name = string_intern_token(thread_context.string_interner, p -> file, token);
+            node -> as.identifier.name = local_string_intern_token(thread_context.string_interner, p -> file, token);
 
             return id;
         }
@@ -541,8 +541,8 @@ static AstNodeId parse_primary(Parser* p) {
 
             Token directive_tok = parser_advance(p);
 
-            StringId execute_string_id = string_lookup_cstr(thread_context.string_interner, "execute");
-            StringId directive_id = string_lookup_token(thread_context.string_interner, p -> file, directive_tok);
+            StringId execute_string_id = local_string_lookup_cstr(thread_context.string_interner, "execute");
+            StringId directive_id = local_string_lookup_token(thread_context.string_interner, p -> file, directive_tok);
 
             if (execute_string_id != directive_id) {
                 diagnostic_add_token(
@@ -700,7 +700,7 @@ static AstNodeId parse_member_access(Parser* p, AstNodeId left) {
     AstNode* member_node = parser_get_node(p, member_id);
 
     member_node -> kind = AST_IDENTIFIER;
-    member_node -> as.identifier.name = string_intern_token(
+    member_node -> as.identifier.name = local_string_intern_token(
         thread_context.string_interner,
         p -> file,
         member_token
@@ -745,7 +745,7 @@ static AstNodeId parse_struct_literal(Parser* p, AstNodeId left) {
             return parser_error(p, id, RECOVERY_EXPRESSION);
         }
 
-        StringId field_name_id = string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
+        StringId field_name_id = local_string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
 
         parser_advance(p); // advance past `identifier`
 

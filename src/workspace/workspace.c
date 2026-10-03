@@ -6,7 +6,8 @@
 #include "lexer/lexer.h"
 #include "parser/directives/directives.h"
 #include "parser/parser.h"
-#include "string_interner/interner.h"
+#include "string_interner/global/interner.h"
+#include "string_interner/local/interner.h"
 #include "symbols/table/table.h"
 #include "threadpool/threadpool.h"
 #include "types/table/table.h"
@@ -50,7 +51,7 @@ void workspace_init(Workspace* ws, WorkspaceId id, const char* name) {
      * used for AST parser, must be called after `string_interner_init()`
      *
      */
-    init_directive_lut(&driver.string_interners[0]);
+    init_directive_lut(&driver.local_string_interners[0]);
 
     standard_library_map_init(ws);
 
@@ -65,6 +66,8 @@ void workspace_destroy(Workspace* ws) {
     symbol_table_destory(&ws -> symbol_table);
 
     file_interner_destroy(&ws -> file_interner);
+
+    global_string_interner_destroy(&ws -> global_string_interner);
 
     arena_destroy(&ws -> standard_library_map.arena);
 }
@@ -109,6 +112,13 @@ void compile_workspace(Workspace* ws) {
         scope_count_estimate  += file -> ast.top_level_declaration_count;
         symbol_count_estimate += file -> ast.total_declaration_count;
     }
+
+    /*
+     *
+     * note: this functions frees the local string interners
+     *
+     */
+    global_string_interner_init(&ws -> global_string_interner);
 
     symbol_table_init(&ws -> symbol_table, scope_count_estimate, symbol_count_estimate);
 
@@ -158,13 +168,6 @@ void workspace_dispatch_lex_and_parse_file(void* arg) {
  *
  * Standard Library Mapping
  *
- * TODO: Perhaps make it its own interner, ideally in lily :p I could just 
- *       run code at compile time to calculate the number of entries and get 
- *       a list of said entries, and actually probably be able to create the whole 
- *       map for standard library at compile time. sighh
- *
- * TODO: Make this per thread? Need consistent IDs for it to function correctly
- *
  */
 
 static void standard_library_map_init(Workspace* ws) {
@@ -180,9 +183,9 @@ static void standard_library_map_init(Workspace* ws) {
     for (u32 i = 0; i < list -> count; i += 1) {
         debug_log("Registering STD module: %.*s", STR8_FMT(list -> paths[i]));
 
-        StringId string_id = string_lookup_str8(&driver.string_interners[0], list -> paths[i]);
+        StringId string_id = local_string_lookup_str8(&driver.local_string_interners[0], list -> paths[i]);
 
-        string_id = get_local_string_id(string_id);
+        string_id = local_string_get_id(string_id);
 
         if (i == 0) {
             map -> range.start = string_id;
@@ -223,13 +226,13 @@ static void standard_library_map_init(Workspace* ws) {
 }
 
 FileId standard_library_map_get_module(StandardLibraryMap* map, StringId id) {
-    id = get_local_string_id(id);
+    StringId local_id = local_string_get_id(id);
 
-    if (id < map -> range.start || id > map -> range.end) {
+    if (local_id < map -> range.start || local_id > map -> range.end) {
         return FILE_ID_NONE;
     }
 
-    u32 index = id - map -> range.start;
+    u32 index = local_id - map -> range.start;
 
     assert(index < map -> count);
 

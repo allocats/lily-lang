@@ -2,7 +2,7 @@
 #define LILY_DRIVER_TYPES_H
 
 #include "diagnostics/types.h"
-#include "string_interner/types.h"
+#include "string_interner/local/types.h"
 #include "threadpool/types.h"
 #include "utils/types.h"
 #include "workspace/types.h"
@@ -19,8 +19,8 @@ typedef struct {
     Workspace** workspaces;
     u32 workspace_count;
 
-    StringInterner* string_interners;
-    u32 string_interner_count;
+    LocalStringInterner* local_string_interners;
+    u32 local_string_interner_count;
 
     ThreadPool thread_pool;
 

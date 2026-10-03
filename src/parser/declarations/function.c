@@ -9,7 +9,7 @@
 #include "parser/recovery/types.h"
 #include "parser/statements/statements.h"
 #include "parser/type_expressions/type_expressions.h"
-#include "string_interner/interner.h"
+#include "string_interner/local/interner.h"
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
@@ -176,7 +176,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_DECLARATION);
         }
 
-        StringId parameter_name_id = string_intern_token(
+        StringId parameter_name_id = local_string_intern_token(
             thread_context.string_interner,
             p -> file,
             parameter_name_tok

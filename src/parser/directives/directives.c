@@ -10,8 +10,8 @@
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
-#include "string_interner/interner.h"
-#include "string_interner/types.h"
+#include "string_interner/local/interner.h"
+#include "string_interner/local/types.h"
 #include "threadpool/threadpool.h"
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
@@ -56,14 +56,14 @@ static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
  *
  */
 
-void init_directive_lut(StringInterner* string_interner) {
-    assert(get_local_string_id(string_intern_cstr(string_interner, "import")) == 0);
+void init_directive_lut(LocalStringInterner* string_interner) {
+    assert(local_string_get_id(local_string_intern_cstr(string_interner, "import")) == 0);
 
-    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "import"))]  = AST_IMPORT_DIRECTIVE;
-    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "include"))] = AST_INCLUDE_DIRECTIVE;
-    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "execute"))] = AST_EXECUTE_DIRECTIVE;
-    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "packed"))]  = AST_PACKED_DIRECTIVE;
-    directive_lut[get_local_string_id(string_intern_cstr(string_interner, "align"))]   = AST_ALIGN_DIRECTIVE;
+    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "import"))]  = AST_IMPORT_DIRECTIVE;
+    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "include"))] = AST_INCLUDE_DIRECTIVE;
+    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "execute"))] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "packed"))]  = AST_PACKED_DIRECTIVE;
+    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "align"))]   = AST_ALIGN_DIRECTIVE;
 
     debug_log("Directive lookup table has been set up");
 }
@@ -94,9 +94,9 @@ AstNodeId parse_directive(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    StringId string_id = string_lookup_token(thread_context.string_interner, p -> file, directive_token);
+    StringId string_id = local_string_lookup_token(thread_context.string_interner, p -> file, directive_token);
 
-    string_id = get_local_string_id(string_id);
+    string_id = local_string_get_id(string_id);
 
     if (string_id >= directive_count) {
         diagnostic_add_token(
@@ -183,7 +183,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     module_tok.start  += 1;
     module_tok.length -= 2;
 
-    StringId module_string_id = string_intern_token(thread_context.string_interner, p -> file, module_tok);
+    StringId module_string_id = local_string_intern_token(thread_context.string_interner, p -> file, module_tok);
 
     module_tok.start  -= 1;
     module_tok.length += 2;
@@ -213,7 +213,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
         debug_log("Importing stdlib module: %u", module_file_id);
     } else {
-        str8 module_name_str = string_get_str8_from_id(thread_context.string_interner, module_string_id);
+        str8 module_name_str = local_string_get_str8_from_id(thread_context.string_interner, module_string_id);
 
         /*
          *
@@ -306,7 +306,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     file_tok.start  += 1;
     file_tok.length -= 2;
 
-    StringId file_string_id = string_intern_token(thread_context.string_interner, p -> file, file_tok);
+    StringId file_string_id = local_string_intern_token(thread_context.string_interner, p -> file, file_tok);
 
     file_tok.start  -= 1;
     file_tok.length += 2;
@@ -316,7 +316,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     node -> as.include_directive.path = file_string_id;
     node -> as.include_directive.file_id = FILE_ID_NONE;
 
-    str8 file_path_str = string_get_str8_from_id(thread_context.string_interner, file_string_id);
+    str8 file_path_str = local_string_get_str8_from_id(thread_context.string_interner, file_string_id);
 
     str8 current_path = p -> file -> path;
 

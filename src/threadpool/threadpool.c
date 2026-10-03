@@ -88,7 +88,7 @@ void threadpool_init(Driver* driver, u32 count) {
         *ctx = (ThreadContext) {
             .pool = pool,
             .index = i,
-            .string_interner = &driver -> string_interners[i]
+            .string_interner = &driver -> local_string_interners[i]
         };
 
         pthread_create(&pool -> threads[i], null, threadpool_worker, ctx);

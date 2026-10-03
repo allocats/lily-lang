@@ -11,7 +11,7 @@ AstNodeId parser_continue_statement(Parser* p) {
 
     node -> kind = AST_CONTINUE_STMT;
 
-    node -> as.continue_stmt.label = STRING_ID_NONE;
+    node -> as.continue_stmt.label = LOCAL_STRING_ID_NONE;
 
     Token continue_tok = parser_advance(p); // advance past `continue`
 

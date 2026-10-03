@@ -3,6 +3,7 @@
 
 #include "files/types.h"
 #include "ids.h"
+#include "string_interner/global/types.h"
 #include "symbols/table/types.h"
 #include "types/builtins/types.h"
 #include "types/table/types.h"
@@ -57,6 +58,8 @@ typedef struct {
     str8 name;
 
     TargetOS target_os;
+
+    GlobalStringInterner global_string_interner;
 
     StandardLibraryMap standard_library_map;
 

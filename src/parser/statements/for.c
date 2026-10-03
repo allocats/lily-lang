@@ -15,7 +15,7 @@ AstNodeId parser_for_loop(Parser* p) {
 
     node -> kind = AST_FOR_LOOP;
 
-    node -> as.for_loop.label = STRING_ID_NONE;
+    node -> as.for_loop.label = LOCAL_STRING_ID_NONE;
     node -> as.for_loop.init  = AST_NODE_ID_NONE;
     node -> as.for_loop.cond  = AST_NODE_ID_NONE;
     node -> as.for_loop.step  = AST_NODE_ID_NONE;

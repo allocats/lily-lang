@@ -11,7 +11,7 @@ AstNodeId parser_break_statement(Parser* p) {
 
     node -> kind = AST_BREAK_STMT;
 
-    node -> as.break_stmt.label = STRING_ID_NONE;
+    node -> as.break_stmt.label = LOCAL_STRING_ID_NONE;
 
     Token break_tok = parser_advance(p); // advance past `break`
 

@@ -9,7 +9,7 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "parser/type_expressions/type_expressions.h"
-#include "string_interner/interner.h"
+#include "string_interner/local/interner.h"
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
@@ -88,7 +88,7 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_NONE);
         }
 
-        StringId field_name_id = string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
+        StringId field_name_id = local_string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(

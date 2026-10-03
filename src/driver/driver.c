@@ -4,7 +4,8 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
-#include "string_interner/interner.h"
+#include "string_interner/local/interner.h"
+#include "string_interner/local/interner.h"
 #include "threadpool/threadpool.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -92,17 +93,17 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a string interner attached to said thread
      *
      */
-    driver -> string_interners = malloc(sizeof(StringInterner) * thread_count);
-    driver -> string_interner_count = thread_count;
+    driver -> local_string_interners = malloc(sizeof(LocalStringInterner) * thread_count);
+    driver -> local_string_interner_count = thread_count;
 
     for (u8 i = 0; i < thread_count; i += 1) {
-        string_interner_init(&driver -> string_interners[i], i);
+        local_string_interner_init(&driver -> local_string_interners[i], i);
     }
 
     /*
      *
      * this function can assert, it also assigns the corresponding string interner 
-     * to each thread, for example Thread 0 gets driver.string_interners[0] 
+     * to each thread, for example Thread 0 gets driver.local_string_interners[0] 
      *
      */
     threadpool_init(driver, thread_count);
@@ -141,17 +142,6 @@ void driver_destroy(Driver* driver) {
      *
      */
     diagnostic_engine_destroy();
-
-    /*
-     *
-     * string interners, first free the interners then the array holding them
-     *
-     */
-    for (u32 i = 0; i < driver -> string_interner_count; i++) {
-        string_interner_destroy(&driver -> string_interners[i]);
-    }
-
-    free(driver -> string_interners);
 
     /*
      *
