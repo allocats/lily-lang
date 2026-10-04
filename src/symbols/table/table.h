@@ -6,4 +6,7 @@
 void symbol_table_init(SymbolTable* table, u32 scope_count_estimate, u32 symbol_count_estimate);
 void symbol_table_destory(SymbolTable* table);
 
+SymbolId symbol_table_create_symbol(SymbolTable* table);
+ScopeId  symbol_table_create_scope(SymbolTable* table);
+
 #endif // !LILY_SYMBOLS_TABLE_H

@@ -2,11 +2,11 @@
 #include "symbols/scope/types.h"
 #include "symbols/table/types.h"
 #include "utils/debug.h"
+#include "utils/macros.h"
 
 #include <assert.h>
 #include <pthread.h>
-
-static constexpr f64 load_factor = 0.75f;
+#include <stdlib.h>
 
 void symbol_table_init(SymbolTable* table, u32 scope_count_estimate, u32 symbol_count_estimate) {
     assert(table != null);
@@ -19,20 +19,13 @@ void symbol_table_init(SymbolTable* table, u32 scope_count_estimate, u32 symbol_
     u64 scope_array_size  = sizeof(Scope)  * scope_count_estimate;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count_estimate;
 
-    // arena_init(&table -> scope_array_arena, scope_array_size, ALIGN_DEFAULT);
-    // arena_init(&table -> symbol_array_arena, symbol_array_size, ALIGN_DEFAULT);
-
-    // table -> scopes = arena_alloc(&table -> scope_array_arena, scope_array_size);
     table -> scopes = malloc(scope_array_size);
     table -> scope_count = 1; // ScopeId 0 is reserved for the compiler
     table -> scope_capacity = scope_count_estimate;
-    table -> scope_resize_threshold_as_u32 = (u32)(scope_count_estimate * load_factor);
 
-    // table -> symbols = arena_alloc(&table -> symbol_array_arena, symbol_array_size);
     table -> symbols = malloc(symbol_array_size);
     table -> symbol_count = 0;
     table -> symbol_capacity = symbol_count_estimate;
-    table -> symbol_resize_threshold_as_u32 = (u32)(symbol_count_estimate * load_factor);
 
     // pthread_rwlock_init(&table -> mutex, null);
 
@@ -51,10 +44,38 @@ void symbol_table_destory(SymbolTable* table) {
     // pthread_rwlock_destroy(&table -> mutex);
     
     arena_destroy(&table -> scope_data_arena);
-    // arena_destroy(&table -> scope_array_arena);
     arena_destroy(&table -> symbol_data_arena);
-    // arena_destroy(&table -> symbol_array_arena);
 
     free(table -> scopes);
     free(table -> symbols);
+}
+
+/*
+ *
+ * Symbol and Scope creation
+ *
+ */
+
+SymbolId symbol_table_create_symbol(SymbolTable* table) {
+    if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
+        u64 old_size = table -> symbol_capacity * sizeof(Symbol);
+        u64 new_size = old_size * 2;
+
+        table -> symbols = realloc(table -> symbols, new_size);
+        table -> symbol_capacity *= 2;
+    }
+
+    return table -> symbol_count++;
+}
+
+ScopeId symbol_table_create_scope(SymbolTable* table) {
+    if (UNLIKELY(table -> scope_count >= table -> scope_capacity)) {
+        u64 old_size = table -> scope_capacity * sizeof(Scope);
+        u64 new_size = old_size * 2;
+
+        table -> scopes = realloc(table -> scopes, new_size);
+        table -> scope_capacity *= 2;
+    }
+
+    return table -> scope_count++;
 }

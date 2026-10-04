@@ -113,14 +113,14 @@ void compile_workspace(Workspace* ws) {
         symbol_count_estimate += file -> ast.total_declaration_count;
     }
 
+    symbol_table_init(&ws -> symbol_table, scope_count_estimate, symbol_count_estimate);
+
     /*
      *
-     * note: this functions frees the local string interners
+     * note: this function frees the local string interners
      *
      */
     global_string_interner_init(&ws -> global_string_interner);
-
-    symbol_table_init(&ws -> symbol_table, scope_count_estimate, symbol_count_estimate);
 
     timer_end(&ws -> frontend_timer);
 

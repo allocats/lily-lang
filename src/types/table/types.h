@@ -33,9 +33,6 @@ typedef struct {
     u8 __padding[8];
 
     Arena gpa;
-    Arena nominal_arena;
-    Arena structural_arena;
-    Arena entry_arena;
 } TypeTable;
 
 #endif // !LILY_TYPES_TABLE_TYPES_H
