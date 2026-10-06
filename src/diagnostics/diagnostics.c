@@ -2,6 +2,7 @@
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
+#include "threadpool/types.h"
 #include "utils/macros.h"
 #include "utils/debug.h"
 #include "workspace/workspace.h"
@@ -13,6 +14,7 @@
 #include <string.h>
 
 extern Driver driver;
+extern thread_local ThreadContext thread_context;
 
 static constexpr u64 diagnostic_init_arena_size_kb = 4;
 static constexpr u64 diagnostic_default_threshold  = 32;
@@ -25,25 +27,21 @@ static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagn
  *
  */
 
-void diagnostic_engine_init(void) {
-    DiagnosticEngine* diag_engine = &driver.diagnostic_engine;
-
-    arena_init(&diag_engine -> arena, ARENA_KB(diagnostic_init_arena_size_kb), ALIGN_DEFAULT);
+void diagnostic_engine_init(DiagnosticEngine* engine) {
+    arena_init(&engine -> arena, ARENA_KB(diagnostic_init_arena_size_kb), ALIGN_DEFAULT);
     debug_log("Init diagnostic's arena with %luKB", diagnostic_init_arena_size_kb);
 
-    diag_engine -> diags    = arena_alloc_array(&diag_engine -> arena, Diagnostic, diagnostic_default_threshold);
-    diag_engine -> capacity = diagnostic_default_threshold;
-    diag_engine -> count    = 0;
+    engine -> diags    = arena_alloc_array(&engine -> arena, Diagnostic, diagnostic_default_threshold);
+    engine -> capacity = diagnostic_default_threshold;
+    engine -> count    = 0;
 
-    // TODO: Make this configurable through cli
-    diag_engine -> threshold_value = diagnostic_default_threshold;
+    engine -> threshold_value = diagnostic_default_threshold;
 
-    pthread_mutex_init(&diag_engine -> mutex, null);
+    engine -> error_count = 0;
 }
 
-inline void diagnostic_engine_destroy(void) {
-    arena_destroy(&driver.diagnostic_engine.arena);
-    pthread_mutex_destroy(&driver.diagnostic_engine.mutex);
+inline void diagnostic_engine_destroy(DiagnosticEngine* engine) {
+    arena_destroy(&engine -> arena);
 }
 
 /*
@@ -149,8 +147,6 @@ static str8 get_source_line(const char* buffer, u32 line) {
 static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
     assert(engine != null);
 
-    pthread_mutex_lock(&engine -> mutex);
-
     if (UNLIKELY(engine -> count >= engine -> capacity)) {
         u64 size = sizeof(Diagnostic) * engine -> capacity;
 
@@ -162,8 +158,6 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
 
     Diagnostic* diag = &engine -> diags[engine -> count++];
 
-    pthread_mutex_unlock(&engine -> mutex);
-
     return diag;
 }
 
@@ -174,7 +168,7 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
  */
 
 void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
-    DiagnosticEngine* engine = &driver.diagnostic_engine;
+    DiagnosticEngine* engine = thread_context.diagnostic_engine;
 
     if (kind == DIAG_ERROR) engine -> error_count++;
 
@@ -213,7 +207,7 @@ void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
 }
 
 void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const char* msg, const char* help) {
-    DiagnosticEngine* engine = &driver.diagnostic_engine;
+    DiagnosticEngine* engine = thread_context.diagnostic_engine;
 
     if (kind == DIAG_ERROR) engine -> error_count++;
 
@@ -281,7 +275,7 @@ void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const c
 }
 
 void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const char* msg, const char* help) {
-    DiagnosticEngine* engine = &driver.diagnostic_engine;
+    DiagnosticEngine* engine = thread_context.diagnostic_engine;
 
     if (kind == DIAG_ERROR) engine -> error_count++;
 
@@ -345,9 +339,7 @@ void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const ch
  *
  */
 
-bool diagnostics_print() {
-    DiagnosticEngine* engine = &driver.diagnostic_engine;
-
+bool diagnostics_print(DiagnosticEngine* engine) {
     bool has_errors = engine -> error_count != 0 ? true : false;
 
     u32 count = MIN(engine -> count, engine -> threshold_value);

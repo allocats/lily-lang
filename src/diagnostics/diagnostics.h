@@ -2,7 +2,6 @@
 #define LILY_DIAGNOSTICS_H
 
 #include "diagnostics/types.h"
-#include "ids.h"
 #include "utils/types.h"
 
 /*
@@ -10,8 +9,8 @@
  * creation and deletion
  *
  */
-void diagnostic_engine_init(void);
-void diagnostic_engine_destroy(void);
+void diagnostic_engine_init(DiagnosticEngine* engine);
+void diagnostic_engine_destroy(DiagnosticEngine* engine);
 
 
 /*
@@ -34,6 +33,6 @@ void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const ch
  * Returns true if it has errors
  *
  */
-bool diagnostics_print();
+bool diagnostics_print(DiagnosticEngine* engine);
 
 #endif // !LILY_DIAGNOSTICS_H

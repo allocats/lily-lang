@@ -6,8 +6,6 @@
 #include "utils/types.h"
 #include "workspace/types.h"
 
-#include <pthread.h>
-
 static constexpr u8 DIAG_LOC_START_OF_TOK = (1 << 0);
 static constexpr u8 DIAG_LOC_END_OF_TOK   = (1 << 1);
 static constexpr u8 DIAG_LOC_WHOLE_TOK    = (1 << 2);
@@ -46,8 +44,6 @@ typedef struct {
     u32 count;
     u32 capacity;
     Diagnostic* diags;
-
-    pthread_mutex_t mutex;
 } DiagnosticEngine;
 
 #endif // !LILY_DIAGNOSTICS_TYPES_H

@@ -21,14 +21,15 @@ typedef struct {
     u32 workspace_count;
 
     LocalStringInterner* local_string_interners;
-    u32 local_string_interner_count;
+    u8 local_string_interner_count;
 
     LocalSymbolTable* local_symbol_tables;
-    u32 local_symbol_table_count;
+    u8 local_symbol_table_count;
+
+    DiagnosticEngine* local_diagnostic_engines;
+    u8 local_diagnostic_engine_count;
 
     ThreadPool thread_pool;
-
-    DiagnosticEngine diagnostic_engine;
 
     const char* home_directory;
     const char* standard_library_directory;

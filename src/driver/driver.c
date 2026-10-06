@@ -1,6 +1,7 @@
 #include "driver/driver.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
@@ -64,14 +65,6 @@ void driver_init(Driver* driver, const char* home) {
     standard_library_list_init(driver);
 
     /*
-     *
-     * diagnostics
-     *
-     */
-
-    diagnostic_engine_init();
-
-    /*
     *
     * Threadpool
     *
@@ -88,6 +81,18 @@ void driver_init(Driver* driver, const char* home) {
 
     debug_log("Creating %d threads", thread_count);
     debug_log("Creating %d string interners", thread_count);
+
+    /*
+     *
+     * for each thread there exists a diagnostic engine attached to said thread
+     *
+     */
+    driver -> local_diagnostic_engines = malloc(sizeof(DiagnosticEngine) * thread_count);
+    driver -> local_diagnostic_engine_count = thread_count;
+
+    for (u8 i = 0; i < thread_count; i += 1) {
+        diagnostic_engine_init(&driver -> local_diagnostic_engines[i]);
+    }
 
     /*
      *
@@ -147,10 +152,14 @@ void driver_destroy(Driver* driver) {
 
     /*
      *
-     * diagnostics, TODO: might want to make this a per thread thing?
+     * diagnostics
      *
      */
-    diagnostic_engine_destroy();
+    for (u8 i = 0; i < driver -> local_diagnostic_engine_count; i += 1) {
+        diagnostic_engine_destroy(&driver -> local_diagnostic_engines[i]);
+    }
+
+    free(driver -> local_diagnostic_engines);
 
     /*
      *

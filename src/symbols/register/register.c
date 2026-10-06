@@ -16,7 +16,7 @@ extern thread_local ThreadContext thread_context;
 static void register_symbol(Registrar* r, AstNode* node);
 static void register_function(Registrar* r, AstNode* node);
 
-static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id);
+static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id, StringId name);
 
 inline ScopeId scope_enter(Registrar* r) {
     return r -> scope_id = local_scope_enter(r -> table, r -> scope_id);
@@ -79,7 +79,7 @@ static void register_function(Registrar* r, AstNode* node) {
     SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
 
     if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
-        error_symbol_redefined(r, node, id);
+        error_symbol_redefined(r, node, id, global_name_id);
     } else {
         id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
 
@@ -110,8 +110,16 @@ static void register_function(Registrar* r, AstNode* node) {
     }
 }
 
-static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id) {
+/*
+ *
+ * diagnostics and error handling
+ *
+ */
+
+static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id, StringId name) {
     Symbol* symbol = local_symbol_get(symbol_id);
+
+    str8 name_str = r -> ws -> global_string_interner.entries[name].str;
 
     if (symbol -> ast_node_id == AST_NODE_ID_NONE) {
         diagnostic_add_token_span(

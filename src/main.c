@@ -34,7 +34,9 @@ i32 main(i32 argc, char** argv) {
     driver_init(&driver, home_dir);
 
     if (!driver_parse_flags(&driver, argc - 1, argv + 1)) {
-        diagnostics_print();
+        for (u8 i = 0; i < driver.local_diagnostic_engine_count; i += 1) {
+            diagnostics_print(&driver.local_diagnostic_engines[i]);
+        }
 
         driver_destroy(&driver);
 
@@ -62,7 +64,15 @@ i32 main(i32 argc, char** argv) {
 
     // threadpool_wait(&driver.thread_pool);
 
-    bool has_errors = diagnostics_print();
+    bool has_errors = false;
+
+    for (u8 i = 0; i < driver.local_diagnostic_engine_count; i += 1) {
+        bool errored = diagnostics_print(&driver.local_diagnostic_engines[i]);
+
+        if (errored) {
+            has_errors = true;
+        }
+    }
 
     for (u32 i = 0; i < driver.workspace_count; i += 1) {
         Workspace* ws = driver.workspaces[i];
