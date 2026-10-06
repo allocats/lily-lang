@@ -310,8 +310,15 @@ void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const ch
         cursor++;
     }
 
+    u32 len_to_end_of_line = 0;
+
+    while (*cursor != '\0' && *cursor != '\n') {
+        len_to_end_of_line++;
+        cursor++;
+    }
+
     u32 span_end = end_tok -> start + end_tok -> length;
-    u32 len = span_end - start_tok -> start;
+    u32 len = MIN(span_end - start_tok -> start, len_to_end_of_line);
 
     Diagnostic* diag = diagnostic_get_new(engine);
 

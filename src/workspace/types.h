@@ -4,7 +4,7 @@
 #include "files/types.h"
 #include "ids.h"
 #include "string_interner/global/types.h"
-#include "symbols/table/types.h"
+#include "symbols/table/global/types.h"
 #include "types/builtins/types.h"
 #include "types/table/types.h"
 #include "utils/timer.h"
@@ -65,7 +65,7 @@ typedef struct {
 
     FileInterner file_interner;
 
-    SymbolTable symbol_table;
+    GlobalSymbolTable global_symbol_table;
 
     TypeTable type_table;
 

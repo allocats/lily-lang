@@ -1,12 +1,12 @@
-#ifndef LILY_SYMBOLS_TABLE_TYPES_H
-#define LILY_SYMBOLS_TABLE_TYPES_H
+#ifndef LILY_SYMBOLS_TABLE_GLOBAL_TYPES_H
+#define LILY_SYMBOLS_TABLE_GLOBAL_TYPES_H
 
 #include "meowrena/meowrena.h"
-#include "symbols/scope/types.h"
 #include "symbols/symbol/types.h"
+#include "symbols/table/common_types.h"
 
 typedef struct {
-    Scope* scopes;
+    Scope*  scopes;
     Symbol* symbols;
 
     u32 scope_count;
@@ -17,6 +17,6 @@ typedef struct {
 
     Arena scope_data_arena;
     Arena symbol_data_arena;
-} SymbolTable;
+} GlobalSymbolTable;
 
-#endif // !LILY_SYMBOLS_TABLE_TYPES_H
+#endif // !LILY_SYMBOLS_TABLE_GLOBAL_TYPES_H

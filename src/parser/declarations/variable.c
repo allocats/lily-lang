@@ -11,7 +11,7 @@
 #include "string_interner/local/interner.h"
 #include "threadpool/types.h"
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_variable_declaration(Parser* p) {
     AstNodeId id  = parser_create_node(p);

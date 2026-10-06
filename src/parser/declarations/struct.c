@@ -13,7 +13,7 @@
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `struct`

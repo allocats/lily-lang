@@ -12,7 +12,7 @@
 #include "tokens/tokens.h"
 #include "tokens/types.h"
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 /*
  *

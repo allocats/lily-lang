@@ -280,6 +280,7 @@ static void resize_entries(FileInterner* interner) {
 static void file_init(File* file, FileId id, str8 path, u32 path_hash, str8 buffer) {
     file -> id = id;
     file -> stage = FILE_ALLOCATED;
+    file -> scope_id = GLOBAL_SCOPE_ID_NONE;
 
     file -> path_hash = path_hash;
     file -> path = path;

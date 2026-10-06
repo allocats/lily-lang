@@ -13,7 +13,7 @@
 #include "tokens/kinds.h"
 #include <threads.h>
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `enum`

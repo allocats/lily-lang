@@ -39,6 +39,8 @@ typedef struct {
 
     TokenArray tokens;
 
+    ScopeId scope_id;
+
     u32 lines_of_code;
 } File;
 

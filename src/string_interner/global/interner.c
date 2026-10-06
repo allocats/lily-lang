@@ -50,13 +50,13 @@ void global_string_interner_init(GlobalStringInterner *interner) {
 
     /*
      *
-     * i know it's over allocating, but removes all growing during the merge
+     * i know it's over allocating, but removes extra reallocations during the merge
      *
      */
-    u32 capacity = NEXT_POWER_OF_TWO(local_string_count * 1.3f);
+    u32 capacity = NEXT_POWER_OF_TWO(local_string_count * 1.25f);
 
     interner -> buckets = malloc(sizeof(StringBucket) * capacity);
-    interner -> entries = malloc(sizeof(StringEntry) * capacity);
+    interner -> entries = malloc(sizeof(StringEntry) * local_string_count);
 
     memset(interner -> buckets, U8_MAX, sizeof(StringBucket) * capacity);
 
@@ -88,6 +88,10 @@ void global_string_interner_init(GlobalStringInterner *interner) {
 
 void global_string_interner_destroy(GlobalStringInterner *interner) {
     assert(interner != null);
+
+    if (interner -> buckets == null || interner -> entries == null) {
+        return;
+    }
 
     u32 local_count = driver.local_string_interner_count;
 

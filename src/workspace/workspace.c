@@ -8,7 +8,10 @@
 #include "parser/parser.h"
 #include "string_interner/global/interner.h"
 #include "string_interner/local/interner.h"
-#include "symbols/table/table.h"
+#include "symbols/register/register.h"
+#include "symbols/table/global/table.h"
+#include "symbols/table/local/table.h"
+#include "symbols/table/local/types.h"
 #include "threadpool/threadpool.h"
 #include "types/table/table.h"
 #include "utils/debug.h"
@@ -28,7 +31,14 @@
 extern Driver driver;
 
 static void lex_and_parse_workspace(Workspace* ws);
+static void register_top_level_symbols_for_workspace(Workspace* ws);
+static void dispatch_top_level_symbol_registration(void* arg);
 static void standard_library_map_init(Workspace* ws);
+
+typedef struct {
+    Workspace* ws;
+    File* file;
+} DispatchArg;
 
 /*
  *
@@ -42,7 +52,7 @@ void workspace_init(Workspace* ws, WorkspaceId id, const char* name) {
     ws -> id = id;
     ws -> name = STR8_FROM_CSTR(name);
     ws -> target_os = OS_LINUX;
-    ws -> entry_point_id = SYMBOL_ID_NONE;
+    ws -> entry_point_id = GLOBAL_SYMBOL_ID_NONE;
 
     file_interner_init(&ws -> file_interner);
 
@@ -63,7 +73,7 @@ void workspace_destroy(Workspace* ws) {
 
     type_table_destroy(&ws -> type_table);
 
-    symbol_table_destory(&ws -> symbol_table);
+    global_symbol_table_destroy(&ws -> global_symbol_table);
 
     file_interner_destroy(&ws -> file_interner);
 
@@ -103,6 +113,19 @@ void compile_workspace(Workspace* ws) {
 
     lex_and_parse_workspace(ws);
 
+    /*
+     *
+     * note: this function frees the local string interners
+     *
+     */
+    global_string_interner_init(&ws -> global_string_interner);
+
+    /*
+     *
+     * get estimates and tallies of number of scopes and symbols in the target workspace
+     *
+     */
+
     u32 scope_count_estimate  = ws -> file_interner.count;
     u32 symbol_count_estimate = 0;
 
@@ -113,14 +136,31 @@ void compile_workspace(Workspace* ws) {
         symbol_count_estimate += file -> ast.total_declaration_count;
     }
 
-    symbol_table_init(&ws -> symbol_table, scope_count_estimate, symbol_count_estimate);
+    /*
+     *
+     * local symbol tables, we do this here to avoid as many reallocs as possible for the rest of symbol resolution
+     *
+     */
+
+    u32 local_scope_count_estimate = scope_count_estimate / driver.local_symbol_table_count;
+    u32 local_symbol_count_estimate = scope_count_estimate / driver.local_symbol_table_count;
+
+    for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
+        LocalSymbolTable* local_table = &driver.local_symbol_tables[i];
+
+        local_symbol_table_init(local_table, local_scope_count_estimate, local_symbol_count_estimate, i);
+    }
+
+    register_top_level_symbols_for_workspace(ws);
 
     /*
      *
-     * note: this function frees the local string interners
+     * create the global symbol table.
+     *
+     * note: this frees the local symbol tables
      *
      */
-    global_string_interner_init(&ws -> global_string_interner);
+    global_symbol_table_init(&ws -> global_symbol_table, scope_count_estimate, symbol_count_estimate);
 
     timer_end(&ws -> frontend_timer);
 
@@ -161,6 +201,39 @@ void workspace_dispatch_lex_and_parse_file(void* arg) {
 
     if (file -> stage == FILE_LEXED) {
         parse_file(file);
+    }
+}
+
+/*
+ *
+ * Symbol registration and resolution
+ *
+ */
+
+static void register_top_level_symbols_for_workspace(Workspace* ws) {
+    u32 file_count = ws -> file_interner.count;
+
+    for (u32 i = 0; i < file_count; i += 1) {
+        File* file = ws -> file_interner.entries[i];
+
+        DispatchArg* arg = arena_alloc(&driver.scratch_arena, sizeof(DispatchArg));
+
+        arg -> ws = ws;
+        arg -> file = file;
+
+        threadpool_add_task(&driver.thread_pool, dispatch_top_level_symbol_registration, arg);
+    }
+
+    threadpool_wait(&driver.thread_pool);
+
+    arena_reset(&driver.scratch_arena);
+}
+
+static void dispatch_top_level_symbol_registration(void* arg) {
+    DispatchArg* dispatched_arg = (DispatchArg*) arg;
+    
+    if (dispatched_arg -> file -> stage == FILE_PARSED) {
+        symbols_register_top_level(dispatched_arg -> ws, dispatched_arg -> file);
     }
 }
 

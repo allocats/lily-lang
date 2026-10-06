@@ -27,7 +27,7 @@
 #include <threads.h>
 
 extern Driver driver;
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 static thread_local char relative_scratch[PATH_MAX] = {0}; 
 

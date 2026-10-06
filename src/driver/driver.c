@@ -6,6 +6,7 @@
 #include "ids.h"
 #include "string_interner/local/interner.h"
 #include "string_interner/local/interner.h"
+#include "symbols/table/local/types.h"
 #include "threadpool/threadpool.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -99,6 +100,14 @@ void driver_init(Driver* driver, const char* home) {
     for (u8 i = 0; i < thread_count; i += 1) {
         local_string_interner_init(&driver -> local_string_interners[i], i);
     }
+
+    /*
+     *
+     * for each thread there exists a symbol table attached to said thread
+     *
+     */
+    driver -> local_symbol_tables = malloc(sizeof(LocalSymbolTable) * thread_count);
+    driver -> local_symbol_table_count = thread_count;
 
     /*
      *

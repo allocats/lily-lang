@@ -7,7 +7,7 @@
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
     Token identifier = parser_peek(p);

@@ -5,6 +5,7 @@
 
 #include "meowrena/meowrena.h"
 #include "string_interner/local/types.h"
+#include "symbols/table/local/types.h"
 #include "utils/types.h"
 
 typedef struct ThreadTask ThreadTask;
@@ -44,6 +45,8 @@ typedef struct {
     u32 index;
 
     LocalStringInterner* string_interner;
+
+    LocalSymbolTable* symbol_table;
 } ThreadContext;
 
 #endif // !LILY_THREADPOOL_TYPES_H

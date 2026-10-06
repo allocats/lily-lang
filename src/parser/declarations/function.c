@@ -13,7 +13,7 @@
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
-extern ThreadContext thread_context;
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
     AstNode* node = parser_get_node(p, id);

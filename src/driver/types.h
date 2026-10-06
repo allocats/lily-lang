@@ -3,6 +3,7 @@
 
 #include "diagnostics/types.h"
 #include "string_interner/local/types.h"
+#include "symbols/table/local/types.h"
 #include "threadpool/types.h"
 #include "utils/types.h"
 #include "workspace/types.h"
@@ -21,6 +22,9 @@ typedef struct {
 
     LocalStringInterner* local_string_interners;
     u32 local_string_interner_count;
+
+    LocalSymbolTable* local_symbol_tables;
+    u32 local_symbol_table_count;
 
     ThreadPool thread_pool;
 
