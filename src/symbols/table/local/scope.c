@@ -13,7 +13,7 @@
 
 extern Driver driver;
 
-static void scope_resize(LocalSymbolTable* table, Scope* scope);
+static void local_scope_resize(LocalSymbolTable* table, Scope* scope);
 
 void local_scope_init(LocalSymbolTable* table, u32 index) {
     Scope* scope = &table -> scopes[index];
@@ -47,7 +47,7 @@ SymbolId local_scope_intern(LocalSymbolTable* table, ScopeId scope_id, StringId 
     Scope* scope = &table -> scopes[local_scope_id];
 
     if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
-        scope_resize(table, scope);
+        local_scope_resize(table, scope);
     }
 
     u32 hash  = hash_u32(global_string_id);
@@ -55,13 +55,13 @@ SymbolId local_scope_intern(LocalSymbolTable* table, ScopeId scope_id, StringId 
     u32 index = hash & mask;
 
     while (local_symbol_get_id(scope -> entries[index]) != LOCAL_SYMBOL_ID_NONE) {
-        ScopeBucket bucket = scope -> buckets[index];
-
-        if (bucket.hash == hash) {
-            if (bucket.string_id == global_string_id) {
-                return scope -> entries[index];
-            }
-        }
+        // ScopeBucket bucket = scope -> buckets[index];
+        //
+        // if (bucket.hash == hash) {
+        //     if (bucket.string_id == global_string_id) {
+        //         return scope -> entries[index];
+        //     }
+        // }
 
         index = (index + 1) & mask;
     }
@@ -121,7 +121,7 @@ Symbol* local_symbol_get(SymbolId id) {
  *
  */
 
-static void scope_resize(LocalSymbolTable* table, Scope* scope) {
+static void local_scope_resize(LocalSymbolTable* table, Scope* scope) {
     u32 old_capacity = scope -> capacity;
     u32 new_capacity = old_capacity * 2;
 

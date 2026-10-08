@@ -11,6 +11,7 @@
 #include "utils/macros.h"
 #include "workspace/workspace.h"
 
+#include <assert.h>
 #include <stdio.h>
 
 extern thread_local ThreadContext thread_context;
@@ -21,6 +22,7 @@ static void register_struct(Registrar* r, AstNode* node);
 static void register_union(Registrar* r, AstNode* node);
 static void register_enum(Registrar* r, AstNode* node);
 static void register_variable(Registrar* r, AstNode* node);
+static void register_import(Registrar* r, AstNode* node);
 
 static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id, StringId name);
 
@@ -67,6 +69,8 @@ void symbols_register_top_level(Workspace* ws, File* file) {
         }
     }
 
+    file -> scope_id = r.scope_id;
+
     scope_exit(&r);
 }
 
@@ -98,6 +102,11 @@ static void register_symbol(Registrar* r, AstNode* node) {
             register_variable(r, node);
         } break;
 
+        case AST_IMPORT_DECL: {
+            register_import(r, node);
+        } break;
+
+        case AST_EXECUTE_DIRECTIVE:
         case AST_INCLUDE_DIRECTIVE:
         case AST_IMPORT_DIRECTIVE:
         case AST_ERROR:
@@ -312,6 +321,49 @@ static void register_variable(Registrar* r, AstNode* node) {
         symbol -> flags = node -> flags;
 
         symbol -> as.variable_symbol.type_id = TYPE_ID_NONE;
+    }
+}
+
+/*
+ *
+ * IMPORT symbols
+ *
+ */
+
+static void register_import(Registrar* r, AstNode* node) {
+    StringId global_name_id = global_string_from_local_id(node -> as.import_decl.name);
+
+    node -> as.import_decl.name = global_name_id;
+
+    if (global_name_id == GLOBAL_STRING_ID_NONE) {
+        return;
+    }
+
+    SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
+
+    if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
+        error_symbol_redefined(r, node, id, global_name_id);
+    } else {
+        id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
+
+        Symbol* symbol = local_symbol_get(id);
+
+        symbol -> kind = SYMBOL_IMPORT;
+
+        symbol -> ast_node_id = node -> id;
+        symbol -> file_id = r -> file -> id;
+        symbol -> flags = node -> flags;
+
+        AstNodeId import_directive_id  = node -> as.import_decl.import;
+        AstNode* import_directive_node = &r -> ast -> nodes[import_directive_id];
+
+        /*
+         * More complex metaprogramming will be added later
+         */
+        assert(import_directive_node -> kind == AST_IMPORT_DIRECTIVE);
+
+        symbol -> as.import_symbol.file_id  = import_directive_node -> as.import_directive.file_id;
+        symbol -> as.import_symbol.scope_id = LOCAL_SCOPE_ID_NONE; 
     }
 }
 

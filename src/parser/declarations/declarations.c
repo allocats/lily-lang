@@ -36,6 +36,9 @@ AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
         case TOK_KW_ENUM:
             return parse_enum_declaration(p, id, name_id);
 
+        case TOK_HASHTAG:
+            return parse_directive_declaration(p, id, name_id);
+
         default: {
             diagnostic_add_token(
                 p -> file,

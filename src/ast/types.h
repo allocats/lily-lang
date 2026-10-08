@@ -39,6 +39,9 @@ typedef struct {
 
     SpanU32 tokens;
 
+    SymbolId resolved_symbol_id;
+    TypeId   resolved_type_id;
+
     union {
         /*
          * directives

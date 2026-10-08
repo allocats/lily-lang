@@ -155,6 +155,9 @@ inline AstNodeId parser_create_node(Parser* p) {
     node -> flags = AST_FLAG_NONE;
     node -> tokens.start = p -> cursor;
 
+    node -> resolved_symbol_id = GLOBAL_SYMBOL_ID_NONE;
+    node -> resolved_type_id = TYPE_ID_NONE;
+
     p -> last_allocated_node_id = id;
 
     return id;

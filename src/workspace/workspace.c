@@ -143,7 +143,7 @@ void compile_workspace(Workspace* ws) {
      */
 
     u32 local_scope_count_estimate = scope_count_estimate / driver.local_symbol_table_count;
-    u32 local_symbol_count_estimate = scope_count_estimate / driver.local_symbol_table_count;
+    u32 local_symbol_count_estimate = symbol_count_estimate / driver.local_symbol_table_count;
 
     for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
         LocalSymbolTable* local_table = &driver.local_symbol_tables[i];
@@ -160,7 +160,7 @@ void compile_workspace(Workspace* ws) {
      * note: this frees the local symbol tables
      *
      */
-    global_symbol_table_init(&ws -> global_symbol_table, scope_count_estimate, symbol_count_estimate);
+    global_symbol_table_init(&ws -> global_symbol_table);
 
     timer_end(&ws -> frontend_timer);
 

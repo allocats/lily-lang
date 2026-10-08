@@ -5,6 +5,15 @@
 #include "symbols/symbol/types.h"
 #include "symbols/table/common_types.h"
 
+/*
+ *
+ * Static variable in `global/table.c` that translates local ids into global ids
+ * 
+ */
+typedef struct {
+    ScopeId** scope_ids;
+} GlobalSymbolTableRemapper;
+
 typedef struct {
     Scope*  scopes;
     Symbol* symbols;

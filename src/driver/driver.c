@@ -80,7 +80,6 @@ void driver_init(Driver* driver, const char* home) {
     }
 
     debug_log("Creating %d threads", thread_count);
-    debug_log("Creating %d string interners", thread_count);
 
     /*
      *
