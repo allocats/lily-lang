@@ -155,7 +155,7 @@ void compile_workspace(Workspace* ws) {
 
     /*
      *
-     * create the global symbol table.
+     * create the global symbol table, and performs the merge from local tables into one global table 
      *
      * note: this frees the local symbol tables
      *

@@ -3,6 +3,12 @@
 
 #include "symbols/table/global/types.h"
 
+/*
+ *
+ * Creates the global symbol table, also performs the merge of local scopes and symbols
+ * into the global table, and frees the local tables
+ *
+ */
 void global_symbol_table_init(GlobalSymbolTable* table);
 void global_symbol_table_destroy(GlobalSymbolTable* table);
 
