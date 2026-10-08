@@ -38,6 +38,8 @@ void diagnostic_engine_init(DiagnosticEngine* engine) {
     engine -> threshold_value = diagnostic_default_threshold;
 
     engine -> error_count = 0;
+
+    engine -> diagnostic_max_length = 256;
 }
 
 inline void diagnostic_engine_destroy(DiagnosticEngine* engine) {

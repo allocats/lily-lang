@@ -33,17 +33,19 @@ typedef struct {
 } Diagnostic;
 
 typedef struct {
-    // mostly for strings and array
-    Arena arena;
+    Diagnostic* diags;
+    u32 count;
+    u32 capacity;
+
+    u32 diagnostic_max_length;
 
     // TODO: Add support to read from flags
     u32 threshold_value;
 
     u32 error_count;
 
-    u32 count;
-    u32 capacity;
-    Diagnostic* diags;
+    // mostly for strings and array
+    Arena arena;
 } DiagnosticEngine;
 
 #endif // !LILY_DIAGNOSTICS_TYPES_H

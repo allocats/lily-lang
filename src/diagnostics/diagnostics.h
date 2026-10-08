@@ -4,6 +4,12 @@
 #include "diagnostics/types.h"
 #include "utils/types.h"
 
+#define DIAGNOSTIC_ALLOC_MSG(engine)                                            \
+    (str8) {                                                                    \
+        .ptr = arena_alloc(&engine -> arena, engine -> diagnostic_max_length),  \
+        .len = engine -> diagnostic_max_length                                  \
+    }
+
 /*
  *
  * creation and deletion

@@ -1,9 +1,9 @@
-#include "symbols/register/register.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
 #include "ids.h"
 #include "string_interner/global/interner.h"
+#include "symbols/register/register.h"
 #include "symbols/register/types.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/table/local/table.h"
@@ -11,12 +11,24 @@
 #include "utils/macros.h"
 #include "workspace/workspace.h"
 
+#include <stdio.h>
+
 extern thread_local ThreadContext thread_context;
 
 static void register_symbol(Registrar* r, AstNode* node);
 static void register_function(Registrar* r, AstNode* node);
+static void register_struct(Registrar* r, AstNode* node);
+static void register_union(Registrar* r, AstNode* node);
+static void register_enum(Registrar* r, AstNode* node);
+static void register_variable(Registrar* r, AstNode* node);
 
 static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_id, StringId name);
+
+/*
+ *
+ * Registrar scope navigation
+ *
+ */
 
 inline ScopeId scope_enter(Registrar* r) {
     return r -> scope_id = local_scope_enter(r -> table, r -> scope_id);
@@ -25,6 +37,12 @@ inline ScopeId scope_enter(Registrar* r) {
 inline ScopeId scope_exit(Registrar* r) {
     return r -> scope_id = local_scope_exit(r -> table, r -> scope_id);
 }
+
+/*
+ *
+ * Entrypoint for first pass
+ *
+ */
 
 void symbols_register_top_level(Workspace* ws, File* file) {
     if (file -> scope_id != GLOBAL_SCOPE_ID_NONE) {
@@ -52,10 +70,32 @@ void symbols_register_top_level(Workspace* ws, File* file) {
     scope_exit(&r);
 }
 
+/*
+ *
+ * Symbol regster dispatcher
+ *
+ */
+
 static void register_symbol(Registrar* r, AstNode* node) {
     switch (node -> kind) {
         case AST_FUNCTION_DECL: {
             register_function(r, node);
+        } break;
+
+        case AST_STRUCT_DECL: {
+            register_struct(r, node);
+        } break;
+
+        case AST_UNION_DECL: {
+            register_union(r, node);
+        } break;
+
+        case AST_ENUM_DECL: {
+            register_enum(r, node);
+        } break;
+
+        case AST_VARIABLE_DECL: {
+            register_variable(r, node);
         } break;
 
         case AST_INCLUDE_DIRECTIVE:
@@ -70,6 +110,12 @@ static void register_symbol(Registrar* r, AstNode* node) {
             );
     }
 }
+
+/*
+ *
+ * FUNCTION symbol
+ *
+ */
 
 static void register_function(Registrar* r, AstNode* node) {
     StringId global_name_id = global_string_from_local_id(node -> as.func_decl.name);
@@ -112,6 +158,167 @@ static void register_function(Registrar* r, AstNode* node) {
 
 /*
  *
+ * STRUCT symbol
+ *
+ */
+
+static void register_struct(Registrar* r, AstNode* node) {
+    StringId global_name_id = global_string_from_local_id(node -> as.struct_decl.name);
+
+    node -> as.struct_decl.name = global_name_id;
+
+    SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
+
+    if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
+        error_symbol_redefined(r, node, id, global_name_id);
+    } else {
+        id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
+
+        Symbol* symbol = local_symbol_get(id);
+
+        symbol -> kind = SYMBOL_STRUCT;
+
+        symbol -> ast_node_id = node -> id;
+        symbol -> file_id = r -> file -> id;
+        symbol -> flags = node -> flags;
+
+        symbol -> as.struct_symbol.resolved_type_id = TYPE_ID_NONE;
+
+        u32 field_count = node -> as.struct_decl.fields.count;
+
+        symbol -> as.struct_symbol.field_count = field_count;
+
+        if (field_count == 0) {
+            symbol -> as.struct_symbol.fields = null;
+        } else {
+            symbol -> as.struct_symbol.fields = arena_alloc(
+                &r -> table -> symbol_data_arena,
+                sizeof(SymbolId) * field_count
+            );
+        }
+    }
+}
+
+/*
+ *
+ * UNION symbol
+ *
+ */
+
+static void register_union(Registrar* r, AstNode* node) {
+    StringId global_name_id = global_string_from_local_id(node -> as.union_decl.name);
+
+    node -> as.union_decl.name = global_name_id;
+
+    SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
+
+    if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
+        error_symbol_redefined(r, node, id, global_name_id);
+    } else {
+        id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
+
+        Symbol* symbol = local_symbol_get(id);
+
+        symbol -> kind = SYMBOL_UNION;
+
+        symbol -> ast_node_id = node -> id;
+        symbol -> file_id = r -> file -> id;
+        symbol -> flags = node -> flags;
+
+        symbol -> as.union_symbol.resolved_type_id = TYPE_ID_NONE;
+
+        u32 field_count = node -> as.union_decl.fields.count;
+
+        symbol -> as.union_symbol.field_count = field_count;
+
+        if (field_count == 0) {
+            symbol -> as.union_symbol.fields = null;
+        } else {
+            symbol -> as.union_symbol.fields = arena_alloc(
+                &r -> table -> symbol_data_arena,
+                sizeof(SymbolId) * field_count
+            );
+        }
+    }
+}
+
+/*
+ *
+ * ENUM symbol
+ *
+ */
+
+static void register_enum(Registrar* r, AstNode* node) {
+    StringId global_name_id = global_string_from_local_id(node -> as.enum_decl.name);
+
+    node -> as.enum_decl.name = global_name_id;
+
+    SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
+
+    if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
+        error_symbol_redefined(r, node, id, global_name_id);
+    } else {
+        id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
+
+        Symbol* symbol = local_symbol_get(id);
+
+        symbol -> kind = SYMBOL_ENUM;
+
+        symbol -> ast_node_id = node -> id;
+        symbol -> file_id = r -> file -> id;
+        symbol -> flags = node -> flags;
+
+        symbol -> as.enum_symbol.resolved_type_id = TYPE_ID_NONE;
+
+        u32 variant_count = node -> as.enum_decl.variants.count;
+
+        symbol -> as.enum_symbol.variant_count = variant_count;
+
+        if (variant_count == 0) {
+            symbol -> as.enum_symbol.variants = null;
+        } else {
+            symbol -> as.enum_symbol.variants = arena_alloc(
+                &r -> table -> symbol_data_arena,
+                sizeof(SymbolId) * variant_count
+            );
+        }
+    }
+}
+
+/*
+ *
+ * VARIABLE symbol
+ *
+ */
+
+static void register_variable(Registrar* r, AstNode* node) {
+    StringId global_name_id = global_string_from_local_id(node -> as.variable_decl.name);
+
+    node -> as.variable_decl.name = global_name_id;
+
+    SymbolId id = local_table_lookup(r -> table, r -> scope_id, global_name_id);
+
+    if (local_symbol_get_id(id) != LOCAL_SYMBOL_ID_NONE) {
+        error_symbol_redefined(r, node, id, global_name_id);
+    } else {
+        id = local_scope_intern(r -> table, r -> scope_id, global_name_id);
+
+        Symbol* symbol = local_symbol_get(id);
+
+        symbol -> kind = SYMBOL_VARIABLE;
+
+        symbol -> ast_node_id = node -> id;
+        symbol -> file_id = r -> file -> id;
+        symbol -> flags = node -> flags;
+
+        symbol -> as.variable_symbol.type_id = TYPE_ID_NONE;
+    }
+}
+
+
+
+/*
+ *
  * diagnostics and error handling
  *
  */
@@ -121,15 +328,27 @@ static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_
 
     str8 name_str = r -> ws -> global_string_interner.entries[name].str;
 
+    str8 msg  = DIAGNOSTIC_ALLOC_MSG(thread_context.diagnostic_engine);
+    str8 help = DIAGNOSTIC_ALLOC_MSG(thread_context.diagnostic_engine);
+
+    snprintf(msg.ptr, msg.len, "'%.*s' is redefined", STR8_FMT(name_str));
+    snprintf(help.ptr, help.len, "'%.*s' is redefined here", STR8_FMT(name_str));
+
     if (symbol -> ast_node_id == AST_NODE_ID_NONE) {
         diagnostic_add_token_span(
             r -> file,
             DIAG_ERROR,
             node -> tokens,
-            "symbol is redefined",
-            "this symbol is redefined here"
+            msg.ptr,
+            help.ptr
         );
     } else {
+        str8 original_msg  = DIAGNOSTIC_ALLOC_MSG(thread_context.diagnostic_engine);
+        str8 original_help = DIAGNOSTIC_ALLOC_MSG(thread_context.diagnostic_engine);
+
+        snprintf(original_msg.ptr, original_msg.len, "'%.*s' is defined here", STR8_FMT(name_str));
+        snprintf(original_help.ptr, original_help.len, "'%.*s' is defined here", STR8_FMT(name_str));
+
         File* file = workspace_get_file(r -> ws, symbol -> file_id);
         AstNode* defined_node = &file -> ast.nodes[symbol -> ast_node_id];
 
@@ -137,16 +356,16 @@ static void error_symbol_redefined(Registrar* r, AstNode* node, SymbolId symbol_
             r -> file,
             DIAG_NOTE,
             defined_node -> tokens,
-            "symbol is defined here",
-            "symbol is defined here"
+            original_msg.ptr,
+            original_help.ptr
         );
 
         diagnostic_add_token_span(
             r -> file,
             DIAG_ERROR,
             node -> tokens,
-            "symbol is redefined",
-            "this symbol is redefined here"
+            msg.ptr,
+            help.ptr
         );
     }
 }
