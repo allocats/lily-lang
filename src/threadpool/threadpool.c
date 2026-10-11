@@ -95,8 +95,6 @@ void threadpool_init(Driver* driver, u32 count) {
 
         pthread_create(&pool -> threads[i], null, threadpool_worker, ctx);
     }
-
-    arena_reset(&driver -> scratch_arena);
 }
 
 void threadpool_destroy(ThreadPool* pool) {

@@ -41,6 +41,7 @@ AstNodeId parse_top_level_declaration(Parser *p, AstNodeId id) {
 
         default: {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &token,

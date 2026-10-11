@@ -4,6 +4,7 @@
 #include "files/types.h"
 #include "hash/hash.h"
 #include "ids.h"
+#include "threadpool/types.h"
 #include "tokens/tokens.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -16,7 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <threads.h>
 #include <unistd.h>
+
+extern thread_local ThreadContext thread_context;
 
 /*
  *
@@ -120,7 +124,13 @@ FileId file_intern(FileInterner* interner, str8 input_path) {
     str8 buffer = {0};
 
     if (!allocate_buffer(interner, path, &buffer)) {
-        diagnostic_add_generic(DIAG_ERROR, "cannot allocate buffer for file %.*s", path.len, path.ptr);
+        diagnostic_add_generic(
+            thread_context.diagnostic_engine,
+            DIAG_ERROR,
+            "cannot allocate buffer for file %.*s",
+            path.len,
+            path.ptr
+        );
         return FILE_ID_NONE;
     }
 
@@ -338,7 +348,12 @@ static bool allocate_buffer(FileInterner* interner, str8 path, str8* buffer) {
                 continue;
             }
 
-            diagnostic_add_generic(DIAG_ERROR, "failed to read file '%.*s'", STR8_FMT(path));
+            diagnostic_add_generic(
+                thread_context.diagnostic_engine,
+                DIAG_ERROR,
+                "failed to read file '%.*s'",
+                STR8_FMT(path)
+            );
 
             buffer -> ptr = null;
             buffer -> len = 0;

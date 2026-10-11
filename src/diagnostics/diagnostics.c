@@ -2,7 +2,6 @@
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
-#include "threadpool/types.h"
 #include "utils/macros.h"
 #include "utils/debug.h"
 #include "workspace/workspace.h"
@@ -14,7 +13,6 @@
 #include <string.h>
 
 extern Driver driver;
-extern thread_local ThreadContext thread_context;
 
 static constexpr u64 diagnostic_init_arena_size_kb = 4;
 static constexpr u64 diagnostic_default_threshold  = 32;
@@ -169,9 +167,7 @@ static Diagnostic* diagnostic_get_new(DiagnosticEngine* engine) {
  *
  */
 
-void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
-    DiagnosticEngine* engine = thread_context.diagnostic_engine;
-
+void diagnostic_add_generic(DiagnosticEngine* engine, DiagKind kind, char* fmt, ...) {
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
@@ -208,9 +204,7 @@ void diagnostic_add_generic(DiagKind kind, char* fmt, ...) {
     diag -> msg.len = n;
 }
 
-void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const char* msg, const char* help) {
-    DiagnosticEngine* engine = thread_context.diagnostic_engine;
-
+void diagnostic_add_token(DiagnosticEngine* engine, File* file, DiagKind kind, Token* tok, u8 loc, const char* msg, const char* help) {
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {
@@ -276,9 +270,7 @@ void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const c
     diag -> workspace = driver.workspaces[file -> workspace_id];
 }
 
-void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const char* msg, const char* help) {
-    DiagnosticEngine* engine = thread_context.diagnostic_engine;
-
+void diagnostic_add_token_span(DiagnosticEngine* engine, File* file, DiagKind kind, SpanU32 span, const char* msg, const char* help) {
     if (kind == DIAG_ERROR) engine -> error_count++;
 
     if (engine -> count >= engine -> threshold_value) {

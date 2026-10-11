@@ -83,6 +83,7 @@ AstNodeId parse_directive(Parser* p) {
 
     if (directive_token.kind != TOK_IDENTIFIER) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &directive_token,
@@ -100,6 +101,7 @@ AstNodeId parse_directive(Parser* p) {
 
     if (string_id >= directive_count) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &directive_token,
@@ -143,6 +145,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     if (module_tok.kind != TOK_STRING_LIT) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &module_tok,
@@ -156,6 +159,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &module_tok,
@@ -169,6 +173,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     if (module_tok.length == 2) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &module_tok,
@@ -238,6 +243,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
 
     if (module_file_id == FILE_ID_NONE) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &module_tok,
@@ -266,6 +272,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 
     if (file_tok.kind != TOK_STRING_LIT) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &file_tok,
@@ -279,6 +286,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &file_tok,
@@ -292,6 +300,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 
     if (file_tok.length == 2) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &file_tok,
@@ -352,6 +361,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
 
     if (file_id == FILE_ID_NONE) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &file_tok,
@@ -388,6 +398,7 @@ static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,

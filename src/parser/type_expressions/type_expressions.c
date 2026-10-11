@@ -7,9 +7,12 @@
 #include "parser/recovery/recovery.h"
 #include "parser/type_expressions/type_expressions.h"
 #include "parser/recovery/types.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
 
 #include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 /*
  *
@@ -51,6 +54,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 Token token = parser_peek(p);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -93,6 +97,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -111,6 +116,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -146,6 +152,7 @@ AstNodeId parse_type_expression(Parser* p) {
             Token token = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &token,
@@ -175,6 +182,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -205,6 +213,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -226,6 +235,7 @@ AstNodeId parse_type_expression(Parser* p) {
             Token token = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &token,
@@ -272,6 +282,7 @@ AstNodeId parse_type_expression(Parser* p) {
             primary_node -> kind != AST_EXECUTE_DIRECTIVE
         ) {
             diagnostic_add_token_span(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 primary_node -> tokens,

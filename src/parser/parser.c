@@ -12,12 +12,15 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "parser/types.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
 #include "tokens/types.h"
 
 #include <assert.h>
+#include <threads.h>
 
 extern Driver driver;
+extern thread_local ThreadContext thread_context;
 
 /*
  *
@@ -78,6 +81,7 @@ void parse_file(File* file) {
 
                     default: {
                         diagnostic_add_token(
+                            thread_context.diagnostic_engine,
                             file,
                             DIAG_ERROR,
                             &token,
@@ -126,6 +130,7 @@ void parse_file(File* file) {
 
             default: {
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     file,
                     DIAG_ERROR,
                     &token,

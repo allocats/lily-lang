@@ -36,6 +36,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             case TOK_KW_NOINLINE: {
                 if (flags & AST_FLAG_INLINE) {
                     diagnostic_add_token(
+                        thread_context.diagnostic_engine,
                         p -> file,
                         DIAG_ERROR,
                         &token,
@@ -53,6 +54,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             case TOK_KW_INLINE: {
                 if (flags & AST_FLAG_NOINLINE) {
                     diagnostic_add_token(
+                        thread_context.diagnostic_engine,
                         p -> file,
                         DIAG_ERROR,
                         &token,
@@ -70,6 +72,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             case TOK_KW_INTRINSIC: {
                 if (flags & AST_FLAG_FOREIGN) {
                     diagnostic_add_token(
+                        thread_context.diagnostic_engine,
                         p -> file,
                         DIAG_ERROR,
                         &token,
@@ -87,6 +90,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             case TOK_KW_FOREIGN: {
                 if (flags & AST_FLAG_INTRINSIC) {
                     diagnostic_add_token(
+                        thread_context.diagnostic_engine,
                         p -> file,
                         DIAG_ERROR,
                         &token,
@@ -103,6 +107,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
             default: {
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -117,6 +122,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (flag != AST_FLAG_NONE && flags & flag) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &token,
@@ -137,6 +143,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -165,6 +172,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (parameter_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &parameter_name_tok,
@@ -184,6 +192,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &parameter_name_tok,
@@ -220,6 +229,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -235,6 +245,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -277,6 +288,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -319,6 +331,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             Token previous = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &previous,
@@ -341,6 +354,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         Token token = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &token,

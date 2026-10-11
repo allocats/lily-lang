@@ -69,6 +69,7 @@ AstNodeId parse_variable_declaration(Parser* p) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,

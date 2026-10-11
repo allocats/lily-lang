@@ -9,6 +9,7 @@
 #include "string_interner/global/interner.h"
 #include "string_interner/local/interner.h"
 #include "symbols/register/register.h"
+#include "symbols/resolve/merge/merge.h"
 #include "symbols/table/global/table.h"
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"
@@ -161,6 +162,14 @@ void compile_workspace(Workspace* ws) {
      *
      */
     global_symbol_table_init(&ws -> global_symbol_table);
+
+    for (u32 i = 0; i < ws -> file_interner.count; i += 1) {
+        File* file = ws -> file_interner.entries[i];
+
+        file -> scope_id = global_scope_from_local_scope(file -> scope_id);
+    }
+
+    resolve_imports(ws);
 
     timer_end(&ws -> frontend_timer);
 

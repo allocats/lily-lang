@@ -7,6 +7,11 @@
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
+#include "threadpool/types.h"
+
+#include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_directive_declaration(Parser *p, AstNodeId id, StringId name) {
     AstNodeId directive_id  = parse_directive(p);
@@ -18,6 +23,7 @@ AstNodeId parse_directive_declaration(Parser *p, AstNodeId id, StringId name) {
 
     if (directive_node -> kind != AST_IMPORT_DIRECTIVE) {
         diagnostic_add_token_span(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             directive_node -> tokens,

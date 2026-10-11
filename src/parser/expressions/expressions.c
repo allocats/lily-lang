@@ -516,6 +516,7 @@ static AstNodeId parse_primary(Parser* p) {
                 Token previous = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &previous,
@@ -546,6 +547,7 @@ static AstNodeId parse_primary(Parser* p) {
 
             if (execute_string_id != directive_id) {
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &token,
@@ -570,6 +572,7 @@ static AstNodeId parse_primary(Parser* p) {
 
         default: {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &token,
@@ -613,6 +616,7 @@ static AstNodeId parse_call(Parser* p, AstNodeId left) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -652,6 +656,7 @@ static AstNodeId parse_index(Parser* p, AstNodeId left) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -683,6 +688,7 @@ static AstNodeId parse_member_access(Parser* p, AstNodeId left) {
         Token bad_token = parser_peek(p);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &bad_token,
@@ -734,6 +740,7 @@ static AstNodeId parse_struct_literal(Parser* p, AstNodeId left) {
 
         if (field_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &field_name_tok,
@@ -751,6 +758,7 @@ static AstNodeId parse_struct_literal(Parser* p, AstNodeId left) {
 
         if (!parser_check(p, TOK_EQ)) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &field_name_tok,
@@ -787,6 +795,7 @@ static AstNodeId parse_struct_literal(Parser* p, AstNodeId left) {
             Token previous = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &previous,

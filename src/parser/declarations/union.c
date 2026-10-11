@@ -43,6 +43,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
 
             default: {
                 diagnostic_add_token_span(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     attribute_node -> tokens,
@@ -57,6 +58,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -77,6 +79,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (field_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &field_name_tok,
@@ -92,6 +95,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &field_name_tok,
@@ -115,6 +119,7 @@ AstNodeId parse_union_declaration(Parser* p, AstNodeId id, StringId name) {
             Token previous = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &previous,

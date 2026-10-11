@@ -24,15 +24,15 @@ void diagnostic_engine_destroy(DiagnosticEngine* engine);
  * Generic, doesn't have a source location, used for things like flags, allocations, etc.
  *
  */
-void diagnostic_add_generic(DiagKind kind, char* fmt, ...);
+void diagnostic_add_generic(DiagnosticEngine* engine, DiagKind kind, char* fmt, ...);
 
 /*
  *
  * Token related
  *
  */
-void diagnostic_add_token(File* file, DiagKind kind, Token* tok, u8 loc, const char* msg, const char* help);
-void diagnostic_add_token_span(File* file, DiagKind kind, SpanU32 span, const char* msg, const char* help);
+void diagnostic_add_token(DiagnosticEngine* engine, File* file, DiagKind kind, Token* tok, u8 loc, const char* msg, const char* help);
+void diagnostic_add_token_span(DiagnosticEngine* engine, File* file, DiagKind kind, SpanU32 span, const char* msg, const char* help);
 
 /*
  *

@@ -8,7 +8,12 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "parser/statements/statements.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
+
+#include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parser_while_loop(Parser* p) {
     AstNodeId id  = parser_create_node(p);
@@ -34,6 +39,7 @@ AstNodeId parser_while_loop(Parser* p) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,

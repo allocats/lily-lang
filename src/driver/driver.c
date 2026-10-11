@@ -58,6 +58,8 @@ void driver_init(Driver* driver, const char* home) {
      */
     driver -> home_directory = home;
 
+    diagnostic_engine_init(&driver -> global_diagnostic_engine);
+
     snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
 
     driver -> standard_library_directory = standard_library_path;
@@ -149,6 +151,7 @@ void driver_destroy(Driver* driver) {
 
     threadpool_destroy(&driver -> thread_pool);
 
+
     /*
      *
      * diagnostics
@@ -159,6 +162,8 @@ void driver_destroy(Driver* driver) {
     }
 
     free(driver -> local_diagnostic_engines);
+
+    diagnostic_engine_destroy(&driver -> global_diagnostic_engine);
 
     /*
      *
@@ -195,7 +200,13 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
         usize arg_len = strlen(arg);
 
         if (arg_len < 2) {
-            diagnostic_add_generic(DIAG_ERROR, "invalid argument: %.*s", arg_len, arg);
+            diagnostic_add_generic(
+                &driver -> global_diagnostic_engine,
+                DIAG_ERROR,
+                "invalid argument: %.*s",
+                arg_len,
+                arg
+            );
             result = false;
             continue;
         }
@@ -204,7 +215,13 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
 
         } else {
             if (arg_len < 6) {
-                diagnostic_add_generic(DIAG_ERROR, "invalid file: %.*s", arg_len, arg);
+                diagnostic_add_generic(
+                    &driver -> global_diagnostic_engine,
+                    DIAG_ERROR,
+                    "invalid file: %.*s",
+                    arg_len,
+                    arg
+                );
                 result = false;
                 continue;
             }
@@ -232,7 +249,12 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
             char* extension_ptr = arg + (arg_len - 5);
 
             if (strncmp(extension_ptr, ".lily", 5) != 0) {
-                diagnostic_add_generic(DIAG_ERROR, "%s is not a lily file", arg);
+                diagnostic_add_generic(
+                    &driver -> global_diagnostic_engine,
+                    DIAG_ERROR,
+                    "%s is not a lily file",
+                    arg
+                );
                 result = false;
                 continue;
             }
@@ -269,7 +291,12 @@ static void dispatch_file_intern_thread(void* argument) {
     FileId id = file_intern(&arg -> ws -> file_interner, arg -> path);
 
     if (id == FILE_ID_NONE) {
-        diagnostic_add_generic(DIAG_ERROR, "cannot find file '%.*s'", STR8_FMT(arg -> path));
+        // diagnostic_add_generic(
+        //     thread_context.diagnostic_engine,
+        //     DIAG_ERROR,
+        //     "cannot find file '%.*s'",
+        //     STR8_FMT(arg -> path)
+        // );
     }
 }
 
@@ -294,6 +321,7 @@ static void standard_library_list_init(Driver* driver) {
 
     if (!directory) {
         diagnostic_add_generic(
+            &driver -> global_diagnostic_engine,
             DIAG_ERROR,
             "unable to load standard library!\nPath: %s",
             driver -> standard_library_directory

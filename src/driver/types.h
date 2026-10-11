@@ -26,6 +26,8 @@ typedef struct {
     LocalSymbolTable* local_symbol_tables;
     u8 local_symbol_table_count;
 
+    DiagnosticEngine global_diagnostic_engine;
+
     DiagnosticEngine* local_diagnostic_engines;
     u8 local_diagnostic_engine_count;
 

@@ -2,6 +2,7 @@
 #include "files/types.h"
 #include "lexer/lexer.h"
 #include "lexer/types.h"
+#include "threadpool/types.h"
 #include "tokens/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -10,6 +11,8 @@
 #include <assert.h>
 #include <string.h>
 #include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 #define IS_DIGIT(c)         (CHAR_MAP[(unsigned char)(c)] & 1)
 #define IS_ALPHA(c)         (CHAR_MAP[(unsigned char)(c)] & 2)
@@ -116,6 +119,7 @@ void lex_file(File* file) {
         Token* delim_tok = &file -> tokens.items[index];
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             file,
             DIAG_ERROR,
             delim_tok,
@@ -358,6 +362,7 @@ static void lex_operator(Lexer* lexer) {
                 token -> length = cursor - start;
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     lexer -> file,
                     DIAG_ERROR,
                     token,
@@ -389,6 +394,7 @@ static void lex_operator(Lexer* lexer) {
                 token -> length = cursor - start;
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     lexer -> file,
                     DIAG_ERROR,
                     token,
@@ -668,6 +674,7 @@ static void lex_char_lit(Lexer* lexer) {
         lexer -> file -> stage = FILE_ERROR;
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             lexer -> file,
             DIAG_ERROR,
             token,
@@ -695,6 +702,7 @@ static void lex_char_lit(Lexer* lexer) {
         lexer -> file -> stage = FILE_ERROR;
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             lexer -> file,
             DIAG_ERROR,
             token,
@@ -745,6 +753,7 @@ static void lex_string_lit(Lexer* lexer) {
         lexer -> file -> stage = FILE_ERROR;
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             lexer -> file,
             DIAG_ERROR,
             token,
@@ -797,6 +806,7 @@ static void lex_invalid(Lexer* lexer) {
     token -> length = length;
 
     diagnostic_add_token(
+        thread_context.diagnostic_engine,
         lexer -> file,
         DIAG_ERROR,
         token,
@@ -820,6 +830,7 @@ static bool delimiter_matches(TokenKind open, TokenKind close) {
 static void delimiter_match(Lexer* lexer, Token* token) {
     if (lexer -> stack.top == 0) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             lexer -> file,
             DIAG_ERROR,
             token,
@@ -836,6 +847,7 @@ static void delimiter_match(Lexer* lexer, Token* token) {
 
     if (!delimiter_matches(open -> kind, token -> kind)) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             lexer -> file,
             DIAG_ERROR,
             token,

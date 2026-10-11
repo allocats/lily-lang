@@ -38,6 +38,8 @@ i32 main(i32 argc, char** argv) {
             diagnostics_print(&driver.local_diagnostic_engines[i]);
         }
 
+        diagnostics_print(&driver.global_diagnostic_engine);
+
         driver_destroy(&driver);
 
         printf("\n%s%s%s:%s compiler %sfailed%s\n", ANSI_BOLD, ANSI_RED, argv[0], ANSI_RESET, ANSI_BOLD, ANSI_RESET);
@@ -72,6 +74,12 @@ i32 main(i32 argc, char** argv) {
         if (errored) {
             has_errors = true;
         }
+    }
+
+    bool errored = diagnostics_print(&driver.global_diagnostic_engine);
+
+    if (errored) {
+        has_errors = true;
     }
 
     for (u32 i = 0; i < driver.workspace_count; i += 1) {

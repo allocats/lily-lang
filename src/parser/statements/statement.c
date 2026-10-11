@@ -6,7 +6,12 @@
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
 #include "parser/statements/statements.h"
+#include "threadpool/types.h"
 #include "tokens/kinds.h"
+
+#include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_statement(Parser* p) {
     Token token = parser_peek(p);
@@ -30,6 +35,7 @@ AstNodeId parse_statement(Parser* p) {
                     Token previous = parser_peek_behind_by(p, 1);
 
                     diagnostic_add_token(
+                        thread_context.diagnostic_engine,
                         p -> file,
                         DIAG_ERROR,
                         &previous,
@@ -106,6 +112,7 @@ AstNodeId parse_statement(Parser* p) {
                 Token previous = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
+                    thread_context.diagnostic_engine,
                     p -> file,
                     DIAG_ERROR,
                     &previous,

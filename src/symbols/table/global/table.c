@@ -4,7 +4,6 @@
 #include "symbols/table/local/table.h"
 #include "driver/types.h"
 #include "symbols/table/local/types.h"
-#include "utils/debug.h"
 #include "utils/macros.h"
 
 #include <assert.h>
@@ -52,16 +51,6 @@ void global_symbol_table_init(GlobalSymbolTable* table) {
     for (u32 i = 0; i < scope_count; i += 1) {
         global_scope_init(table, i);
     }
-
-    debug_log(
-        "Created global symbol table (%p) with the following stats.\n"
-        "  Scope count: %u\n  Scope size: %lu\n  Symbol count: %u\n  Symbol size: %lu",
-        table,
-        scope_count_estimate,
-        scope_array_size,
-        symbol_count_estimate,
-        symbol_array_size
-    );
 
     for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
         LocalSymbolTable* local_table = &driver.local_symbol_tables[i];

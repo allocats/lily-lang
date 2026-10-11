@@ -44,6 +44,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &previous,
@@ -66,6 +67,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
 
         if (variant_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &variant_name_tok,
@@ -87,6 +89,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
             Token previous = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
+                thread_context.diagnostic_engine,
                 p -> file,
                 DIAG_ERROR,
                 &previous,

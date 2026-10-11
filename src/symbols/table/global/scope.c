@@ -94,10 +94,6 @@ SymbolId global_scope_intern(GlobalSymbolTable* table, ScopeId scope_id, StringI
 SymbolId global_scope_lookup(GlobalSymbolTable* table, ScopeId scope_id, StringId global_string_id) {
     Scope* scope = &table -> scopes[scope_id];
 
-    if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
-        global_scope_resize(table, scope);
-    }
-
     u32 hash  = hash_u32(global_string_id);
     u32 mask  = scope -> capacity - 1;
     u32 index = hash & mask;
@@ -115,6 +111,32 @@ SymbolId global_scope_lookup(GlobalSymbolTable* table, ScopeId scope_id, StringI
     }
 
     return GLOBAL_SYMBOL_ID_NONE;
+}
+
+SymbolId global_scope_add_symbol(GlobalSymbolTable* table, ScopeId scope_id, SymbolId id) {
+    Scope* scope = &table -> scopes[scope_id];
+
+    if (UNLIKELY(scope -> count >= scope -> resize_threshold_as_u32)) {
+        global_scope_resize(table, scope);
+    }
+
+    Symbol symbol = table -> symbols[id];
+
+    u32 hash  = symbol.hash;
+    u32 mask  = scope -> capacity - 1;
+    u32 index = hash & mask;
+
+    while (scope -> entries[index] != GLOBAL_SYMBOL_ID_NONE) {
+        index = (index + 1) & mask;
+    }
+
+    scope -> buckets[index].string_id = symbol.name_id;
+    scope -> buckets[index].hash = hash;
+    scope -> entries[index] = id;
+
+    scope -> count += 1;
+
+    return id;
 }
 
 

@@ -16,7 +16,6 @@ void local_symbol_table_init(LocalSymbolTable* table, u32 scope_count_estimate, 
     assert(scope_count_estimate > 0);
 
     arena_init(&table -> scope_data_arena, ARENA_KB(8), ALIGN_DEFAULT);
-    arena_init(&table -> symbol_data_arena, ARENA_KB(8), ALIGN_DEFAULT);
 
     u64 scope_array_size  = sizeof(Scope)  * scope_count_estimate;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count_estimate;
@@ -48,7 +47,6 @@ void local_symbol_table_init(LocalSymbolTable* table, u32 scope_count_estimate, 
 
 void local_symbol_table_destroy(LocalSymbolTable* table) {
     arena_destroy(&table -> scope_data_arena);
-    arena_destroy(&table -> symbol_data_arena);
 
     free(table -> scopes);
     free(table -> symbols);

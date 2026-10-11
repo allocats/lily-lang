@@ -4,6 +4,11 @@
 #include "parser/recovery/recovery.h"
 #include "parser/recovery/types.h"
 #include "parser/statements/statements.h"
+#include "threadpool/types.h"
+
+#include <threads.h>
+
+extern thread_local ThreadContext thread_context;
 
 AstNodeId parser_continue_statement(Parser* p) {
     AstNodeId id  = parser_create_node(p);
@@ -17,6 +22,7 @@ AstNodeId parser_continue_statement(Parser* p) {
 
     if (!p -> in_loop_context) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file, 
             DIAG_ERROR,
             &continue_tok,
@@ -34,6 +40,7 @@ AstNodeId parser_continue_statement(Parser* p) {
 
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(
+            thread_context.diagnostic_engine,
             p -> file,
             DIAG_ERROR,
             &continue_tok,
