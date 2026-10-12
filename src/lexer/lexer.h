@@ -3,6 +3,6 @@
 
 #include "files/types.h"
 
-void lex_file(File* file);
+void lex_file(File *file);
 
 #endif // !LILY_LEXER_H

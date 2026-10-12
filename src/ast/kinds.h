@@ -13,62 +13,62 @@
  *
 */
 
-#define AST(X)                  \
-    X(AST_ERROR)                \
-                                \
-    X(AST_EXECUTE_DIRECTIVE)    \
-    X(AST_IMPORT_DIRECTIVE)     \
-    X(AST_INCLUDE_DIRECTIVE)    \
-    X(AST_PACKED_DIRECTIVE)     \
-    X(AST_ALIGN_DIRECTIVE)      \
-                                \
-    X(AST_IMPORT_DECL)          \
-                                \
-    X(AST_FUNCTION_DECL)        \
-    X(AST_PARAMETER_DECL)       \
-                                \
-    X(AST_STRUCT_DECL)          \
-    X(AST_UNION_DECL)           \
-    X(AST_FIELD_DECL)           \
-                                \
-    X(AST_ENUM_DECL)            \
-    X(AST_VARIANT_DECL)         \
-                                \
-    X(AST_VARIABLE_DECL)        \
-                                \
-    X(AST_TYPE_ALIAS_DECL)      \
-                                \
-    X(AST_BLOCK)                \
-                                \
-    X(AST_DEFER_STMT)           \
-    X(AST_RETURN_STMT)          \
-                                \
-    X(AST_IF_STMT)              \
-    X(AST_BRANCH)               \
-                                \
-    X(AST_FOR_LOOP)             \
-    X(AST_WHILE_LOOP)           \
-                                \
-    X(AST_CONTINUE_STMT)        \
-    X(AST_BREAK_STMT)           \
-                                \
-    X(AST_IDENTIFIER)           \
-    X(AST_LITERAL)              \
-    X(AST_UNARY_OP)             \
-    X(AST_BINARY_OP)            \
-    X(AST_FUNCTION_CALL)        \
-    X(AST_INDEX)                \
-    X(AST_MEMBER_ACCESS)        \
-    X(AST_STRUCT_LITERAL)       \
-    X(AST_STRUCT_FIELD_INIT)    \
-                                \
-    X(AST_TYPE_BASE)            \
-    X(AST_TYPE_ARRAY)           \
-    X(AST_TYPE_POINTER)         \
-    X(AST_TYPE_FUNCTION)        \
-    X(AST_TYPE_VARIADIC)        \
-                                \
-    X(AST_KINDS_COUNT)          \
+#define AST(X)               \
+    X(AST_ERROR)             \
+                             \
+    X(AST_EXECUTE_DIRECTIVE) \
+    X(AST_IMPORT_DIRECTIVE)  \
+    X(AST_INCLUDE_DIRECTIVE) \
+    X(AST_PACKED_DIRECTIVE)  \
+    X(AST_ALIGN_DIRECTIVE)   \
+                             \
+    X(AST_IMPORT_DECL)       \
+                             \
+    X(AST_FUNCTION_DECL)     \
+    X(AST_PARAMETER_DECL)    \
+                             \
+    X(AST_STRUCT_DECL)       \
+    X(AST_UNION_DECL)        \
+    X(AST_FIELD_DECL)        \
+                             \
+    X(AST_ENUM_DECL)         \
+    X(AST_VARIANT_DECL)      \
+                             \
+    X(AST_VARIABLE_DECL)     \
+                             \
+    X(AST_TYPE_ALIAS_DECL)   \
+                             \
+    X(AST_BLOCK)             \
+                             \
+    X(AST_DEFER_STMT)        \
+    X(AST_RETURN_STMT)       \
+                             \
+    X(AST_IF_STMT)           \
+    X(AST_BRANCH)            \
+                             \
+    X(AST_FOR_LOOP)          \
+    X(AST_WHILE_LOOP)        \
+                             \
+    X(AST_CONTINUE_STMT)     \
+    X(AST_BREAK_STMT)        \
+                             \
+    X(AST_IDENTIFIER)        \
+    X(AST_LITERAL)           \
+    X(AST_UNARY_OP)          \
+    X(AST_BINARY_OP)         \
+    X(AST_FUNCTION_CALL)     \
+    X(AST_INDEX)             \
+    X(AST_MEMBER_ACCESS)     \
+    X(AST_STRUCT_LITERAL)    \
+    X(AST_STRUCT_FIELD_INIT) \
+                             \
+    X(AST_TYPE_BASE)         \
+    X(AST_TYPE_ARRAY)        \
+    X(AST_TYPE_POINTER)      \
+    X(AST_TYPE_FUNCTION)     \
+    X(AST_TYPE_VARIADIC)     \
+                             \
+    X(AST_KINDS_COUNT)
 
 typedef enum : u8 {
     AST(GENERATE_ENUM)
@@ -76,8 +76,7 @@ typedef enum : u8 {
 
 static_assert(sizeof(AstKind) == sizeof(u8) == 1);
 
-
-static const char* AST_KIND_STRINGS[] = {
+static const char *AST_KIND_STRINGS[] = {
     AST(GENERATE_STRING)
 };
 
@@ -89,19 +88,19 @@ static const char* AST_KIND_STRINGS[] = {
  *
 */
 
-#define LITERALS(X)         \
-    X(LITERAL_BOOL)         \
-    X(LITERAL_CHAR)         \
-    X(LITERAL_FLOATING)     \
-    X(LITERAL_INTEGER)      \
-    X(LITERAL_NULL)         \
-    X(LITERAL_STRING)       \
+#define LITERALS(X)     \
+    X(LITERAL_BOOL)     \
+    X(LITERAL_CHAR)     \
+    X(LITERAL_FLOATING) \
+    X(LITERAL_INTEGER)  \
+    X(LITERAL_NULL)     \
+    X(LITERAL_STRING)
 
 typedef enum {
     LITERALS(GENERATE_ENUM)
 } LiteralKind;
 
-static const char* LITERAL_KIND_STRINGS[] = {
+static const char *LITERAL_KIND_STRINGS[] = {
     LITERALS(GENERATE_STRING)
 };
 
@@ -114,7 +113,7 @@ static const char* LITERAL_KIND_STRINGS[] = {
  */
 
 typedef struct {
-    AstNodeId* ids;
+    AstNodeId *ids;
     u32 count;
     u32 capacity;
 } AstNodeIdList;
@@ -143,9 +142,8 @@ typedef struct {
     AstNodeId expr;
 } AstAlignDirective;
 
-
 typedef struct {
-    StringId  name;
+    StringId name;
     AstNodeId import;
 } AstImportDeclaration;
 
@@ -157,7 +155,7 @@ typedef struct {
 } AstFunctionDeclaration;
 
 typedef struct {
-    StringId  name;
+    StringId name;
     AstNodeId type_expr;
 } AstParameterDeclaration;
 
@@ -186,7 +184,7 @@ typedef struct {
 } AstStructDeclaration, AstUnionDeclaration;
 
 typedef struct {
-    StringId  name;
+    StringId name;
     AstNodeId type_expr;
 } AstFieldDeclaration;
 
@@ -197,12 +195,12 @@ typedef struct {
 } AstEnumDeclaration;
 
 typedef struct {
-    StringId  name;
+    StringId name;
     AstNodeId value_expr;
 } AstVariantDeclaration;
 
 typedef struct {
-    StringId  name;
+    StringId name;
     AstNodeId type_expr;
     AstNodeId init_expr;
 } AstVariableDeclaration;
@@ -308,10 +306,10 @@ typedef struct {
 
     union {
         StringId string;
-        bool     boolean;
-        char     character;
-        f64      floating;
-        i64      integer;
+        bool boolean;
+        char character;
+        f64 floating;
+        i64 integer;
     } as;
 } AstLiteral;
 
@@ -356,7 +354,7 @@ typedef struct {
 } AstStructLiteral;
 
 typedef struct {
-    StringId  field;
+    StringId field;
     AstNodeId value;
 } AstFieldInit;
 

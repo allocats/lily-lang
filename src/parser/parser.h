@@ -13,19 +13,19 @@
  * main entry point into parser
  *
  */
-void parse_file(File* file);
+void parse_file(File *file);
 
 /*
  *
  * AST wrappers for the parser for convenience
  *
  */
-AstNodeId parser_create_node(Parser* p);
-AstNode*  parser_get_node(Parser* p, AstNodeId id);
-bool      parser_is_node(Parser* p, AstNodeId id, AstKind kind);
-void      parser_set_node_flags(Parser* p, AstNodeId id, AstFlag flags);
-void      parser_init_id_list(Parser* p, AstNodeIdList* list, u32 count);
-void      parser_append_id_list(Parser* p, AstNodeIdList* list, AstNodeId id);
+AstNodeId parser_create_node(Parser *p);
+AstNode *parser_get_node(Parser *p, AstNodeId id);
+bool parser_is_node(Parser *p, AstNodeId id, AstKind kind);
+void parser_set_node_flags(Parser *p, AstNodeId id, AstFlag flags);
+void parser_init_id_list(Parser *p, AstNodeIdList *list, u32 count);
+void parser_append_id_list(Parser *p, AstNodeIdList *list, AstNodeId id);
 
 /*
  *
@@ -34,11 +34,11 @@ void      parser_append_id_list(Parser* p, AstNodeIdList* list, AstNodeId id);
  *  program exit failure
  *
  */
-Token parser_peek(Parser* p);
-Token parser_peek_ahead_by(Parser* p, u32 offset);
-Token parser_peek_behind_by(Parser* p, u32 offset);
-Token parser_advance(Parser* p);
-bool  parser_check(Parser* p, TokenKind kind);
-bool  parser_check_ahead_by(Parser* p, TokenKind kind, u32 offset);
+Token parser_peek(Parser *p);
+Token parser_peek_ahead_by(Parser *p, u32 offset);
+Token parser_peek_behind_by(Parser *p, u32 offset);
+Token parser_advance(Parser *p);
+bool parser_check(Parser *p, TokenKind kind);
+bool parser_check_ahead_by(Parser *p, TokenKind kind, u32 offset);
 
 #endif // !LILY_PARSER_H

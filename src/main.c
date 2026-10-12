@@ -1,6 +1,6 @@
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
-#undef  MEOWRENA_IMPL
+#undef MEOWRENA_IMPL
 
 #include "cli/cli.h"
 #include "diagnostics/diagnostics.h"
@@ -13,7 +13,7 @@
 
 Driver driver = {0};
 
-i32 main(i32 argc, char** argv) {
+i32 main(i32 argc, char **argv) {
     assert(argc > 0);
     assert(argv != null);
 
@@ -25,7 +25,7 @@ i32 main(i32 argc, char** argv) {
         return 1;
     }
 
-    const char* home_dir = getenv("HOME");
+    const char *home_dir = getenv("HOME");
     if (!home_dir) {
         cli_print_home_error(argv[0]);
         return 1;
@@ -57,7 +57,7 @@ i32 main(i32 argc, char** argv) {
      *
      */
     for (u32 i = 0; i < driver.workspace_count; i += 1) {
-        Workspace* ws = driver.workspaces[i];
+        Workspace *ws = driver.workspaces[i];
 
         compile_workspace(ws);
 
@@ -83,7 +83,7 @@ i32 main(i32 argc, char** argv) {
     }
 
     for (u32 i = 0; i < driver.workspace_count; i += 1) {
-        Workspace* ws = driver.workspaces[i];
+        Workspace *ws = driver.workspaces[i];
 
         cli_print_workspace_stats(ws);
     }

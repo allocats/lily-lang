@@ -12,23 +12,21 @@ static constexpr u64 RESOLVER_STACK_MAX = 256;
  *
  */
 
-#define STATES(X)           \
-    X(RESOLVE_UNRESOLVED)   \
-    X(RESOLVE_RESOLVING)    \
-    X(RESOLVE_RESOLVED)     \
-    X(RESOLVE_ERRO)         \
-
+#define STATES(X)         \
+    X(RESOLVE_UNRESOLVED) \
+    X(RESOLVE_RESOLVING)  \
+    X(RESOLVE_RESOLVED)   \
+    X(RESOLVE_ERRO)
 
 typedef enum : u8 {
     STATES(GENERATE_ENUM)
 } ResolveState;
 
-static const char* REOSLVE_STATE_STRINGS[] = {
+static const char *REOSLVE_STATE_STRINGS[] = {
     STATES(GENERATE_STRING)
 };
 
 #undef STATES
-
 
 typedef enum {
     QUERY_SYMBOL,

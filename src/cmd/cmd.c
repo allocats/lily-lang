@@ -9,9 +9,9 @@
 #include <sys/wait.h>
 #include <wait.h>
 
-extern char** environ;
+extern char **environ;
 
-i32 run_command(const char* path, char** args) {
+i32 run_command(const char *path, char **args) {
     pid_t pid;
 
     i32 rc = posix_spawnp(&pid, path, NULL, NULL, args, environ);
@@ -36,4 +36,3 @@ i32 run_command(const char* path, char** args) {
 
     return -1;
 }
-

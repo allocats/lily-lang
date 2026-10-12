@@ -13,24 +13,24 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parse_variable_declaration(Parser* p) {
+AstNodeId parse_variable_declaration(Parser *p) {
     AstNodeId id  = parser_create_node(p);
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_VARIABLE_DECL;
+    node->kind = AST_VARIABLE_DECL;
 
     /*
      *
      * initiate the node's values, no unitialised bs please
      *
      */
-    node -> as.variable_decl.name = LOCAL_STRING_ID_NONE;
-    node -> as.variable_decl.type_expr = AST_NODE_ID_NONE;
-    node -> as.variable_decl.init_expr = AST_NODE_ID_NONE;
+    node->as.variable_decl.name      = LOCAL_STRING_ID_NONE;
+    node->as.variable_decl.type_expr = AST_NODE_ID_NONE;
+    node->as.variable_decl.init_expr = AST_NODE_ID_NONE;
 
     Token name_token = parser_peek(p);
 
-    node -> as.variable_decl.name = local_string_intern_token(thread_context.string_interner, p -> file, name_token);
+    node->as.variable_decl.name = local_string_intern_token(thread_context.string_interner, p->file, name_token);
 
     /*
      * in theory should not have to check this because it's only possible to be 
@@ -41,15 +41,15 @@ AstNodeId parse_variable_declaration(Parser* p) {
     parser_advance(p); // advance past `:`
 
     AstNodeId type_expression_id  = parse_type_expression(p);
-    AstNode* type_expression_node = parser_get_node(p, type_expression_id);
+    AstNode *type_expression_node = parser_get_node(p, type_expression_id);
 
-    if (type_expression_node -> kind == AST_ERROR) {
+    if (type_expression_node->kind == AST_ERROR) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
     node = parser_get_node(p, id);
 
-    node -> flags |= type_expression_node -> flags;
+    node->flags |= type_expression_node->flags;
 
     if (parser_check(p, TOK_EQ)) {
         parser_advance(p);
@@ -62,7 +62,7 @@ AstNodeId parse_variable_declaration(Parser* p) {
 
         node = parser_get_node(p, id);
 
-        node -> as.variable_decl.init_expr = initializer_id;
+        node->as.variable_decl.init_expr = initializer_id;
     }
 
     if (!parser_check(p, TOK_SEMI)) {
@@ -70,7 +70,7 @@ AstNodeId parse_variable_declaration(Parser* p) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
@@ -81,11 +81,11 @@ AstNodeId parse_variable_declaration(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    node -> tokens.end = p -> cursor;
+    node->tokens.end = p->cursor;
 
     parser_advance(p); // advance past ';'
 
-    p -> file -> ast.total_declaration_count += 1;
+    p->file->ast.total_declaration_count += 1;
 
     return id;
 }

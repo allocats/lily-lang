@@ -10,8 +10,8 @@
 typedef struct {
     u32 start;
 
-    // Does mean tokens are limited to (2^16)-1 (65535 characters) in length, migth beworth mulling 
-    // over this more, but does greatly improve the cache performance of the lexer, a little bit more complex 
+    // Does mean tokens are limited to (2^16)-1 (65535 characters) in length, migth beworth mulling
+    // over this more, but does greatly improve the cache performance of the lexer, a little bit more complex
     // but it has its strenghts
     u16 length;
 
@@ -21,7 +21,7 @@ typedef struct {
 static_assert(sizeof(Token) == 8);
 
 typedef struct {
-    Token* items;
+    Token *items;
     u64 count;
     u64 capacity;
 

@@ -23,8 +23,8 @@ typedef struct {
 } ScopeBucket;
 
 typedef struct {
-    ScopeBucket* buckets;
-    SymbolId* entries;
+    ScopeBucket *buckets;
+    SymbolId *entries;
 
     u32 count;
     u32 capacity; // must be power of two

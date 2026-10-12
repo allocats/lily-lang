@@ -1,8 +1,8 @@
+#include "string_interner/global/interner.h"
 #include "driver/types.h"
 #include "hash/hash.h"
 #include "ids.h"
 #include "string_interner/commmon_types.h"
-#include "string_interner/global/interner.h"
 #include "string_interner/global/types.h"
 #include "string_interner/local/interner.h"
 #include "string_interner/local/types.h"
@@ -15,16 +15,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern Driver driver; 
+extern Driver driver;
 
 static GlobalStringRemapper remapper = {0};
 
 static constexpr f64 load_factor = 0.75f;
 
-static StringId global_string_intern_local_entry(GlobalStringInterner* interner, StringEntry entry);
+static StringId global_string_intern_local_entry(GlobalStringInterner *interner, StringEntry entry);
 
-static void resize_buckets(GlobalStringInterner* interner);
-static void resize_entries(GlobalStringInterner* interner);
+static void resize_buckets(GlobalStringInterner *interner);
+static void resize_entries(GlobalStringInterner *interner);
 
 /*
  *
@@ -33,13 +33,13 @@ static void resize_entries(GlobalStringInterner* interner);
  */
 
 void global_string_interner_init(GlobalStringInterner *interner) {
-    LocalStringInterner* local_interners = driver.local_string_interners;
+    LocalStringInterner *local_interners = driver.local_string_interners;
 
     u32 local_count = driver.local_string_interner_count;
 
-    remapper.ids = lily_alloc(sizeof(StringId*) * local_count); 
+    remapper.ids = lily_alloc(sizeof(StringId *) * local_count);
 
-    u32 local_string_count = 128; 
+    u32 local_string_count = 128;
 
     for (u8 i = 0; i < local_count; i += 1) {
         u32 count = local_interners[i].count;
@@ -62,17 +62,17 @@ void global_string_interner_init(GlobalStringInterner *interner) {
      */
     u32 capacity = local_string_count == threshold ? U32_MAX : NEXT_POWER_OF_TWO(local_string_count + local_string_count / 4);
 
-    interner -> buckets = lily_alloc(sizeof(StringBucket) * capacity);
-    interner -> entries = lily_alloc(sizeof(StringEntry) * local_string_count);
+    interner->buckets = lily_alloc(sizeof(StringBucket) * capacity);
+    interner->entries = lily_alloc(sizeof(StringEntry) * local_string_count);
 
-    memset(interner -> buckets, U8_MAX, sizeof(StringBucket) * capacity);
+    memset(interner->buckets, U8_MAX, sizeof(StringBucket) * capacity);
 
-    interner -> bucket_capacity = capacity;
-    interner -> entry_capacity  = local_string_count;
+    interner->bucket_capacity = capacity;
+    interner->entry_capacity  = local_string_count;
 
-    interner -> count = 0;
+    interner->count = 0;
 
-    interner -> resize_threshold_as_u32 = (u32)(capacity * load_factor);
+    interner->resize_threshold_as_u32 = (u32)(capacity * load_factor);
 
     for (u8 i = 0; i < local_count; i += 1) {
         LocalStringInterner current_interner = local_interners[i];
@@ -84,7 +84,7 @@ void global_string_interner_init(GlobalStringInterner *interner) {
         }
     }
 
-    debug_log("Created GlobalStringInterner with %u strings and %u capacity", interner -> count, interner -> entry_capacity);
+    debug_log("Created GlobalStringInterner with %u strings and %u capacity", interner->count, interner->entry_capacity);
 
     for (u8 i = 0; i < driver.local_string_interner_count; i += 1) {
         local_string_interner_destroy(&driver.local_string_interners[i]);
@@ -96,14 +96,14 @@ void global_string_interner_init(GlobalStringInterner *interner) {
 void global_string_interner_destroy(GlobalStringInterner *interner) {
     assert(interner != null);
 
-    if (interner -> buckets == null || interner -> entries == null) {
+    if (interner->buckets == null || interner->entries == null) {
         return;
     }
 
     u32 local_count = driver.local_string_interner_count;
 
-    free(interner -> buckets);
-    free(interner -> entries);
+    free(interner->buckets);
+    free(interner->entries);
 
     for (u8 i = 0; i < local_count; i += 1) {
         free(remapper.ids[i]);
@@ -120,22 +120,22 @@ void global_string_interner_destroy(GlobalStringInterner *interner) {
 
 StringId global_string_intern_str8(GlobalStringInterner *interner, str8 str) {
     assert(interner != null);
-    assert(str.ptr  != null);
-    assert(str.len  != 0);
+    assert(str.ptr != null);
+    assert(str.len != 0);
 
-    if (UNLIKELY(interner -> count >= interner -> resize_threshold_as_u32)) {
+    if (UNLIKELY(interner->count >= interner->resize_threshold_as_u32)) {
         resize_buckets(interner);
     }
 
     u32 hash  = hash_str8(str);
-    u32 mask  = interner -> bucket_capacity - 1;
+    u32 mask  = interner->bucket_capacity - 1;
     u32 index = hash & mask;
 
-    while (interner -> buckets[index].id != GLOBAL_STRING_ID_NONE) {
-        StringBucket bucket = interner -> buckets[index];
+    while (interner->buckets[index].id != GLOBAL_STRING_ID_NONE) {
+        StringBucket bucket = interner->buckets[index];
 
         if (bucket.hash == hash) {
-            StringEntry entry = interner -> entries[bucket.id];
+            StringEntry entry = interner->entries[bucket.id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 return bucket.id;
@@ -145,16 +145,16 @@ StringId global_string_intern_str8(GlobalStringInterner *interner, str8 str) {
         index = (index + 1) & mask;
     }
 
-    if (UNLIKELY(interner -> count >= interner -> entry_capacity)) {
+    if (UNLIKELY(interner->count >= interner->entry_capacity)) {
         resize_entries(interner);
     }
 
-    StringId id = interner -> count++;
+    StringId id = interner->count++;
 
-    interner -> buckets[index].id = id;
-    interner -> buckets[index].hash = hash;
+    interner->buckets[index].id   = id;
+    interner->buckets[index].hash = hash;
 
-    interner -> entries[id] = (StringEntry) {
+    interner->entries[id] = (StringEntry){
         .str = {
             .ptr = str.ptr,
             .len = str.len,
@@ -167,18 +167,18 @@ StringId global_string_intern_str8(GlobalStringInterner *interner, str8 str) {
 
 StringId global_string_lookup_str8(GlobalStringInterner *interner, str8 str) {
     assert(interner != null);
-    assert(str.ptr  != null);
-    assert(str.len  != 0);
+    assert(str.ptr != null);
+    assert(str.len != 0);
 
     u32 hash  = hash_str8(str);
-    u32 mask  = interner -> bucket_capacity - 1;
+    u32 mask  = interner->bucket_capacity - 1;
     u32 index = hash & mask;
 
-    while (interner -> buckets[index].id != GLOBAL_STRING_ID_NONE) {
-        StringBucket bucket = interner -> buckets[index];
+    while (interner->buckets[index].id != GLOBAL_STRING_ID_NONE) {
+        StringBucket bucket = interner->buckets[index];
 
         if (bucket.hash == hash) {
-            StringEntry entry = interner -> entries[bucket.id];
+            StringEntry entry = interner->entries[bucket.id];
 
             if (entry.str.len == str.len && memcmp(entry.str.ptr, str.ptr, str.len) == 0) {
                 return bucket.id;
@@ -192,11 +192,11 @@ StringId global_string_lookup_str8(GlobalStringInterner *interner, str8 str) {
 }
 
 inline StringId global_string_intern_cstr(GlobalStringInterner *interner, char *cstr) {
-    return global_string_intern_str8(interner, (str8) { .ptr = cstr, .len = strlen(cstr)});
+    return global_string_intern_str8(interner, (str8){.ptr = cstr, .len = strlen(cstr)});
 }
 
 inline StringId global_string_lookup_cstr(GlobalStringInterner *interner, char *cstr) {
-    return global_string_lookup_str8(interner, (str8) { .ptr = cstr, .len = strlen(cstr)});
+    return global_string_lookup_str8(interner, (str8){.ptr = cstr, .len = strlen(cstr)});
 }
 
 /*
@@ -205,7 +205,7 @@ inline StringId global_string_lookup_cstr(GlobalStringInterner *interner, char *
  *
  */
 
-static StringId global_string_intern_local_entry(GlobalStringInterner* interner, StringEntry entry) {
+static StringId global_string_intern_local_entry(GlobalStringInterner *interner, StringEntry entry) {
     assert(interner != null);
     assert(entry.hash != 0);
     assert(entry.str.ptr != null);
@@ -214,14 +214,14 @@ static StringId global_string_intern_local_entry(GlobalStringInterner* interner,
     str8 str = entry.str;
 
     u32 hash  = entry.hash;
-    u32 mask  = interner -> bucket_capacity - 1;
+    u32 mask  = interner->bucket_capacity - 1;
     u32 index = hash & mask;
 
-    while (interner -> buckets[index].id != GLOBAL_STRING_ID_NONE) {
-        StringBucket bucket = interner -> buckets[index];
+    while (interner->buckets[index].id != GLOBAL_STRING_ID_NONE) {
+        StringBucket bucket = interner->buckets[index];
 
         if (bucket.hash == hash) {
-            StringEntry slot = interner -> entries[bucket.id];
+            StringEntry slot = interner->entries[bucket.id];
 
             if (slot.str.len == str.len && memcmp(slot.str.ptr, str.ptr, str.len) == 0) {
                 return bucket.id;
@@ -231,18 +231,17 @@ static StringId global_string_intern_local_entry(GlobalStringInterner* interner,
         index = (index + 1) & mask;
     }
 
-    StringId id = interner -> count++;
+    StringId id = interner->count++;
 
-    assert(id < interner -> entry_capacity);
+    assert(id < interner->entry_capacity);
 
-    interner -> buckets[index].id = id;
-    interner -> buckets[index].hash = hash;
+    interner->buckets[index].id   = id;
+    interner->buckets[index].hash = hash;
 
-    interner -> entries[id] = entry;
+    interner->entries[id] = entry;
 
     return id;
 }
-
 
 /*
  *
@@ -250,18 +249,18 @@ static StringId global_string_intern_local_entry(GlobalStringInterner* interner,
  * 
  */
 
-static void resize_buckets(GlobalStringInterner* interner) {
-    u32 new_capacity = interner -> bucket_capacity * 2;
+static void resize_buckets(GlobalStringInterner *interner) {
+    u32 new_capacity = interner->bucket_capacity * 2;
 
     u64 new_size = new_capacity * sizeof(StringBucket);
 
-    StringBucket* new_buckets = lily_realloc(interner -> buckets, new_size);
+    StringBucket *new_buckets = lily_realloc(interner->buckets, new_size);
     memset(new_buckets, U8_MAX, new_size);
 
     debug_log("Reallocated GlobalStringInterner -> buckets from %lu to %lu", new_size / 2, new_size);
 
-    for (u32 i = 0; i < interner -> count; i++) {
-        StringEntry entry = interner -> entries[i];
+    for (u32 i = 0; i < interner->count; i++) {
+        StringEntry entry = interner->entries[i];
 
         u32 new_index = entry.hash & (new_capacity - 1);
 
@@ -269,29 +268,29 @@ static void resize_buckets(GlobalStringInterner* interner) {
             new_index = (new_index + 1) & (new_capacity - 1);
         }
 
-        new_buckets[new_index].id = i;
+        new_buckets[new_index].id   = i;
         new_buckets[new_index].hash = entry.hash;
     }
 
-    interner -> buckets = new_buckets;
-    interner -> bucket_capacity = new_capacity;
+    interner->buckets         = new_buckets;
+    interner->bucket_capacity = new_capacity;
 
-    interner -> resize_threshold_as_u32 = (u32)(new_capacity * load_factor);
+    interner->resize_threshold_as_u32 = (u32)(new_capacity * load_factor);
 }
 
-static void resize_entries(GlobalStringInterner* interner) {
-    u64 old_size = sizeof(StringEntry) * interner -> entry_capacity; 
+static void resize_entries(GlobalStringInterner *interner) {
+    u64 old_size = sizeof(StringEntry) * interner->entry_capacity;
     u64 new_size = old_size * 2;
 
-    interner -> entries = lily_realloc(interner -> entries, new_size);
-    interner -> entry_capacity *= 2;
+    interner->entries = lily_realloc(interner->entries, new_size);
+    interner->entry_capacity *= 2;
 
     debug_log("Reallocated GlobalStringInterner -> entries from %lu to %lu bytes", old_size, new_size);
 }
 
 inline StringId global_string_from_local_id(StringId id) {
     StringId local_id = local_string_get_id(id);
-    u8 interner_id = local_string_get_interner_id(id);
+    u8 interner_id    = local_string_get_interner_id(id);
 
     return remapper.ids[interner_id][local_id];
 }

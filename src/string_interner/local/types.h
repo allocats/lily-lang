@@ -6,8 +6,8 @@
 #include "utils/types.h"
 
 typedef struct {
-    StringBucket* buckets;
-    StringEntry* entries;
+    StringBucket *buckets;
+    StringEntry *entries;
 
     u32 entry_capacity;
     u32 bucket_capacity;

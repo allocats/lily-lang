@@ -5,7 +5,7 @@
 
 #define NEXT_POWER_OF_TWO(x) ((x) == 1 ? 1 : 1 << (64 - __builtin_clzl((x) - 1)))
 
-#define LIKELY(x)   __builtin_expect(!!(x), 1)
+#define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 
 #define MIN(a, b) (a) < (b) ? (a) : (b)
@@ -13,30 +13,30 @@
 
 #define STR8_FMT(s) (s).len, (s).ptr
 
-#define UNUSED(n) ((void) n)
+#define UNUSED(n) ((void)n)
 
-#define UNREACHABLE(fmt, ...)                                               \
-    do {                                                                    \
-        fprintf(                                                            \
-            stderr,                                                         \
-            "UNREACHABLE at %s:%d in %s(): " fmt "\n",                      \
-            __FILE__,                                                       \
-            __LINE__,                                                       \
-            __func__,                                                       \
-            ##__VA_ARGS__                                                   \
-        );                                                                  \
-        abort();                                                            \
-    } while(0)
+#define UNREACHABLE(fmt, ...)                          \
+    do {                                               \
+        fprintf(                                       \
+            stderr,                                    \
+            "UNREACHABLE at %s:%d in %s(): " fmt "\n", \
+            __FILE__,                                  \
+            __LINE__,                                  \
+            __func__,                                  \
+            ##__VA_ARGS__                              \
+        );                                             \
+        abort();                                       \
+    } while (0)
 
-#define DA_RESIZE(da, arena)                                                            \
-    do {                                                                                \
-        if (UNLIKELY((da) -> count >= (da) -> capacity)) {                              \
-            u64 old_size = (da) -> capacity * sizeof((da) -> items[0]);                 \
-            u64 new_size = old_size * 2;                                                \
-                                                                                        \
-            (da) -> items = arena_realloc((arena), (da) -> items, old_size, new_size);  \
-            (da) -> capacity *= 2;                                                      \
-        }                                                                               \
-    } while(0);
+#define DA_RESIZE(da, arena)                                                       \
+    do {                                                                           \
+        if (UNLIKELY((da)->count >= (da)->capacity)) {                             \
+            u64 old_size = (da)->capacity * sizeof((da)->items[0]);                \
+            u64 new_size = old_size * 2;                                           \
+                                                                                   \
+            (da)->items = arena_realloc((arena), (da)->items, old_size, new_size); \
+            (da)->capacity *= 2;                                                   \
+        }                                                                          \
+    } while (0);
 
 #endif // !LILY_UTILS_MACROS_H

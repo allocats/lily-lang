@@ -15,18 +15,18 @@ extern thread_local ThreadContext thread_context;
 
 AstNodeId parse_directive_declaration(Parser *p, AstNodeId id, StringId name) {
     AstNodeId directive_id  = parse_directive(p);
-    AstNode* directive_node = parser_get_node(p, directive_id); 
+    AstNode *directive_node = parser_get_node(p, directive_id);
 
-    if (directive_node -> kind == AST_ERROR) {
+    if (directive_node->kind == AST_ERROR) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    if (directive_node -> kind != AST_IMPORT_DIRECTIVE) {
+    if (directive_node->kind != AST_IMPORT_DIRECTIVE) {
         diagnostic_add_token_span(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
-            directive_node -> tokens,
+            directive_node->tokens,
             "only import directives can be binded",
             "expected `#import` for binded directives"
         );
@@ -34,16 +34,16 @@ AstNodeId parse_directive_declaration(Parser *p, AstNodeId id, StringId name) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_IMPORT_DECL;
+    node->kind = AST_IMPORT_DECL;
 
-    node -> as.import_decl.name = name;
-    node -> as.import_decl.import = directive_id;
+    node->as.import_decl.name   = name;
+    node->as.import_decl.import = directive_id;
 
-    node -> tokens.end = p -> cursor - 1;
+    node->tokens.end = p->cursor - 1;
 
-    p -> file -> ast.total_declaration_count += 1;
+    p->file->ast.total_declaration_count += 1;
 
     return id;
 }

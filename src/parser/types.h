@@ -5,9 +5,9 @@
 #include "workspace/types.h"
 
 typedef struct {
-    Workspace* workspace;
+    Workspace *workspace;
 
-    File* file;
+    File *file;
 
     u32 cursor;
     u32 token_count;

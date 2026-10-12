@@ -11,12 +11,12 @@
  * 
  */
 typedef struct {
-    ScopeId** scope_ids;
+    ScopeId **scope_ids;
 } GlobalSymbolTableRemapper;
 
 typedef struct {
-    Scope*  scopes;
-    Symbol* symbols;
+    Scope *scopes;
+    Symbol *symbols;
 
     u32 scope_count;
     u32 scope_capacity;

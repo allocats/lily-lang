@@ -1,3 +1,4 @@
+#include "parser/directives/directives.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
@@ -5,7 +6,6 @@
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
-#include "parser/directives/directives.h"
 #include "parser/expressions/expressions.h"
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
@@ -29,14 +29,14 @@
 extern Driver driver;
 extern thread_local ThreadContext thread_context;
 
-static thread_local char relative_scratch[PATH_MAX] = {0}; 
+static thread_local char relative_scratch[PATH_MAX] = {0};
 
 /*
  *
  * this MUST be updated as new directives are added
  *
  */
-static constexpr u32 directive_count = 5;
+static constexpr u32 directive_count          = 5;
 static AstKind directive_lut[directive_count] = {0};
 
 /*
@@ -45,10 +45,10 @@ static AstKind directive_lut[directive_count] = {0};
  *
  */
 
-static AstNodeId parse_import_directive(Parser* p, AstNodeId id);
-static AstNodeId parse_include_directive(Parser* p, AstNodeId id);
-static AstNodeId parse_execute_directive(Parser* p, AstNodeId id);
-static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
+static AstNodeId parse_import_directive(Parser *p, AstNodeId id);
+static AstNodeId parse_include_directive(Parser *p, AstNodeId id);
+static AstNodeId parse_execute_directive(Parser *p, AstNodeId id);
+static AstNodeId parse_align_directive(Parser *p, AstNodeId id);
 
 /*
  *
@@ -56,7 +56,7 @@ static AstNodeId parse_align_directive(Parser* p, AstNodeId id);
  *
  */
 
-void init_directive_lut(LocalStringInterner* string_interner) {
+void init_directive_lut(LocalStringInterner *string_interner) {
     assert(local_string_get_id(local_string_intern_cstr(string_interner, "import")) == 0);
 
     directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "import"))]  = AST_IMPORT_DIRECTIVE;
@@ -74,7 +74,7 @@ void init_directive_lut(LocalStringInterner* string_interner) {
  *
  */
 
-AstNodeId parse_directive(Parser* p) {
+AstNodeId parse_directive(Parser *p) {
     AstNodeId id = parser_create_node(p);
 
     parser_advance(p); // advance past '#'
@@ -84,7 +84,7 @@ AstNodeId parse_directive(Parser* p) {
     if (directive_token.kind != TOK_IDENTIFIER) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &directive_token,
             DIAG_LOC_WHOLE_TOK,
@@ -95,14 +95,14 @@ AstNodeId parse_directive(Parser* p) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    StringId string_id = local_string_lookup_token(thread_context.string_interner, p -> file, directive_token);
+    StringId string_id = local_string_lookup_token(thread_context.string_interner, p->file, directive_token);
 
     string_id = local_string_get_id(string_id);
 
     if (string_id >= directive_count) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &directive_token,
             DIAG_LOC_WHOLE_TOK,
@@ -115,38 +115,38 @@ AstNodeId parse_directive(Parser* p) {
 
     AstKind directive_kind = directive_lut[string_id];
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = directive_kind;
+    node->kind = directive_kind;
 
     switch (directive_kind) {
-        case AST_IMPORT_DIRECTIVE:
-            return parse_import_directive(p, id);
+    case AST_IMPORT_DIRECTIVE:
+        return parse_import_directive(p, id);
 
-        case AST_INCLUDE_DIRECTIVE:
-            return parse_include_directive(p, id);
+    case AST_INCLUDE_DIRECTIVE:
+        return parse_include_directive(p, id);
 
-        case AST_EXECUTE_DIRECTIVE:
-            return parse_execute_directive(p, id);
+    case AST_EXECUTE_DIRECTIVE:
+        return parse_execute_directive(p, id);
 
-        case AST_PACKED_DIRECTIVE:
-            return id;
+    case AST_PACKED_DIRECTIVE:
+        return id;
 
-        case AST_ALIGN_DIRECTIVE:
-            return parse_align_directive(p, id);
+    case AST_ALIGN_DIRECTIVE:
+        return parse_align_directive(p, id);
 
-        default:
-            UNREACHABLE("Found %s", AST_KIND_STRINGS[directive_kind]);
+    default:
+        UNREACHABLE("Found %s", AST_KIND_STRINGS[directive_kind]);
     }
 }
 
-static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
-    Token module_tok = parser_advance(p); // advance past expected string literal 
+static AstNodeId parse_import_directive(Parser *p, AstNodeId id) {
+    Token module_tok = parser_advance(p); // advance past expected string literal
 
     if (module_tok.kind != TOK_STRING_LIT) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &module_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -160,7 +160,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &module_tok,
             DIAG_LOC_END_OF_TOK,
@@ -174,7 +174,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
     if (module_tok.length == 2) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &module_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -185,18 +185,18 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    module_tok.start  += 1;
+    module_tok.start += 1;
     module_tok.length -= 2;
 
-    StringId module_string_id = local_string_intern_token(thread_context.string_interner, p -> file, module_tok);
+    StringId module_string_id = local_string_intern_token(thread_context.string_interner, p->file, module_tok);
 
-    module_tok.start  -= 1;
+    module_tok.start -= 1;
     module_tok.length += 2;
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> as.import_directive.module  = module_string_id;
-    node -> as.import_directive.file_id = FILE_ID_NONE;
+    node->as.import_directive.module  = module_string_id;
+    node->as.import_directive.file_id = FILE_ID_NONE;
 
     /*
      *
@@ -211,7 +211,7 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
      *  check to see if the module is a standard library module
      *
      */
-    FileId stdlib_id = standard_library_map_get_module(&p -> workspace -> standard_library_map, module_string_id);
+    FileId stdlib_id = standard_library_map_get_module(&p->workspace->standard_library_map, module_string_id);
 
     if (stdlib_id != FILE_ID_NONE) {
         module_file_id = stdlib_id;
@@ -238,13 +238,13 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
             .len = bytes_written_relative
         };
 
-        module_file_id = file_intern(&p -> workspace -> file_interner, relative_path_to_module);
+        module_file_id = file_intern(&p->workspace->file_interner, relative_path_to_module);
     }
 
     if (module_file_id == FILE_ID_NONE) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &module_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -255,25 +255,25 @@ static AstNodeId parse_import_directive(Parser* p, AstNodeId id) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    node -> as.import_directive.file_id = module_file_id;
-    node -> tokens.end = p -> cursor;
+    node->as.import_directive.file_id = module_file_id;
+    node->tokens.end                  = p->cursor;
 
     parser_advance(p); // advance past ';'
 
-    File* file = workspace_get_file(p -> workspace, module_file_id);
+    File *file = workspace_get_file(p->workspace, module_file_id);
 
     threadpool_add_task(&driver.thread_pool, workspace_dispatch_lex_and_parse_file, file);
 
     return id;
 }
 
-static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
-    Token file_tok = parser_advance(p); // advance past expected string literal 
+static AstNodeId parse_include_directive(Parser *p, AstNodeId id) {
+    Token file_tok = parser_advance(p); // advance past expected string literal
 
     if (file_tok.kind != TOK_STRING_LIT) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &file_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -287,7 +287,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     if (!parser_check(p, TOK_SEMI)) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &file_tok,
             DIAG_LOC_END_OF_TOK,
@@ -301,7 +301,7 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
     if (file_tok.length == 2) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &file_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -312,24 +312,24 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    file_tok.start  += 1;
+    file_tok.start += 1;
     file_tok.length -= 2;
 
-    StringId file_string_id = local_string_intern_token(thread_context.string_interner, p -> file, file_tok);
+    StringId file_string_id = local_string_intern_token(thread_context.string_interner, p->file, file_tok);
 
-    file_tok.start  -= 1;
+    file_tok.start -= 1;
     file_tok.length += 2;
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> as.include_directive.path = file_string_id;
-    node -> as.include_directive.file_id = FILE_ID_NONE;
+    node->as.include_directive.path    = file_string_id;
+    node->as.include_directive.file_id = FILE_ID_NONE;
 
     str8 file_path_str = local_string_get_str8_from_id(thread_context.string_interner, file_string_id);
 
-    str8 current_path = p -> file -> path;
+    str8 current_path = p->file->path;
 
-    char* last_slash = strrchr(current_path.ptr, '/');
+    char *last_slash = strrchr(current_path.ptr, '/');
 
     i32 bytes_written = 0;
 
@@ -357,12 +357,12 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
      *
      */
 
-    FileId file_id = file_intern(&p -> workspace -> file_interner, final_path);
+    FileId file_id = file_intern(&p->workspace->file_interner, final_path);
 
     if (file_id == FILE_ID_NONE) {
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &file_tok,
             DIAG_LOC_WHOLE_TOK,
@@ -373,33 +373,33 @@ static AstNodeId parse_include_directive(Parser* p, AstNodeId id) {
         return parser_error(p, id, RECOVERY_NONE);
     }
 
-    node -> as.include_directive.file_id = file_id;
-    node -> tokens.end = p -> cursor;
+    node->as.include_directive.file_id = file_id;
+    node->tokens.end                   = p->cursor;
 
     parser_advance(p); // advance past ';'
 
-    File* file = workspace_get_file(p -> workspace, file_id);
+    File *file = workspace_get_file(p->workspace, file_id);
 
     threadpool_add_task(&driver.thread_pool, workspace_dispatch_lex_and_parse_file, file);
 
     return id;
 }
 
-static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
+static AstNodeId parse_execute_directive(Parser *p, AstNodeId id) {
     AstNodeId expr_id = parse_expression(p);
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> as.exec_directive.expr = expr_id;
+    node->as.exec_directive.expr = expr_id;
 
-    node -> tokens.end = p -> cursor;
+    node->tokens.end = p->cursor;
 
     if (!parser_check(p, TOK_SEMI)) {
         Token previous = parser_peek_behind_by(p, 1);
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
@@ -415,14 +415,14 @@ static AstNodeId parse_execute_directive(Parser* p, AstNodeId id) {
     return id;
 }
 
-static AstNodeId parse_align_directive(Parser* p, AstNodeId id) {
+static AstNodeId parse_align_directive(Parser *p, AstNodeId id) {
     AstNodeId alignment_expression_id = parse_expression(p);
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> as.align_directive.expr = alignment_expression_id;
+    node->as.align_directive.expr = alignment_expression_id;
 
-    node -> tokens.end = p -> cursor - 1;
+    node->tokens.end = p->cursor - 1;
 
     return id;
 }

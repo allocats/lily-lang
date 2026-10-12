@@ -15,42 +15,42 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
+AstNodeId parse_struct_declaration(Parser *p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `struct`
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_STRUCT_DECL;
-    node -> as.struct_decl.name = name;
-    node -> as.struct_decl.alignment_directive = AST_NODE_ID_NONE;
+    node->kind                               = AST_STRUCT_DECL;
+    node->as.struct_decl.name                = name;
+    node->as.struct_decl.alignment_directive = AST_NODE_ID_NONE;
 
-    parser_init_id_list(p, &node -> as.struct_decl.fields, 8);
+    parser_init_id_list(p, &node->as.struct_decl.fields, 8);
 
     if (parser_check(p, TOK_HASHTAG)) {
         AstNodeId attribute_id  = parse_directive(p);
-        AstNode* attribute_node = parser_get_node(p, attribute_id); 
+        AstNode *attribute_node = parser_get_node(p, attribute_id);
 
         node = parser_get_node(p, id);
 
-        switch (attribute_node -> kind) {
-            case AST_PACKED_DIRECTIVE: {
-                node -> flags |= AST_FLAG_PACKED;
-            } break;
+        switch (attribute_node->kind) {
+        case AST_PACKED_DIRECTIVE: {
+            node->flags |= AST_FLAG_PACKED;
+        } break;
 
-            case AST_ALIGN_DIRECTIVE: {
-                node -> as.struct_decl.alignment_directive = attribute_id;
-            } break;
+        case AST_ALIGN_DIRECTIVE: {
+            node->as.struct_decl.alignment_directive = attribute_id;
+        } break;
 
-            default: {
-                diagnostic_add_token_span(
-                    thread_context.diagnostic_engine,
-                    p -> file,
-                    DIAG_ERROR,
-                    attribute_node -> tokens,
-                    "invalid struct attribute",
-                    "only '#packed' and '#align N' is allowed as struct attributes"
-                );
-            } break;
+        default: {
+            diagnostic_add_token_span(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                attribute_node->tokens,
+                "invalid struct attribute",
+                "only '#packed' and '#align N' is allowed as struct attributes"
+            );
+        } break;
         }
     }
 
@@ -59,12 +59,12 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
             "expected '{'",
-            "add a '{' here" 
+            "add a '{' here"
         );
 
         return parser_error(p, id, RECOVERY_NONE);
@@ -73,30 +73,30 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `{`
 
     while (!parser_check(p, TOK_R_BRACE)) {
-        u32 field_starting_token_index = p -> cursor;
+        u32 field_starting_token_index = p->cursor;
 
         Token field_name_tok = parser_advance(p);
 
         if (field_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &field_name_tok,
                 DIAG_LOC_WHOLE_TOK,
                 "expected identifier for field name",
-                "add a valid identifier here" 
+                "add a valid identifier here"
             );
 
             return parser_error(p, id, RECOVERY_NONE);
         }
 
-        StringId field_name_id = local_string_intern_token(thread_context.string_interner, p -> file, field_name_tok);
+        StringId field_name_id = local_string_intern_token(thread_context.string_interner, p->file, field_name_tok);
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &field_name_tok,
                 DIAG_LOC_END_OF_TOK,
@@ -109,7 +109,7 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
 
         parser_advance(p);
 
-        AstNodeId field_type_expression_id = parse_type_expression(p); 
+        AstNodeId field_type_expression_id = parse_type_expression(p);
 
         if (parser_is_node(p, field_type_expression_id, AST_ERROR)) {
             return parser_error(p, id, RECOVERY_NONE);
@@ -120,7 +120,7 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
 
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &previous,
                 DIAG_LOC_END_OF_TOK,
@@ -132,30 +132,30 @@ AstNodeId parse_struct_declaration(Parser* p, AstNodeId id, StringId name) {
         }
 
         AstNodeId field_decl_id  = parser_create_node(p);
-        AstNode* field_decl_node = parser_get_node(p, field_decl_id);
+        AstNode *field_decl_node = parser_get_node(p, field_decl_id);
 
-        field_decl_node -> kind = AST_FIELD_DECL;
+        field_decl_node->kind = AST_FIELD_DECL;
 
-        field_decl_node -> as.field_decl.name = field_name_id;
-        field_decl_node -> as.field_decl.type_expr = field_type_expression_id; 
+        field_decl_node->as.field_decl.name      = field_name_id;
+        field_decl_node->as.field_decl.type_expr = field_type_expression_id;
 
-        field_decl_node -> tokens.start = field_starting_token_index;
-        field_decl_node -> tokens.end   = p -> cursor;
+        field_decl_node->tokens.start = field_starting_token_index;
+        field_decl_node->tokens.end   = p->cursor;
 
         parser_advance(p);
 
         node = parser_get_node(p, id);
 
-        parser_append_id_list(p, &node -> as.struct_decl.fields, field_decl_id);
+        parser_append_id_list(p, &node->as.struct_decl.fields, field_decl_id);
     }
 
     node = parser_get_node(p, id);
 
-    node -> tokens.end = p -> cursor;
+    node->tokens.end = p->cursor;
 
     parser_advance(p);
 
-    p -> file -> ast.total_declaration_count += node -> as.struct_decl.fields.count;
+    p->file->ast.total_declaration_count += node->as.struct_decl.fields.count;
 
     return id;
 }

@@ -8,15 +8,15 @@
 
 #include <assert.h>
 
-AstNodeId parse_block(Parser* p) {
+AstNodeId parse_block(Parser *p) {
     parser_advance(p); // advance past `{`
 
     AstNodeId id  = parser_create_node(p);
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_BLOCK;
+    node->kind = AST_BLOCK;
 
-    parser_init_id_list(p, &node -> as.block.statements, 16);
+    parser_init_id_list(p, &node->as.block.statements, 16);
 
     while (true) {
         if (parser_check(p, TOK_R_BRACE)) {
@@ -30,19 +30,19 @@ AstNodeId parse_block(Parser* p) {
         node = parser_get_node(p, id);
 
         if (parser_is_node(p, statement, AST_ERROR)) {
-            parser_recover(p, RECOVERY_STATEMENT); 
+            parser_recover(p, RECOVERY_STATEMENT);
 
             if (parser_check(p, TOK_SEMI)) {
                 parser_advance(p);
             }
         } else {
-            parser_append_id_list(p, &node -> as.block.statements, statement);
+            parser_append_id_list(p, &node->as.block.statements, statement);
         }
     }
 
     node = parser_get_node(p, id);
 
-    node -> tokens.end = p -> cursor;
+    node->tokens.end = p->cursor;
 
     parser_advance(p); // advance past `}`
 

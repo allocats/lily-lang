@@ -108,19 +108,15 @@
                         \
     X(TOK_ERROR)        \
                         \
-    X(TOKEN_KIND_COUNT) \
-
-
+    X(TOKEN_KIND_COUNT)
 
 typedef enum : u8 {
     TOKENS(GENERATE_ENUM)
 } TokenKind;
 
-
-static const char* TOKEN_KIND_STRINGS[] = {
+static const char *TOKEN_KIND_STRINGS[] = {
     TOKENS(GENERATE_STRING)
 };
-
 
 static_assert(sizeof(TokenKind) == sizeof(u8));
 

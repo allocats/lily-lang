@@ -13,6 +13,7 @@ STD_PATH = $(HOME)/.local/lily
 BINARY = $(BIN_DIR)/lilyc
 
 SRCS = $(shell find $(SRC_DIR) -name "*.c")
+HDRS = $(shell find $(SRC_DIR) -name "*.h")
 OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
 
@@ -35,6 +36,11 @@ $(BIN_DIR): | $(BUILD_DIR)
 .PHONY: debug
 debug: CF += $(DF)
 debug: $(BINARY)
+
+.PHONY: format 
+format:
+	clang-format -i $(SRCS)
+	clang-format -i $(HDRS)
 
 .PHONY: clean
 clean:

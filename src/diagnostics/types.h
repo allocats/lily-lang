@@ -19,7 +19,7 @@ typedef enum {
 typedef struct {
     DiagKind kind;
 
-    Workspace* workspace;
+    Workspace *workspace;
     FileId file_id;
 
     u32 line;
@@ -33,7 +33,7 @@ typedef struct {
 } Diagnostic;
 
 typedef struct {
-    Diagnostic* diags;
+    Diagnostic *diags;
     u32 count;
     u32 capacity;
 

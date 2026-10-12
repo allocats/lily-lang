@@ -10,18 +10,18 @@
 
 static constexpr u64 __ARENA_BLOCK_ALIGN = 64;
 
-typedef struct Arena      Arena;
+typedef struct Arena Arena;
 typedef struct ArenaBlock ArenaBlock;
 
 typedef enum {
     ALIGN_DEFAULT = 8,
 
-    ALIGN_2       = 2,
-    ALIGN_4       = 4,
-    ALIGN_8       = 8,
-    ALIGN_16      = 16,
-    ALIGN_32      = 32,
-    ALIGN_64      = 64,
+    ALIGN_2  = 2,
+    ALIGN_4  = 4,
+    ALIGN_8  = 8,
+    ALIGN_16 = 16,
+    ALIGN_32 = 32,
+    ALIGN_64 = 64,
 } Alignment;
 
 typedef struct Arena {
@@ -29,12 +29,12 @@ typedef struct Arena {
 
     Alignment byte_alignment;
 
-    ArenaBlock* current;
-    ArenaBlock* start;
-    ArenaBlock* end;
+    ArenaBlock *current;
+    ArenaBlock *start;
+    ArenaBlock *end;
 
     // last allocation, to create a growing array in realloc
-    void* cached_allocation;
+    void *cached_allocation;
 
     u64 total_capacity;
     u64 total_used;
@@ -43,11 +43,11 @@ typedef struct Arena {
 static_assert(sizeof(Arena) == 64);
 
 typedef struct ArenaBlock {
-    ArenaBlock* next;
+    ArenaBlock *next;
     u64 used;
     u64 capacity;
 
-    alignas(__ARENA_BLOCK_ALIGN) u8 data[]; 
+    alignas(__ARENA_BLOCK_ALIGN) u8 data[];
 } ArenaBlock;
 
 #define ARENA_KB(n) ((n) * 1024)
@@ -59,18 +59,18 @@ typedef struct ArenaBlock {
 
 #define ARENA_ALIGN_UP(a, n) (((u64)(n) + (u64)(a) - 1) & ~((u64)(a) - 1))
 
-void  arena_init(Arena* arena, u64 default_capacity, Alignment arena_alignment);
-void* arena_alloc(Arena* arena, u64 size);
-void* arena_calloc(Arena* arena, u64 size);
-void* arena_realloc(Arena* arena, void* ptr, u64 old_size, u64 new_size);
-void* arena_memcpy(void* dest, void* src, u64 size);
-void* arena_memset(void* ptr, u8 value, u64 size);
-void  arena_reset(Arena* arena);
-void  arena_destroy(Arena* arena);
+void arena_init(Arena *arena, u64 default_capacity, Alignment arena_alignment);
+void *arena_alloc(Arena *arena, u64 size);
+void *arena_calloc(Arena *arena, u64 size);
+void *arena_realloc(Arena *arena, void *ptr, u64 old_size, u64 new_size);
+void *arena_memcpy(void *dest, void *src, u64 size);
+void *arena_memset(void *ptr, u8 value, u64 size);
+void arena_reset(Arena *arena);
+void arena_destroy(Arena *arena);
 
-void  arena_print_stats(FILE* fd, Arena* arena, char* label);
-u64   arena_total_usage(Arena* arena);
-u64   arena_total_capacity(Arena* arena);
+void arena_print_stats(FILE *fd, Arena *arena, char *label);
+u64 arena_total_usage(Arena *arena);
+u64 arena_total_capacity(Arena *arena);
 
 #endif // !MEOWRENA_H
 
@@ -83,160 +83,159 @@ u64   arena_total_capacity(Arena* arena);
 #include <stdlib.h>
 #include <string.h>
 
-#define arena_likely(x)   __builtin_expect(!!(x), 1)
+#define arena_likely(x) __builtin_expect(!!(x), 1)
 #define arena_unlikely(x) __builtin_expect(!!(x), 0)
 
 // Internal functions
-static ArenaBlock* __arena_new_block(Arena* arena, u64 size);
+static ArenaBlock *__arena_new_block(Arena *arena, u64 size);
 
-void arena_init(Arena* arena, u64 default_capacity, Alignment arena_alignment) {
+void arena_init(Arena *arena, u64 default_capacity, Alignment arena_alignment) {
     assert(arena && "Arena is null in arena_init(arena, capacity, align)\n");
     assert(arena_alignment <= __ARENA_BLOCK_ALIGN);
-    
-    arena -> default_capacity = ARENA_ALIGN_UP(arena_alignment, default_capacity);
-    arena -> byte_alignment = arena_alignment;
-    arena -> current = null;
-    arena -> start = null;
-    arena -> end = null;
-    arena -> cached_allocation = null;
-    arena -> total_capacity = 0;
-    arena -> total_used = 0;
+
+    arena->default_capacity  = ARENA_ALIGN_UP(arena_alignment, default_capacity);
+    arena->byte_alignment    = arena_alignment;
+    arena->current           = null;
+    arena->start             = null;
+    arena->end               = null;
+    arena->cached_allocation = null;
+    arena->total_capacity    = 0;
+    arena->total_used        = 0;
 }
 
-void* arena_alloc(Arena* arena, u64 size) {
+void *arena_alloc(Arena *arena, u64 size) {
     assert(size != 0 && "Passed in 0 size request to arena_alloc(arena, size)\n");
     assert(size < (U64_MAX / 2));
 
-    u64 aligned_size = ARENA_ALIGN_UP(arena -> byte_alignment, size);
+    u64 aligned_size = ARENA_ALIGN_UP(arena->byte_alignment, size);
 
-    ArenaBlock* block = arena -> current;
+    ArenaBlock *block = arena->current;
 
     if (arena_unlikely(!block)) {
         block = __arena_new_block(arena, aligned_size);
 
-        arena -> current = block;
-        arena -> start = block;
-        arena -> end = block;
+        arena->current = block;
+        arena->start   = block;
+        arena->end     = block;
     }
 
-    assert(block -> used <= block -> capacity);
+    assert(block->used <= block->capacity);
 
-    if (aligned_size > block -> capacity - block -> used) {
-        ArenaBlock* current = block -> next;
+    if (aligned_size > block->capacity - block->used) {
+        ArenaBlock *current = block->next;
 
         while (current != null) {
-            if (aligned_size <= current -> capacity - current -> used) {
-                block = current;
-                arena -> current = current;
+            if (aligned_size <= current->capacity - current->used) {
+                block          = current;
+                arena->current = current;
                 break;
             }
 
-            current = current -> next;
+            current = current->next;
         }
 
         if (current == null) {
-            ArenaBlock* new_block = __arena_new_block(arena, aligned_size);
+            ArenaBlock *new_block = __arena_new_block(arena, aligned_size);
 
-            arena -> end -> next = new_block;
-            arena -> end = new_block;
-            arena -> current = new_block;
+            arena->end->next = new_block;
+            arena->end       = new_block;
+            arena->current   = new_block;
 
             block = new_block;
         }
     }
 
-    void* ptr = (u8*) block -> data + block -> used; 
-    block -> used += aligned_size;
+    void *ptr = (u8 *)block->data + block->used;
+    block->used += aligned_size;
 
-    arena -> total_used += aligned_size;
-    arena -> cached_allocation = ptr;
+    arena->total_used += aligned_size;
+    arena->cached_allocation = ptr;
 
     debug_log("Allocated %lu bytes onto arena, %p", aligned_size, arena);
 
     return ptr;
 }
 
-void* arena_calloc(Arena* arena, u64 size) {
+void *arena_calloc(Arena *arena, u64 size) {
     assert(size != 0 && "Passed in 0 size request to arena_calloc(arena, size)\n");
 
-    void* ptr = arena_alloc(arena, size);
+    void *ptr = arena_alloc(arena, size);
     arena_memset(ptr, 0, size);
     return ptr;
 }
 
-void* arena_realloc(Arena* arena, void* ptr, u64 old_size, u64 new_size) {
+void *arena_realloc(Arena *arena, void *ptr, u64 old_size, u64 new_size) {
     if (arena_unlikely(new_size <= old_size)) {
         return ptr;
     }
 
-    void* cached = arena -> cached_allocation;
+    void *cached = arena->cached_allocation;
 
-    u64 aligned_new_size = ARENA_ALIGN_UP(arena -> byte_alignment, new_size);
+    u64 aligned_new_size = ARENA_ALIGN_UP(arena->byte_alignment, new_size);
 
     if (cached != null && cached == ptr) {
-        ArenaBlock* block = arena -> current;
+        ArenaBlock *block = arena->current;
 
-        u64 offset = (u64) ((u8*) ptr - block -> data);
-        u64 unused = block -> capacity - offset;
+        u64 offset = (u64)((u8 *)ptr - block->data);
+        u64 unused = block->capacity - offset;
 
         if (aligned_new_size <= unused) {
-            u64 old_used = block -> used;
+            u64 old_used = block->used;
 
-            block -> used = offset + aligned_new_size;
+            block->used = offset + aligned_new_size;
 
-            arena -> total_used += block -> used - old_used;
+            arena->total_used += block->used - old_used;
 
             return ptr;
         }
     }
 
-
-    void* result = arena_alloc(arena, new_size);
+    void *result = arena_alloc(arena, new_size);
     memcpy(result, ptr, old_size);
     return result;
 }
 
-void* arena_memcpy(void* dest, void* src, u64 len) {
+void *arena_memcpy(void *dest, void *src, u64 len) {
     return memcpy(dest, src, len);
 }
 
-void* arena_memset(void* ptr, u8 value, u64 len) {
+void *arena_memset(void *ptr, u8 value, u64 len) {
     return memset(ptr, value, len);
 }
 
-void  arena_reset(Arena* arena) {
-    for (ArenaBlock* current = arena -> start; current != null; current = current -> next) {
-        current -> used = 0;
+void arena_reset(Arena *arena) {
+    for (ArenaBlock *current = arena->start; current != null; current = current->next) {
+        current->used = 0;
     }
 
-    arena -> current = arena -> start;
-    arena -> cached_allocation = null;
-    arena -> total_used = 0;
+    arena->current           = arena->start;
+    arena->cached_allocation = null;
+    arena->total_used        = 0;
 
     debug_log("Reset the arena: %p", arena);
 }
 
-void arena_destroy(Arena* arena) {
-    ArenaBlock* current = arena -> start;
+void arena_destroy(Arena *arena) {
+    ArenaBlock *current = arena->start;
 
-    arena -> current = null;
-    arena -> start = null;
-    arena -> end = null;
-    arena -> total_used = 0;
-    arena -> total_capacity = 0;
-    arena -> cached_allocation = null;
+    arena->current           = null;
+    arena->start             = null;
+    arena->end               = null;
+    arena->total_used        = 0;
+    arena->total_capacity    = 0;
+    arena->cached_allocation = null;
 
     while (current != null) {
-        ArenaBlock* previous = current;
-        current = current -> next;
+        ArenaBlock *previous = current;
+        current              = current->next;
         free(previous);
     }
 }
 
-void arena_print_stats(FILE* fd, Arena* arena, char* label) {
+void arena_print_stats(FILE *fd, Arena *arena, char *label) {
     i64 block_count = 0;
 
-    for (ArenaBlock* block = arena -> start; block != null; block = block -> next) {
+    for (ArenaBlock *block = arena->start; block != null; block = block->next) {
         block_count++;
     }
 
@@ -246,18 +245,18 @@ void arena_print_stats(FILE* fd, Arena* arena, char* label) {
     fprintf(fd, "  Total capacity: %ld\n\n", arena_total_capacity(arena));
 }
 
-u64 arena_total_usage(Arena* arena) {
-    return arena -> total_used;
+u64 arena_total_usage(Arena *arena) {
+    return arena->total_used;
 }
 
-u64 arena_total_capacity(Arena* arena) {
-    return arena -> total_capacity;
+u64 arena_total_capacity(Arena *arena) {
+    return arena->total_capacity;
 }
 
 // Internal
 
-static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
-    u64 capacity = arena -> default_capacity;
+static ArenaBlock *__arena_new_block(Arena *arena, u64 size) {
+    u64 capacity = arena->default_capacity;
     u64 needed   = ARENA_ALIGN_UP(ALIGN_64, size);
 
     if (needed > capacity) {
@@ -268,16 +267,16 @@ static ArenaBlock* __arena_new_block(Arena* arena, u64 size) {
 
     debug_log("Requesting %zu bytes: %p", total_size, arena);
 
-    ArenaBlock* block = (ArenaBlock*) aligned_alloc(arena -> byte_alignment, total_size);
+    ArenaBlock *block = (ArenaBlock *)aligned_alloc(arena->byte_alignment, total_size);
     assert(block != null && "aligned_alloc() failed! Buy more ram silly :3!\n");
 
     debug_log("Allocated %lu bytes for arena: %p", total_size, arena);
 
-    block -> next = null;
-    block -> used = 0;
-    block -> capacity = capacity;
+    block->next     = null;
+    block->used     = 0;
+    block->capacity = capacity;
 
-    arena -> total_capacity += capacity;
+    arena->total_capacity += capacity;
 
     return block;
 }

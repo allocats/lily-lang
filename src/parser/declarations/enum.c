@@ -15,17 +15,17 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
+AstNodeId parse_enum_declaration(Parser *p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `enum`
 
-    AstNode* node  = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_ENUM_DECL;
+    node->kind = AST_ENUM_DECL;
 
-    node -> as.enum_decl.name = name;
-    node -> as.enum_decl.type_expr = AST_NODE_ID_NONE;
+    node->as.enum_decl.name      = name;
+    node->as.enum_decl.type_expr = AST_NODE_ID_NONE;
 
-    parser_init_id_list(p, &node -> as.enum_decl.variants, 4);
+    parser_init_id_list(p, &node->as.enum_decl.variants, 4);
 
     if (parser_check(p, TOK_COLON)) {
         parser_advance(p); // advance past `:`
@@ -36,8 +36,8 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_NONE);
         }
 
-        node = parser_get_node(p, id);
-        node -> as.enum_decl.type_expr = type_expression_id;
+        node                         = parser_get_node(p, id);
+        node->as.enum_decl.type_expr = type_expression_id;
     }
 
     if (!parser_check(p, TOK_L_BRACE)) {
@@ -45,7 +45,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
@@ -59,7 +59,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
     parser_advance(p); // advance past `{`
 
     while (!parser_check(p, TOK_R_BRACE)) {
-        u32 starting_token_index = p -> cursor;
+        u32 starting_token_index = p->cursor;
 
         AstNodeId variant_value_expression_id = AST_NODE_ID_NONE;
 
@@ -68,7 +68,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
         if (variant_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &variant_name_tok,
                 DIAG_LOC_WHOLE_TOK,
@@ -90,7 +90,7 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
 
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &previous,
                 DIAG_LOC_END_OF_TOK,
@@ -101,23 +101,23 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_NONE);
         }
 
-        StringId variant_name_id = local_string_intern_token(thread_context.string_interner, p -> file, variant_name_tok);
+        StringId variant_name_id = local_string_intern_token(thread_context.string_interner, p->file, variant_name_tok);
 
         AstNodeId variant_id  = parser_create_node(p);
-        AstNode* variant_node = parser_get_node(p, variant_id);
+        AstNode *variant_node = parser_get_node(p, variant_id);
 
-        variant_node -> kind = AST_VARIANT_DECL;
+        variant_node->kind = AST_VARIANT_DECL;
 
-        variant_node -> tokens.start = starting_token_index;
-        variant_node -> tokens.end = p -> cursor;
+        variant_node->tokens.start = starting_token_index;
+        variant_node->tokens.end   = p->cursor;
 
-        variant_node -> as.variant_decl.name = variant_name_id;
-        variant_node -> as.variant_decl.value_expr = variant_value_expression_id;
+        variant_node->as.variant_decl.name       = variant_name_id;
+        variant_node->as.variant_decl.value_expr = variant_value_expression_id;
 
         node = parser_get_node(p, id);
 
-        parser_append_id_list(p, &node -> as.enum_decl.variants, variant_id);
-        
+        parser_append_id_list(p, &node->as.enum_decl.variants, variant_id);
+
         /*
          *
          * advance past `;` and restart the loop
@@ -126,12 +126,12 @@ AstNodeId parse_enum_declaration(Parser* p, AstNodeId id, StringId name) {
         parser_advance(p);
     }
 
-    node = parser_get_node(p, id);
-    node -> tokens.end = p -> cursor;
+    node             = parser_get_node(p, id);
+    node->tokens.end = p->cursor;
 
     parser_advance(p); // advance past `{`
 
-    p -> file -> ast.total_declaration_count += node -> as.enum_decl.variants.count;
+    p->file->ast.total_declaration_count += node->as.enum_decl.variants.count;
 
     return id;
 }

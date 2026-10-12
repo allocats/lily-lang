@@ -31,7 +31,7 @@ typedef struct {
 
     _Atomic(FileStage) stage;
 
-    u32  path_hash;
+    u32 path_hash;
     str8 path;
     str8 buffer;
 
@@ -45,8 +45,8 @@ typedef struct {
 } File;
 
 typedef struct {
-    FileBucket* buckets;
-    File** entries; // we keep this an array of pointers for lifetimes!
+    FileBucket *buckets;
+    File **entries; // we keep this an array of pointers for lifetimes!
 
     u32 bucket_capacity;
     u32 entry_capacity;

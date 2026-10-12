@@ -6,25 +6,25 @@
 #include <assert.h>
 #include <stdlib.h>
 
-void token_array_init(TokenArray* array, u64 capacity) {
+void token_array_init(TokenArray *array, u64 capacity) {
     assert(array != null);
     assert(((capacity & (capacity - 1)) == 0) && "capacity is not power of two");
 
     u64 size = sizeof(Token) * capacity;
 
-    array -> items = lily_alloc(size);
-    array -> count = 0;
-    array -> capacity = capacity;
+    array->items    = lily_alloc(size);
+    array->count    = 0;
+    array->capacity = capacity;
 
     debug_log("Created new token array with capacty %lu", capacity);
 }
 
-inline void token_array_destroy(TokenArray* array) {
+inline void token_array_destroy(TokenArray *array) {
     assert(array);
-    
-    debug_log("Deleting TokenArray: Count=%lu Capacity=%lu", array -> count, array -> capacity);
 
-    free(array -> items);
+    debug_log("Deleting TokenArray: Count=%lu Capacity=%lu", array->count, array->capacity);
+
+    free(array->items);
 }
 
 /*
@@ -33,11 +33,11 @@ inline void token_array_destroy(TokenArray* array) {
  *
  */
 
-i64 get_integer_literal_from_token(File* file, Token token) {
-    char* start = file -> buffer.ptr + token.start;
-    char* end = start + token.length;
+i64 get_integer_literal_from_token(File *file, Token token) {
+    char *start = file->buffer.ptr + token.start;
+    char *end   = start + token.length;
 
-    char putback = *end; 
+    char putback = *end;
 
     *end = 0;
 
@@ -48,11 +48,11 @@ i64 get_integer_literal_from_token(File* file, Token token) {
     return value;
 }
 
-f64 get_floating_literal_from_token(File* file, Token token) {
-    char* start = file -> buffer.ptr + token.start;
-    char* end = start + token.length;
+f64 get_floating_literal_from_token(File *file, Token token) {
+    char *start = file->buffer.ptr + token.start;
+    char *end   = start + token.length;
 
-    char putback = *end; 
+    char putback = *end;
 
     *end = 0;
 
@@ -63,6 +63,6 @@ f64 get_floating_literal_from_token(File* file, Token token) {
     return value;
 }
 
-char get_character_literal_from_token(File* file, Token token) {
-    return *(file -> buffer.ptr + token.start + 1);
+char get_character_literal_from_token(File *file, Token token) {
+    return *(file->buffer.ptr + token.start + 1);
 }

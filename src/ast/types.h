@@ -40,30 +40,31 @@ typedef struct {
     SpanU32 tokens;
 
     SymbolId resolved_symbol_id;
-    TypeId   resolved_type_id;
+    TypeId resolved_type_id;
 
     union {
         /*
          * directives
          */
-        AstExecDirective    exec_directive;
-        AstImportDirective  import_directive;
+        AstExecDirective exec_directive;
+        AstImportDirective import_directive;
         AstIncludeDirective include_directive;
-        AstAlignDirective   align_directive;
+        AstAlignDirective align_directive;
 
         /*
          * declarations
          */
-        AstImportDeclaration import_decl;;
+        AstImportDeclaration import_decl;
+        ;
 
-        AstFunctionDeclaration  func_decl;
+        AstFunctionDeclaration func_decl;
         AstParameterDeclaration param_decl;
 
         AstStructDeclaration struct_decl;
-        AstUnionDeclaration  union_decl;
-        AstFieldDeclaration  field_decl;
+        AstUnionDeclaration union_decl;
+        AstFieldDeclaration field_decl;
 
-        AstEnumDeclaration    enum_decl;
+        AstEnumDeclaration enum_decl;
         AstVariantDeclaration variant_decl;
 
         AstVariableDeclaration variable_decl;
@@ -75,16 +76,16 @@ typedef struct {
          */
         AstBlock block;
 
-        AstDeferStatement  defer_stmt;
+        AstDeferStatement defer_stmt;
         AstReturnStatement return_stmt;
 
         AstIfStatement if_stmt;
         AstBranch branch;
 
         AstWhileLoop while_loop;
-        AstForLoop   for_loop;
+        AstForLoop for_loop;
 
-        AstBreak    break_stmt;
+        AstBreak break_stmt;
         AstContinue continue_stmt;
 
         /*
@@ -101,7 +102,7 @@ typedef struct {
         AstIndex index;
 
         AstStructLiteral struct_literal;
-        AstFieldInit     field_init;
+        AstFieldInit field_init;
 
         /*
          * types
@@ -114,8 +115,7 @@ typedef struct {
     } as;
 } AstNode;
 
-
-[[deprecated("Do not use this, just to see size here")]] 
+[[deprecated("Do not use this, just to see size here")]]
 static constexpr u64 __ast_node_size = sizeof(AstNode);
 
 /*
@@ -125,7 +125,7 @@ static constexpr u64 __ast_node_size = sizeof(AstNode);
  */
 
 typedef struct {
-    AstNode* nodes;
+    AstNode *nodes;
     u32 count;
     u32 capacity;
 

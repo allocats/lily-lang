@@ -54,26 +54,25 @@ typedef struct {
     AstNodeId ast_node_id;
 
     union {
-        SymbolImport        import_symbol;
+        SymbolImport import_symbol;
 
-        SymbolParameter     parameter_symbol;
-        SymbolFunction      function_symbol;
+        SymbolParameter parameter_symbol;
+        SymbolFunction function_symbol;
 
-        SymbolField         field_symbol;
-        SymbolUnion         union_symbol;
-        SymbolStruct        struct_symbol;
+        SymbolField field_symbol;
+        SymbolUnion union_symbol;
+        SymbolStruct struct_symbol;
 
-        SymbolVariant       variant_symbol;
-        SymbolEnum          enum_symbol;
+        SymbolVariant variant_symbol;
+        SymbolEnum enum_symbol;
 
-        SymbolVariable      variable_symbol;
+        SymbolVariable variable_symbol;
 
-        SymbolType          type_symbol;
+        SymbolType type_symbol;
     } as;
 } Symbol;
 
-
-[[deprecated("Do not use this, just to see size here")]] 
+[[deprecated("Do not use this, just to see size here")]]
 static constexpr u64 __symbol_size = sizeof(Symbol);
 
 #endif // !LILY_SYMBOLS_SYMBOL_TYPES_H

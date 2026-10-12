@@ -11,16 +11,16 @@
 
 typedef struct ThreadTask ThreadTask;
 
-struct ThreadTask{
-    void (*fn)(void*);
-    void* arg;
+struct ThreadTask {
+    void (*fn)(void *);
+    void *arg;
 
-    ThreadTask* next;
+    ThreadTask *next;
 };
 
 typedef struct {
-    ThreadTask* front;
-    ThreadTask* rear;
+    ThreadTask *front;
+    ThreadTask *rear;
 
     u32 count;
 } ThreadTaskQueue;
@@ -28,7 +28,7 @@ typedef struct {
 typedef struct {
     Arena task_arena;
 
-    pthread_t* threads;
+    pthread_t *threads;
     u32 thread_count;
 
     u32 active_tasks;
@@ -42,14 +42,14 @@ typedef struct {
 } ThreadPool;
 
 typedef struct {
-    ThreadPool* pool;
+    ThreadPool *pool;
     u32 index;
 
-    LocalStringInterner* string_interner;
+    LocalStringInterner *string_interner;
 
-    LocalSymbolTable* symbol_table;
+    LocalSymbolTable *symbol_table;
 
-    DiagnosticEngine* diagnostic_engine;
+    DiagnosticEngine *diagnostic_engine;
 } ThreadContext;
 
 #endif // !LILY_THREADPOOL_TYPES_H

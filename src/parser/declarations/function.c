@@ -15,15 +15,15 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
-    AstNode* node = parser_get_node(p, id);
+AstNodeId parse_function_declaration(Parser *p, AstNodeId id, StringId name) {
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_FUNCTION_DECL;
+    node->kind = AST_FUNCTION_DECL;
 
-    node -> as.func_decl.name = name;
-    node -> as.func_decl.return_type_expr = AST_NODE_ID_NONE;
+    node->as.func_decl.name             = name;
+    node->as.func_decl.return_type_expr = AST_NODE_ID_NONE;
 
-    parser_init_id_list(p, &node -> as.func_decl.parameters, 4);
+    parser_init_id_list(p, &node->as.func_decl.parameters, 4);
 
     AstFlag flags = AST_FLAG_TOP_DECL;
 
@@ -33,97 +33,97 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         AstFlag flag = AST_FLAG_NONE;
 
         switch (token.kind) {
-            case TOK_KW_NOINLINE: {
-                if (flags & AST_FLAG_INLINE) {
-                    diagnostic_add_token(
-                        thread_context.diagnostic_engine,
-                        p -> file,
-                        DIAG_ERROR,
-                        &token,
-                        DIAG_LOC_WHOLE_TOK,
-                        "invalid function modifier",
-                        "cannot add noinline modifier to function with inline modifier"
-                    );
-
-                    break;
-                }
-
-                flag = AST_FLAG_NOINLINE;
-            } break;
-
-            case TOK_KW_INLINE: {
-                if (flags & AST_FLAG_NOINLINE) {
-                    diagnostic_add_token(
-                        thread_context.diagnostic_engine,
-                        p -> file,
-                        DIAG_ERROR,
-                        &token,
-                        DIAG_LOC_WHOLE_TOK,
-                        "invalid function modifier",
-                        "cannot add inline modifier to function with noinline modifier"
-                    );
-
-                    break;
-                }
-
-                flag = AST_FLAG_INLINE;
-            } break;
-
-            case TOK_KW_INTRINSIC: {
-                if (flags & AST_FLAG_FOREIGN) {
-                    diagnostic_add_token(
-                        thread_context.diagnostic_engine,
-                        p -> file,
-                        DIAG_ERROR,
-                        &token,
-                        DIAG_LOC_WHOLE_TOK,
-                        "invalid function modifier",
-                        "cannot add intrinsic modifier to function with foreign modifier"
-                    );
-
-                    break;
-                }
-
-                flag = AST_FLAG_INTRINSIC;
-            } break;
-
-            case TOK_KW_FOREIGN: {
-                if (flags & AST_FLAG_INTRINSIC) {
-                    diagnostic_add_token(
-                        thread_context.diagnostic_engine,
-                        p -> file,
-                        DIAG_ERROR,
-                        &token,
-                        DIAG_LOC_WHOLE_TOK,
-                        "invalid function modifier",
-                        "cannot add foreign modifier to function with intrinsic modifier"
-                    );
-
-                    break;
-                }
-
-                flag = AST_FLAG_FOREIGN;
-            } break;
-
-            default: {
+        case TOK_KW_NOINLINE: {
+            if (flags & AST_FLAG_INLINE) {
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_WHOLE_TOK,
-                    "unexpected token",
-                    "expected (noinline | inline | foreign | intrinsic | fn)"
+                    "invalid function modifier",
+                    "cannot add noinline modifier to function with inline modifier"
                 );
 
-                flag = AST_FLAG_NONE;
-            } break;
+                break;
+            }
+
+            flag = AST_FLAG_NOINLINE;
+        } break;
+
+        case TOK_KW_INLINE: {
+            if (flags & AST_FLAG_NOINLINE) {
+                diagnostic_add_token(
+                    thread_context.diagnostic_engine,
+                    p->file,
+                    DIAG_ERROR,
+                    &token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid function modifier",
+                    "cannot add inline modifier to function with noinline modifier"
+                );
+
+                break;
+            }
+
+            flag = AST_FLAG_INLINE;
+        } break;
+
+        case TOK_KW_INTRINSIC: {
+            if (flags & AST_FLAG_FOREIGN) {
+                diagnostic_add_token(
+                    thread_context.diagnostic_engine,
+                    p->file,
+                    DIAG_ERROR,
+                    &token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid function modifier",
+                    "cannot add intrinsic modifier to function with foreign modifier"
+                );
+
+                break;
+            }
+
+            flag = AST_FLAG_INTRINSIC;
+        } break;
+
+        case TOK_KW_FOREIGN: {
+            if (flags & AST_FLAG_INTRINSIC) {
+                diagnostic_add_token(
+                    thread_context.diagnostic_engine,
+                    p->file,
+                    DIAG_ERROR,
+                    &token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "invalid function modifier",
+                    "cannot add foreign modifier to function with intrinsic modifier"
+                );
+
+                break;
+            }
+
+            flag = AST_FLAG_FOREIGN;
+        } break;
+
+        default: {
+            diagnostic_add_token(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "unexpected token",
+                "expected (noinline | inline | foreign | intrinsic | fn)"
+            );
+
+            flag = AST_FLAG_NONE;
+        } break;
         }
 
         if (flag != AST_FLAG_NONE && flags & flag) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &token,
                 DIAG_LOC_WHOLE_TOK,
@@ -135,7 +135,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
         flags |= flag;
     }
 
-    node -> flags |= flags;
+    node->flags |= flags;
 
     parser_advance(p); // advance past `fn`
 
@@ -144,12 +144,12 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_WHOLE_TOK,
             "",
-            "" 
+            ""
         );
 
         return parser_error(p, id, RECOVERY_DECLARATION);
@@ -157,23 +157,23 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
     parser_advance(p); // advance past `(`
 
-    while (p -> cursor < p -> token_count) {
+    while (p->cursor < p->token_count) {
         if (parser_check(p, TOK_R_PAREN)) {
             parser_advance(p);
             break;
         }
 
         AstNodeId parameter_id  = parser_create_node(p);
-        AstNode* parameter_node = parser_get_node(p, parameter_id);
+        AstNode *parameter_node = parser_get_node(p, parameter_id);
 
-        parameter_node -> kind = AST_PARAMETER_DECL;
+        parameter_node->kind = AST_PARAMETER_DECL;
 
         Token parameter_name_tok = parser_advance(p); // advance past `identifier`
 
         if (parameter_name_tok.kind != TOK_IDENTIFIER) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &parameter_name_tok,
                 DIAG_LOC_WHOLE_TOK,
@@ -186,14 +186,14 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         StringId parameter_name_id = local_string_intern_token(
             thread_context.string_interner,
-            p -> file,
+            p->file,
             parameter_name_tok
         );
 
         if (!parser_check(p, TOK_COLON)) {
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &parameter_name_tok,
                 DIAG_LOC_END_OF_TOK,
@@ -212,25 +212,25 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_DECLARATION);
         }
 
-        AstNode* parameter_type_expr_node = parser_get_node(p, parameter_type_expr_id);
+        AstNode *parameter_type_expr_node = parser_get_node(p, parameter_type_expr_id);
 
         parameter_node = parser_get_node(p, parameter_id);
 
-        parameter_node -> flags |= parameter_type_expr_node -> flags;
-        parameter_node -> as.param_decl.name = parameter_name_id;
-        parameter_node -> as.param_decl.type_expr = parameter_type_expr_id;
+        parameter_node->flags |= parameter_type_expr_node->flags;
+        parameter_node->as.param_decl.name      = parameter_name_id;
+        parameter_node->as.param_decl.type_expr = parameter_type_expr_id;
 
         if (parser_is_node(p, parameter_type_expr_id, AST_TYPE_VARIADIC)) {
             node = parser_get_node(p, id);
 
-            node -> flags |= AST_FLAG_VARIADIC;
+            node->flags |= AST_FLAG_VARIADIC;
 
             if (parser_check(p, TOK_COMMA)) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_WHOLE_TOK,
@@ -246,7 +246,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_END_OF_TOK,
@@ -259,7 +259,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
             parser_append_id_list(
                 p,
-                &node -> as.func_decl.parameters,
+                &node->as.func_decl.parameters,
                 parameter_id
             );
 
@@ -271,7 +271,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         parser_append_id_list(
             p,
-            &node -> as.func_decl.parameters,
+            &node->as.func_decl.parameters,
             parameter_id
         );
 
@@ -289,7 +289,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
@@ -307,12 +307,11 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
      * increment the total number of declarations with the number of parameters
      *
      */
-    p -> file -> ast.total_declaration_count += node -> as.func_decl.parameters.count;
-
+    p->file->ast.total_declaration_count += node->as.func_decl.parameters.count;
 
     if (parser_check(p, TOK_ARROW)) {
         parser_advance(p); // advance past '->'
-        
+
         AstNodeId return_type_expression_id = parse_type_expression(p);
 
         if (parser_is_node(p, return_type_expression_id, AST_ERROR)) {
@@ -321,18 +320,18 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         node = parser_get_node(p, id);
 
-        node -> as.func_decl.return_type_expr = return_type_expression_id;
+        node->as.func_decl.return_type_expr = return_type_expression_id;
     }
 
     node = parser_get_node(p, id);
 
-    if (node -> flags & AST_FLAG_INTRINSIC || node -> flags & AST_FLAG_FOREIGN) {
+    if (node->flags & AST_FLAG_INTRINSIC || node->flags & AST_FLAG_FOREIGN) {
         if (!parser_check(p, TOK_SEMI)) {
             Token previous = parser_peek_behind_by(p, 1);
 
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &previous,
                 DIAG_LOC_WHOLE_TOK,
@@ -343,7 +342,7 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
             return parser_error(p, id, RECOVERY_DECLARATION);
         }
 
-        node -> tokens.end = p -> cursor;
+        node->tokens.end = p->cursor;
 
         parser_advance(p); // advance past ';'
 
@@ -355,12 +354,12 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &token,
             DIAG_LOC_END_OF_TOK,
             "expected '{' for function body",
-            "add a '{' here" 
+            "add a '{' here"
         );
 
         return parser_error(p, id, RECOVERY_DECLARATION);
@@ -374,8 +373,8 @@ AstNodeId parse_function_declaration(Parser* p, AstNodeId id, StringId name) {
 
     node = parser_get_node(p, id);
 
-    node -> as.func_decl.body = block_id;
-    node -> tokens.end = p -> cursor;
+    node->as.func_decl.body = block_id;
+    node->tokens.end        = p->cursor;
 
     return id;
 }

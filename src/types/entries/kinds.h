@@ -10,26 +10,25 @@
  *
 */
 
-#define TYPES(X)        \
-    X(TYPE_ARRAY)       \
-    X(TYPE_BASE)        \
-    X(TYPE_ENUM)        \
-    X(TYPE_ERROR)       \
-    X(TYPE_FUNCTION)    \
-    X(TYPE_POINTER)     \
-    X(TYPE_STRUCT)      \
-    X(TYPE_UNION)       \
+#define TYPES(X)     \
+    X(TYPE_ARRAY)    \
+    X(TYPE_BASE)     \
+    X(TYPE_ENUM)     \
+    X(TYPE_ERROR)    \
+    X(TYPE_FUNCTION) \
+    X(TYPE_POINTER)  \
+    X(TYPE_STRUCT)   \
+    X(TYPE_UNION)
 
 typedef enum : u8 {
     TYPES(GENERATE_ENUM)
 } TypeKind;
 
-static const char* TYPE_KIND_STRINGS[] = {
+static const char *TYPE_KIND_STRINGS[] = {
     TYPES(GENERATE_STRING)
 };
 
 #undef TYPES
-
 
 /*
  * 
@@ -51,14 +50,14 @@ typedef struct {
 } TypeArray;
 
 typedef struct {
-    TypeId* fields;
+    TypeId *fields;
     u32 field_count;
 
     SymbolId symbol_id;
 } TypeStruct;
 
 typedef struct {
-    TypeId* fields;
+    TypeId *fields;
     u32 field_count;
 
     SymbolId symbol_id;
@@ -71,7 +70,7 @@ typedef struct {
 } TypeEnum;
 
 typedef struct {
-    TypeId* arguments;
+    TypeId *arguments;
     u32 argument_count;
 
     TypeId return_type;

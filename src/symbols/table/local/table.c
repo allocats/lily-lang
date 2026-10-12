@@ -1,8 +1,7 @@
-#include "ids.h"
-#include "ast/types.h"
-#include "ast/types.h"
-#include "symbols/table/common_types.h"
 #include "symbols/table/local/table.h"
+#include "ast/types.h"
+#include "ids.h"
+#include "symbols/table/common_types.h"
 #include "symbols/table/local/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -11,25 +10,25 @@
 #include <assert.h>
 #include <stdlib.h>
 
-void local_symbol_table_init(LocalSymbolTable* table, u32 scope_count_estimate, u32 symbol_count_estimate, u8 id) {
+void local_symbol_table_init(LocalSymbolTable *table, u32 scope_count_estimate, u32 symbol_count_estimate, u8 id) {
     assert(table != null);
     assert(symbol_count_estimate > 0);
     assert(scope_count_estimate > 0);
 
-    arena_init(&table -> scope_data_arena, ARENA_KB(8), ALIGN_DEFAULT);
+    arena_init(&table->scope_data_arena, ARENA_KB(8), ALIGN_DEFAULT);
 
-    u64 scope_array_size  = sizeof(Scope)  * scope_count_estimate;
+    u64 scope_array_size  = sizeof(Scope) * scope_count_estimate;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count_estimate;
 
-    table -> scopes = lily_alloc(scope_array_size);
-    table -> scope_count = 1; // ScopeId 0 is reserved for the compiler
-    table -> scope_capacity = scope_count_estimate;
+    table->scopes         = lily_alloc(scope_array_size);
+    table->scope_count    = 1; // ScopeId 0 is reserved for the compiler
+    table->scope_capacity = scope_count_estimate;
 
-    table -> symbols = lily_alloc(symbol_array_size);
-    table -> symbol_count = 0;
-    table -> symbol_capacity = symbol_count_estimate;
+    table->symbols         = lily_alloc(symbol_array_size);
+    table->symbol_count    = 0;
+    table->symbol_capacity = symbol_count_estimate;
 
-    table -> id = id;
+    table->id = id;
 
     for (u32 i = 0; i < scope_count_estimate; i += 1) {
         local_scope_init(table, i);
@@ -46,11 +45,11 @@ void local_symbol_table_init(LocalSymbolTable* table, u32 scope_count_estimate, 
     );
 }
 
-void local_symbol_table_destroy(LocalSymbolTable* table) {
-    arena_destroy(&table -> scope_data_arena);
+void local_symbol_table_destroy(LocalSymbolTable *table) {
+    arena_destroy(&table->scope_data_arena);
 
-    free(table -> scopes);
-    free(table -> symbols);
+    free(table->scopes);
+    free(table->symbols);
 }
 
 /*
@@ -59,35 +58,35 @@ void local_symbol_table_destroy(LocalSymbolTable* table) {
  *
  */
 
-SymbolId local_symbol_table_create_symbol(LocalSymbolTable* table) {
-    if (UNLIKELY(table -> symbol_count >= table -> symbol_capacity)) {
-        u64 old_size = table -> symbol_capacity * sizeof(Symbol);
+SymbolId local_symbol_table_create_symbol(LocalSymbolTable *table) {
+    if (UNLIKELY(table->symbol_count >= table->symbol_capacity)) {
+        u64 old_size = table->symbol_capacity * sizeof(Symbol);
         u64 new_size = old_size * 2;
 
-        table -> symbols = lily_realloc(table -> symbols, new_size);
-        table -> symbol_capacity *= 2;
+        table->symbols = lily_realloc(table->symbols, new_size);
+        table->symbol_capacity *= 2;
     }
 
-    return local_symbol_create_id(table -> id, table -> symbol_count++);
+    return local_symbol_create_id(table->id, table->symbol_count++);
 }
 
-ScopeId local_symbol_table_create_scope(LocalSymbolTable* table) {
-    if (UNLIKELY(table -> scope_count >= table -> scope_capacity)) {
-        u64 old_size = table -> scope_capacity * sizeof(Scope);
+ScopeId local_symbol_table_create_scope(LocalSymbolTable *table) {
+    if (UNLIKELY(table->scope_count >= table->scope_capacity)) {
+        u64 old_size = table->scope_capacity * sizeof(Scope);
         u64 new_size = old_size * 2;
 
-        table -> scopes = lily_realloc(table -> scopes, new_size);
-        table -> scope_capacity *= 2;
+        table->scopes = lily_realloc(table->scopes, new_size);
+        table->scope_capacity *= 2;
 
-        for (u32 i = table -> scope_count; i < table -> scope_capacity; i += 1) {
+        for (u32 i = table->scope_count; i < table->scope_capacity; i += 1) {
             local_scope_init(table, i);
         }
     }
 
-    return local_scope_create_id(table -> id, table -> scope_count++);
+    return local_scope_create_id(table->id, table->scope_count++);
 }
 
-SymbolId local_table_lookup(LocalSymbolTable* table, ScopeId scope_id, StringId global_string_id) {
+SymbolId local_table_lookup(LocalSymbolTable *table, ScopeId scope_id, StringId global_string_id) {
     while (local_scope_get_id(scope_id) != LOCAL_SCOPE_ID_NONE) {
         SymbolId symbol_id = local_scope_lookup(table, scope_id, global_string_id);
 
@@ -95,9 +94,9 @@ SymbolId local_table_lookup(LocalSymbolTable* table, ScopeId scope_id, StringId 
             return symbol_id;
         }
 
-        Scope* scope = &table -> scopes[local_scope_get_id(scope_id)];
+        Scope *scope = &table->scopes[local_scope_get_id(scope_id)];
 
-        scope_id = scope -> parent;
+        scope_id = scope->parent;
     }
 
     return LOCAL_SYMBOL_ID_NONE;

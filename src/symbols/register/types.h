@@ -9,12 +9,12 @@ typedef struct {
     /*
      * Current file
      */
-    File* file;
+    File *file;
 
     /*
      * Shorthand pointer to file -> ast
      */
-    Ast* ast;
+    Ast *ast;
 
     /*
      * Current scope, use `enter/exit` functions to navigate lexical scopes
@@ -24,12 +24,12 @@ typedef struct {
     /*
      * The thread local symbol table
      */
-    LocalSymbolTable* table;
+    LocalSymbolTable *table;
 
     /*
      * Current workspace
      */
-    Workspace* ws;
+    Workspace *ws;
 } Registrar;
 
 #endif // !LILY_SYMBOLS_REGISTER_TYPES_H

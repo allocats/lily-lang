@@ -11,30 +11,30 @@
 typedef struct {
     Arena arena;
 
-    str8* paths;
+    str8 *paths;
     u32 count;
     u32 capacity;
 } StandardLibraryList;
 
 typedef struct {
-    Workspace** workspaces;
+    Workspace **workspaces;
     u32 workspace_count;
 
-    LocalStringInterner* local_string_interners;
+    LocalStringInterner *local_string_interners;
     u8 local_string_interner_count;
 
-    LocalSymbolTable* local_symbol_tables;
+    LocalSymbolTable *local_symbol_tables;
     u8 local_symbol_table_count;
 
     DiagnosticEngine global_diagnostic_engine;
 
-    DiagnosticEngine* local_diagnostic_engines;
+    DiagnosticEngine *local_diagnostic_engines;
     u8 local_diagnostic_engine_count;
 
     ThreadPool thread_pool;
 
-    const char* home_directory;
-    const char* standard_library_directory;
+    const char *home_directory;
+    const char *standard_library_directory;
 
     StandardLibraryList standard_library_path_list;
 

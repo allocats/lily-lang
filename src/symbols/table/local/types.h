@@ -6,8 +6,8 @@
 #include "symbols/table/common_types.h"
 
 typedef struct {
-    Scope*  scopes;
-    Symbol* symbols;
+    Scope *scopes;
+    Symbol *symbols;
 
     u32 scope_count;
     u32 scope_capacity;

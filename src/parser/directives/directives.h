@@ -5,8 +5,8 @@
 #include "parser/types.h"
 #include "string_interner/local/types.h"
 
-void init_directive_lut(LocalStringInterner* interner);
+void init_directive_lut(LocalStringInterner *interner);
 
-AstNodeId parse_directive(Parser* p);
+AstNodeId parse_directive(Parser *p);
 
 #endif // !LILY_PARSER_DIRECTIVES_H

@@ -1,3 +1,4 @@
+#include "parser/type_expressions/type_expressions.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "diagnostics/diagnostics.h"
@@ -5,7 +6,6 @@
 #include "parser/expressions/expressions.h"
 #include "parser/parser.h"
 #include "parser/recovery/recovery.h"
-#include "parser/type_expressions/type_expressions.h"
 #include "parser/recovery/types.h"
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
@@ -32,9 +32,9 @@ typedef struct {
 
 static constexpr u32 type_modifier_max = 64;
 
-AstNodeId parse_type_expression(Parser* p) {
-    u32 starting_token_index = p -> cursor;
-    
+AstNodeId parse_type_expression(Parser *p) {
+    u32 starting_token_index = p->cursor;
+
     AstFlag flags = AST_FLAG_NONE;
 
     if (parser_check(p, TOK_KW_CONST)) {
@@ -46,16 +46,16 @@ AstNodeId parse_type_expression(Parser* p) {
     TypeModifier modifiers[type_modifier_max];
     u32 modifier_count = 0;
 
-    while (p -> cursor < p -> token_count) {
+    while (p->cursor < p->token_count) {
         Token token = parser_peek(p);
-        
+
         if (token.kind == TOK_STAR) {
             if (modifier_count >= type_modifier_max) {
                 Token token = parser_peek(p);
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_START_OF_TOK,
@@ -67,8 +67,8 @@ AstNodeId parse_type_expression(Parser* p) {
                 return parser_error(p, id, RECOVERY_EXPRESSION);
             }
 
-            modifiers[modifier_count++] = (TypeModifier) {
-                .kind = TYPE_MOD_POINTER,
+            modifiers[modifier_count++] = (TypeModifier){
+                .kind      = TYPE_MOD_POINTER,
                 .size_expr = AST_NODE_ID_NONE
             };
 
@@ -81,11 +81,11 @@ AstNodeId parse_type_expression(Parser* p) {
             parser_advance(p);
 
             if (parser_check(p, TOK_R_BRACKET)) {
-                modifiers[modifier_count++] = (TypeModifier) {
-                    .kind = TYPE_MOD_ARRAY,
+                modifiers[modifier_count++] = (TypeModifier){
+                    .kind      = TYPE_MOD_ARRAY,
                     .size_expr = AST_NODE_ID_NONE
                 };
-                
+
                 parser_advance(p);
 
                 continue;
@@ -98,7 +98,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_END_OF_TOK,
@@ -117,7 +117,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_END_OF_TOK,
@@ -129,8 +129,8 @@ AstNodeId parse_type_expression(Parser* p) {
                 return parser_error(p, id, RECOVERY_EXPRESSION);
             }
 
-            modifiers[modifier_count++] = (TypeModifier) {
-                .kind = TYPE_MOD_ARRAY,
+            modifiers[modifier_count++] = (TypeModifier){
+                .kind      = TYPE_MOD_ARRAY,
                 .size_expr = size_expr
             };
 
@@ -144,7 +144,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
     // function type
     if (parser_check(p, TOK_KW_FN)) {
-        u32 fn_start = p -> cursor;
+        u32 fn_start = p->cursor;
 
         parser_advance(p);
 
@@ -153,7 +153,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &token,
                 DIAG_LOC_END_OF_TOK,
@@ -168,22 +168,22 @@ AstNodeId parse_type_expression(Parser* p) {
         parser_advance(p);
 
         AstNodeId fn_id  = parser_create_node(p);
-        AstNode* fn_node = parser_get_node(p, fn_id);
+        AstNode *fn_node = parser_get_node(p, fn_id);
 
-        fn_node -> kind = AST_TYPE_FUNCTION;
-        fn_node -> tokens.start = fn_start;
+        fn_node->kind         = AST_TYPE_FUNCTION;
+        fn_node->tokens.start = fn_start;
 
-        fn_node -> as.function_type.return_type = AST_NODE_ID_NONE;
-        
-        parser_init_id_list(p, &fn_node -> as.function_type.parameters, 4);
+        fn_node->as.function_type.return_type = AST_NODE_ID_NONE;
+
+        parser_init_id_list(p, &fn_node->as.function_type.parameters, 4);
 
         while (!parser_check(p, TOK_R_PAREN)) {
-            if (p -> cursor >= p -> token_count) {
+            if (p->cursor >= p->token_count) {
                 Token token = parser_peek_behind_by(p, 1);
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_END_OF_TOK,
@@ -202,7 +202,7 @@ AstNodeId parse_type_expression(Parser* p) {
                 return parser_error(p, id, RECOVERY_EXPRESSION);
             }
 
-            parser_append_id_list(p, &fn_node -> as.function_type.parameters, param_type_id);
+            parser_append_id_list(p, &fn_node->as.function_type.parameters, param_type_id);
 
             if (parser_check(p, TOK_COMMA)) {
                 parser_advance(p);
@@ -214,7 +214,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
                 diagnostic_add_token(
                     thread_context.diagnostic_engine,
-                    p -> file,
+                    p->file,
                     DIAG_ERROR,
                     &token,
                     DIAG_LOC_END_OF_TOK,
@@ -236,7 +236,7 @@ AstNodeId parse_type_expression(Parser* p) {
 
             diagnostic_add_token(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
                 &token,
                 DIAG_LOC_END_OF_TOK,
@@ -259,11 +259,11 @@ AstNodeId parse_type_expression(Parser* p) {
 
         fn_node = parser_get_node(p, fn_id);
 
-        fn_node -> as.function_type.return_type = return_type_id;
-        fn_node -> tokens.end = p -> cursor - 1;
+        fn_node->as.function_type.return_type = return_type_id;
+        fn_node->tokens.end                   = p->cursor - 1;
 
         base_id = fn_id;
-    } else { 
+    } else {
 
         // regular type
 
@@ -274,18 +274,18 @@ AstNodeId parse_type_expression(Parser* p) {
             return parser_error(p, id, RECOVERY_EXPRESSION);
         }
 
-        AstNode* primary_node = parser_get_node(p, primary_id);
+        AstNode *primary_node = parser_get_node(p, primary_id);
 
         if (
-            primary_node -> kind != AST_IDENTIFIER          &&
-            primary_node -> kind != AST_MEMBER_ACCESS       &&
-            primary_node -> kind != AST_EXECUTE_DIRECTIVE
+            primary_node->kind != AST_IDENTIFIER &&
+            primary_node->kind != AST_MEMBER_ACCESS &&
+            primary_node->kind != AST_EXECUTE_DIRECTIVE
         ) {
             diagnostic_add_token_span(
                 thread_context.diagnostic_engine,
-                p -> file,
+                p->file,
                 DIAG_ERROR,
-                primary_node -> tokens,
+                primary_node->tokens,
                 "expected type name, member access, or #execute call",
                 "base type must be an identifier, member access, or #execute call"
             );
@@ -294,13 +294,12 @@ AstNodeId parse_type_expression(Parser* p) {
             return parser_error(p, id, RECOVERY_EXPRESSION);
         }
 
-
         AstNodeId type_id  = parser_create_node(p);
-        AstNode* type_node = parser_get_node(p, type_id);
+        AstNode *type_node = parser_get_node(p, type_id);
 
-        type_node -> kind = AST_TYPE_BASE;
+        type_node->kind = AST_TYPE_BASE;
 
-        type_node -> as.base_type.expr = primary_id;
+        type_node->as.base_type.expr = primary_id;
 
         base_id = type_id;
     }
@@ -315,52 +314,52 @@ AstNodeId parse_type_expression(Parser* p) {
 
         if (modifier.kind == TYPE_MOD_POINTER) {
             AstNodeId ptr_id  = parser_create_node(p);
-            AstNode* ptr_node = parser_get_node(p, ptr_id);
+            AstNode *ptr_node = parser_get_node(p, ptr_id);
 
-            ptr_node -> kind = AST_TYPE_POINTER;
+            ptr_node->kind = AST_TYPE_POINTER;
 
-            ptr_node -> as.pointer_type.base_type = id;
+            ptr_node->as.pointer_type.base_type = id;
 
             id = ptr_id;
         } else if (modifier.kind == TYPE_MOD_ARRAY) {
             AstNodeId array_id  = parser_create_node(p);
-            AstNode* array_node = parser_get_node(p, array_id);
+            AstNode *array_node = parser_get_node(p, array_id);
 
-            array_node -> kind = AST_TYPE_ARRAY;
+            array_node->kind = AST_TYPE_ARRAY;
 
-            array_node -> as.array_type.element = id;
-            array_node -> as.array_type.size_expr = modifier.size_expr;
+            array_node->as.array_type.element   = id;
+            array_node->as.array_type.size_expr = modifier.size_expr;
 
             id = array_id;
         }
     }
 
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> flags = flags;
+    node->flags = flags;
 
-    node -> tokens.start = starting_token_index;
-    node -> tokens.end = p -> cursor - 1;
+    node->tokens.start = starting_token_index;
+    node->tokens.end   = p->cursor - 1;
 
     return id;
 }
 
-AstNodeId parse_parameter_type_expression(Parser* p) {
+AstNodeId parse_parameter_type_expression(Parser *p) {
     if (parser_check(p, TOK_ELLIPSIS)) {
         parser_advance(p);
 
         AstNodeId id  = parser_create_node(p);
-        AstNode* node = parser_get_node(p, id);
+        AstNode *node = parser_get_node(p, id);
 
-        node -> kind = AST_TYPE_VARIADIC;
-        node -> flags |= AST_FLAG_VARIADIC;
-        node -> as.variadic_type.element_type = AST_NODE_ID_NONE;
+        node->kind = AST_TYPE_VARIADIC;
+        node->flags |= AST_FLAG_VARIADIC;
+        node->as.variadic_type.element_type = AST_NODE_ID_NONE;
 
         if (!parser_check(p, TOK_R_PAREN)) {
             AstNodeId element_id = parse_type_expression(p);
 
-            node = parser_get_node(p, id);
-            node -> as.variadic_type.element_type = element_id;
+            node                                = parser_get_node(p, id);
+            node->as.variadic_type.element_type = element_id;
         }
 
         return id;

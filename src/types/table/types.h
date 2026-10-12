@@ -6,14 +6,14 @@
 #include "types/entries/types.h"
 
 typedef struct {
-    TypeId  id;
-    u32     hash;
+    TypeId id;
+    u32 hash;
 } TypeBucket;
 
 typedef struct {
-    TypeBucket* nominal_buckets;
-    TypeBucket* structural_buckets;
-    Type* entries;
+    TypeBucket *nominal_buckets;
+    TypeBucket *structural_buckets;
+    Type *entries;
 
     u32 nominal_count;
     u32 nominal_capacity;

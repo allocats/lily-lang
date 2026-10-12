@@ -6,15 +6,14 @@
 #include "files/files.h"
 #include "ids.h"
 #include "string_interner/local/interner.h"
-#include "string_interner/local/interner.h"
 #include "symbols/table/local/types.h"
 #include "threadpool/threadpool.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 #include "workspace/types.h"
 #include "workspace/workspace.h"
-#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -33,15 +32,14 @@ static char standard_library_path[PATH_MAX] = {0};
  *
  */
 typedef struct {
-    Workspace* ws;
+    Workspace *ws;
     str8 path;
 } DispatchFileArg;
 
+static void dispatch_file_intern_thread(void *argument);
+static void standard_library_list_init(Driver *driver);
 
-static void dispatch_file_intern_thread(void* argument);
-static void standard_library_list_init(Driver* driver);
-
-void driver_init(Driver* driver, const char* home) {
+void driver_init(Driver *driver, const char *home) {
     assert(driver != null);
 
     /*
@@ -49,7 +47,7 @@ void driver_init(Driver* driver, const char* home) {
      * Scratch arena, used for temporary allocations to avoid small lily_alloc/free calls
      *
      */
-    arena_init(&driver -> scratch_arena, ARENA_KB(2), ALIGN_DEFAULT);
+    arena_init(&driver->scratch_arena, ARENA_KB(2), ALIGN_DEFAULT);
 
     /*
      *
@@ -57,13 +55,13 @@ void driver_init(Driver* driver, const char* home) {
      * Home directory & standard library directory
      *
      */
-    driver -> home_directory = home;
+    driver->home_directory = home;
 
-    diagnostic_engine_init(&driver -> global_diagnostic_engine);
+    diagnostic_engine_init(&driver->global_diagnostic_engine);
 
     snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
 
-    driver -> standard_library_directory = standard_library_path;
+    driver->standard_library_directory = standard_library_path;
 
     standard_library_list_init(driver);
 
@@ -89,11 +87,11 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a diagnostic engine attached to said thread
      *
      */
-    driver -> local_diagnostic_engines = lily_alloc(sizeof(DiagnosticEngine) * thread_count);
-    driver -> local_diagnostic_engine_count = thread_count;
+    driver->local_diagnostic_engines      = lily_alloc(sizeof(DiagnosticEngine) * thread_count);
+    driver->local_diagnostic_engine_count = thread_count;
 
     for (u8 i = 0; i < thread_count; i += 1) {
-        diagnostic_engine_init(&driver -> local_diagnostic_engines[i]);
+        diagnostic_engine_init(&driver->local_diagnostic_engines[i]);
     }
 
     /*
@@ -101,11 +99,11 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a string interner attached to said thread
      *
      */
-    driver -> local_string_interners = lily_alloc(sizeof(LocalStringInterner) * thread_count);
-    driver -> local_string_interner_count = thread_count;
+    driver->local_string_interners      = lily_alloc(sizeof(LocalStringInterner) * thread_count);
+    driver->local_string_interner_count = thread_count;
 
     for (u8 i = 0; i < thread_count; i += 1) {
-        local_string_interner_init(&driver -> local_string_interners[i], i);
+        local_string_interner_init(&driver->local_string_interners[i], i);
     }
 
     /*
@@ -113,8 +111,8 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a symbol table attached to said thread
      *
      */
-    driver -> local_symbol_tables = lily_alloc(sizeof(LocalSymbolTable) * thread_count);
-    driver -> local_symbol_table_count = thread_count;
+    driver->local_symbol_tables      = lily_alloc(sizeof(LocalSymbolTable) * thread_count);
+    driver->local_symbol_table_count = thread_count;
 
     /*
      *
@@ -129,57 +127,56 @@ void driver_init(Driver* driver, const char* home) {
     * Workspaces
     *
     */
-    arena_init(&driver -> workspace_arena, ARENA_KB(1), ALIGN_DEFAULT);
+    arena_init(&driver->workspace_arena, ARENA_KB(1), ALIGN_DEFAULT);
 
-    // array of pointers because files can spawn new workspaces, lifetimes will be headache with threading 
+    // array of pointers because files can spawn new workspaces, lifetimes will be headache with threading
     // if it was an array of structs as opposed to an array of pointers i think
-    driver -> workspaces = arena_calloc(&driver -> workspace_arena, sizeof(Workspace*));
-    driver -> workspace_count = 1;
+    driver->workspaces      = arena_calloc(&driver->workspace_arena, sizeof(Workspace *));
+    driver->workspace_count = 1;
 
-    driver -> workspaces[0] = arena_calloc(&driver -> workspace_arena, sizeof(Workspace));
+    driver->workspaces[0] = arena_calloc(&driver->workspace_arena, sizeof(Workspace));
 
-    workspace_init(driver -> workspaces[0], 0, "Lily Program <3");
+    workspace_init(driver->workspaces[0], 0, "Lily Program <3");
 }
 
-void driver_destroy(Driver* driver) {
+void driver_destroy(Driver *driver) {
     /*
      *
      * Just in case.
      * TODO: maybe rather assert that the threadpool isn't busy?
      *
      */
-    threadpool_wait(&driver -> thread_pool);
+    threadpool_wait(&driver->thread_pool);
 
-    threadpool_destroy(&driver -> thread_pool);
-
+    threadpool_destroy(&driver->thread_pool);
 
     /*
      *
      * diagnostics
      *
      */
-    for (u8 i = 0; i < driver -> local_diagnostic_engine_count; i += 1) {
-        diagnostic_engine_destroy(&driver -> local_diagnostic_engines[i]);
+    for (u8 i = 0; i < driver->local_diagnostic_engine_count; i += 1) {
+        diagnostic_engine_destroy(&driver->local_diagnostic_engines[i]);
     }
 
-    free(driver -> local_diagnostic_engines);
+    free(driver->local_diagnostic_engines);
 
-    diagnostic_engine_destroy(&driver -> global_diagnostic_engine);
+    diagnostic_engine_destroy(&driver->global_diagnostic_engine);
 
     /*
      *
      * workspaces, first free the workspaces then the array holding them
      *
      */
-    for (u32 i = 0; i < driver -> workspace_count; i++) {
-        workspace_destroy(driver -> workspaces[i]);
+    for (u32 i = 0; i < driver->workspace_count; i++) {
+        workspace_destroy(driver->workspaces[i]);
     }
 
-    arena_destroy(&driver -> workspace_arena);
+    arena_destroy(&driver->workspace_arena);
 
-    arena_destroy(&driver -> scratch_arena);
+    arena_destroy(&driver->scratch_arena);
 
-    arena_destroy(&driver -> standard_library_path_list.arena);
+    arena_destroy(&driver->standard_library_path_list.arena);
 }
 
 /*
@@ -193,16 +190,16 @@ void driver_destroy(Driver* driver) {
  * 
  */
 
-bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
+bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
     bool result = true;
 
     for (i32 i = 0; i < argc; i++) {
-        char* arg = argv[i];
+        char *arg     = argv[i];
         usize arg_len = strlen(arg);
 
         if (arg_len < 2) {
             diagnostic_add_generic(
-                &driver -> global_diagnostic_engine,
+                &driver->global_diagnostic_engine,
                 DIAG_ERROR,
                 "invalid argument: %.*s",
                 arg_len,
@@ -217,7 +214,7 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
         } else {
             if (arg_len < 6) {
                 diagnostic_add_generic(
-                    &driver -> global_diagnostic_engine,
+                    &driver->global_diagnostic_engine,
                     DIAG_ERROR,
                     "invalid file: %.*s",
                     arg_len,
@@ -247,11 +244,11 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
              *
              */
 
-            char* extension_ptr = arg + (arg_len - 5);
+            char *extension_ptr = arg + (arg_len - 5);
 
             if (strncmp(extension_ptr, ".lily", 5) != 0) {
                 diagnostic_add_generic(
-                    &driver -> global_diagnostic_engine,
+                    &driver->global_diagnostic_engine,
                     DIAG_ERROR,
                     "%s is not a lily file",
                     arg
@@ -265,31 +262,31 @@ bool driver_parse_flags(Driver* driver, i32 argc, char** argv) {
                 .len = arg_len
             };
 
-            DispatchFileArg* dispatch_arg = arena_alloc(&driver -> scratch_arena, sizeof(DispatchFileArg));
+            DispatchFileArg *dispatch_arg = arena_alloc(&driver->scratch_arena, sizeof(DispatchFileArg));
 
-            dispatch_arg -> ws = driver -> workspaces[0];
-            dispatch_arg -> path = path;
+            dispatch_arg->ws   = driver->workspaces[0];
+            dispatch_arg->path = path;
 
-            threadpool_add_task(&driver -> thread_pool, dispatch_file_intern_thread, dispatch_arg);
+            threadpool_add_task(&driver->thread_pool, dispatch_file_intern_thread, dispatch_arg);
         }
     }
 
-    threadpool_wait(&driver -> thread_pool);
+    threadpool_wait(&driver->thread_pool);
 
     /*
      *
      * ensure that this is called after `threadpool_wait()`, #lifetimes moment
      *
      */
-    arena_reset(&driver -> scratch_arena);
+    arena_reset(&driver->scratch_arena);
 
     return result;
 }
 
-static void dispatch_file_intern_thread(void* argument) {
-    DispatchFileArg* arg = (DispatchFileArg*) argument;
+static void dispatch_file_intern_thread(void *argument) {
+    DispatchFileArg *arg = (DispatchFileArg *)argument;
 
-    FileId id = file_intern(&arg -> ws -> file_interner, arg -> path);
+    FileId id = file_intern(&arg->ws->file_interner, arg->path);
 
     if (id == FILE_ID_NONE) {
         // diagnostic_add_generic(
@@ -306,59 +303,62 @@ static void dispatch_file_intern_thread(void* argument) {
  * Standard Library Path Mapping
  *
  */
-static void standard_library_list_init(Driver* driver) {
-    StandardLibraryList* list = &driver -> standard_library_path_list;
+static void standard_library_list_init(Driver *driver) {
+    StandardLibraryList *list = &driver->standard_library_path_list;
 
-    constexpr u32 init_kb = 1;
+    constexpr u32 init_kb       = 1;
     constexpr u32 init_capacity = ARENA_KB(init_kb) / sizeof(str8);
 
-    arena_init(&list -> arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
+    arena_init(&list->arena, ARENA_KB(init_kb), ALIGN_DEFAULT);
 
-    list -> paths = arena_calloc(&list -> arena, init_capacity * sizeof(str8));
-    list -> count = 0;
-    list -> capacity = init_capacity;
+    list->paths    = arena_calloc(&list->arena, init_capacity * sizeof(str8));
+    list->count    = 0;
+    list->capacity = init_capacity;
 
-    DIR* directory = opendir(driver -> standard_library_directory);
+    DIR *directory = opendir(driver->standard_library_directory);
 
     if (!directory) {
         diagnostic_add_generic(
-            &driver -> global_diagnostic_engine,
+            &driver->global_diagnostic_engine,
             DIAG_ERROR,
             "unable to load standard library!\nPath: %s",
-            driver -> standard_library_directory
+            driver->standard_library_directory
         );
 
         return;
     }
 
-    struct dirent* entry = null;
+    struct dirent *entry = null;
 
     while ((entry = readdir(directory)) != null) {
-        if (entry -> d_type != DT_DIR) continue;
+        if (entry->d_type != DT_DIR)
+            continue;
 
-        if (strcmp(entry -> d_name, "." ) == 0) continue;
-        if (strcmp(entry -> d_name, "..") == 0) continue;
+        if (strcmp(entry->d_name, ".") == 0)
+            continue;
+        if (strcmp(entry->d_name, "..") == 0)
+            continue;
 
-        const usize size = strlen(entry -> d_name) + sizeof("std/");
+        const usize size = strlen(entry->d_name) + sizeof("std/");
 
-        char* name = arena_alloc(&list -> arena, size);
+        char *name = arena_alloc(&list->arena, size);
 
-        i32 length = snprintf(name, size, "std/%s", entry -> d_name);
+        i32 length = snprintf(name, size, "std/%s", entry->d_name);
 
         str8 path = {
             .ptr = name,
-            .len = length
+            .len = length,
         };
 
-        if (UNLIKELY(list -> count >= list -> capacity)) {
-            u64 old_size = list -> capacity * sizeof(str8);
+        if (UNLIKELY(list->count >= list->capacity)) {
+            u64 old_size = list->capacity * sizeof(str8);
             u64 new_size = old_size * 2;
 
-            list -> paths = arena_realloc(&list -> arena, list -> paths, old_size, new_size);
-            list -> capacity *= 2;
+            list->paths = arena_realloc(&list->arena, list->paths, old_size, new_size);
+            list->capacity *= 2;
         }
 
-        list -> paths[list -> count++] = path;
+        list->paths[list->count++] = path;
     }
 
     closedir(directory);

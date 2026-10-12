@@ -10,22 +10,22 @@ typedef struct {
     struct timespec end;
 } Timer;
 
-static inline void timer_start(Timer* timer) {
-    clock_gettime(CLOCK_MONOTONIC, &timer -> start);
+static inline void timer_start(Timer *timer) {
+    clock_gettime(CLOCK_MONOTONIC, &timer->start);
 }
 
-static inline void timer_end(Timer* timer) {
-    clock_gettime(CLOCK_MONOTONIC, &timer -> end);
+static inline void timer_end(Timer *timer) {
+    clock_gettime(CLOCK_MONOTONIC, &timer->end);
 }
 
-static inline f64 timer_elapsed_seconds(const Timer* timer) {
-    time_t sec = timer -> end.tv_sec - timer -> start.tv_sec;
-    long nsec = timer -> end.tv_nsec - timer -> start.tv_nsec;
+static inline f64 timer_elapsed_seconds(const Timer *timer) {
+    time_t sec = timer->end.tv_sec - timer->start.tv_sec;
+    long nsec  = timer->end.tv_nsec - timer->start.tv_nsec;
 
     return (f64)sec + (f64)nsec / 1e9;
 }
 
-static inline f64 timer_elapsed_milliseconds(const Timer* timer) {
+static inline f64 timer_elapsed_milliseconds(const Timer *timer) {
     return timer_elapsed_seconds(timer) * 1000.0;
 }
 

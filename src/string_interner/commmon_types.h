@@ -11,7 +11,6 @@ typedef struct {
 
 static_assert(sizeof(StringEntry) == 16);
 
-
 typedef struct {
     StringId id;
     u32 hash;

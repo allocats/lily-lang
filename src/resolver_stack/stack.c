@@ -10,8 +10,8 @@ static bool resolver_is_eq(ResolveQuery a, ResolveQuery b) {
     }
 
     switch (a.kind) {
-        case QUERY_SYMBOL:
-            return a.as.symbol == b.as.symbol;
+    case QUERY_SYMBOL:
+        return a.as.symbol == b.as.symbol;
     }
 
     return false;
@@ -22,7 +22,7 @@ bool resolver_stack_push(ResolveQuery query) {
         return false;
     }
 
-    resolver_stack.items[resolver_stack.top++] = query; 
+    resolver_stack.items[resolver_stack.top++] = query;
 
     return true;
 }

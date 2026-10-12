@@ -10,6 +10,6 @@
  * NOTE: This does not touch `import **declarations**`
  *
  */
-void resolve_imports(Workspace* ws);
+void resolve_imports(Workspace *ws);
 
 #endif // !LILY_SYMBOLS_RESOLVE_MERGE_H

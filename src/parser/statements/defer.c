@@ -12,12 +12,12 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parse_defer_statement(Parser* p) {
+AstNodeId parse_defer_statement(Parser *p) {
     AstNodeId id  = parser_create_node(p);
-    AstNode* node = parser_get_node(p, id);
+    AstNode *node = parser_get_node(p, id);
 
-    node -> kind = AST_DEFER_STMT;
-    node -> as.defer_stmt.expr = AST_NODE_ID_NONE;
+    node->kind               = AST_DEFER_STMT;
+    node->as.defer_stmt.expr = AST_NODE_ID_NONE;
 
     parser_advance(p); // advance past `defer`
 
@@ -28,7 +28,7 @@ AstNodeId parse_defer_statement(Parser* p) {
 
         diagnostic_add_token(
             thread_context.diagnostic_engine,
-            p -> file,
+            p->file,
             DIAG_ERROR,
             &previous,
             DIAG_LOC_END_OF_TOK,
@@ -41,8 +41,8 @@ AstNodeId parse_defer_statement(Parser* p) {
 
     node = parser_get_node(p, id);
 
-    node -> tokens.end = p -> cursor;
-    node -> as.defer_stmt.expr = expression_id;
+    node->tokens.end         = p->cursor;
+    node->as.defer_stmt.expr = expression_id;
 
     parser_advance(p);
 

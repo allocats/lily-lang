@@ -11,8 +11,8 @@
 #include "utils/types.h"
 
 typedef struct {
-    str8    path;
-    FileId  file_id;
+    str8 path;
+    FileId file_id;
 } StandardLibraryEntry;
 
 /*
@@ -31,7 +31,7 @@ typedef struct {
      *  indexing by StringId - range.start
      *
      */
-    StandardLibraryEntry* entries;
+    StandardLibraryEntry *entries;
     u32 count;
 
     /*

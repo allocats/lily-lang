@@ -22,18 +22,17 @@
     X(SYMBOL_TYPE)      \
     X(SYMBOL_UNION)     \
     X(SYMBOL_VARIABLE)  \
-    X(SYMBOL_VARIANT)   \
+    X(SYMBOL_VARIANT)
 
 typedef enum : u8 {
     SYMBOLS(GENERATE_ENUM)
 } SymbolKind;
 
-static const char* SYMBOL_KIND_STRINGS[] = {
+static const char *SYMBOL_KIND_STRINGS[] = {
     SYMBOLS(GENERATE_STRING)
 };
 
 #undef SYMBOLS
-
 
 /*
  * 
@@ -46,7 +45,7 @@ typedef struct {
      * The file that is being imported
      */
     FileId file_id;
-    
+
     /*
      * The file's top level scope housing all its exposed symbols
      */
@@ -64,7 +63,7 @@ typedef struct {
 } SymbolParameter;
 
 typedef struct {
-    SymbolId* parameters;
+    SymbolId *parameters;
     u32 parameter_count;
 
     /*
@@ -85,7 +84,7 @@ typedef struct {
 
 typedef struct {
     TypeId type_id;
-    
+
     /*
      *
      * field index within the struct, used for LLVM's GEP
@@ -97,7 +96,7 @@ typedef struct {
 } SymbolField;
 
 typedef struct {
-    SymbolId* fields;
+    SymbolId *fields;
     u32 field_count;
 
     /*
@@ -125,7 +124,7 @@ typedef struct {
 } SymbolVariant;
 
 typedef struct {
-    SymbolId* variants;
+    SymbolId *variants;
     u32 variant_count;
 
     /*
