@@ -2,6 +2,7 @@
 #include "meowrena/meowrena.h"
 #include "threadpool/threadpool.h"
 #include "threadpool/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -64,7 +65,7 @@ void threadpool_init(Driver* driver, u32 count) {
 
     arena_init(&pool -> task_arena, ARENA_KB(4), ALIGN_DEFAULT);
 
-    pool -> threads = calloc(count, sizeof(pthread_t));
+    pool -> threads = lily_calloc(count, sizeof(pthread_t));
     pool -> thread_count = count;
 
     assert(pool -> threads);

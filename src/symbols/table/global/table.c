@@ -5,6 +5,7 @@
 #include "driver/types.h"
 #include "symbols/table/local/types.h"
 #include "utils/macros.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -17,7 +18,7 @@ static GlobalSymbolTableRemapper remapper = {0};
 void global_symbol_table_init(GlobalSymbolTable* table) {
     assert(table != null);
 
-    remapper.scope_ids = malloc(driver.local_symbol_table_count * sizeof(ScopeId*));
+    remapper.scope_ids = lily_alloc(driver.local_symbol_table_count * sizeof(ScopeId*));
 
     u32 symbol_count = 0;
     u32 scope_count  = 0;
@@ -28,7 +29,7 @@ void global_symbol_table_init(GlobalSymbolTable* table) {
         symbol_count += local_table -> symbol_count;
         scope_count  += local_table -> scope_count;
 
-        remapper.scope_ids[i] = malloc(sizeof(ScopeId) * local_table -> scope_count);
+        remapper.scope_ids[i] = lily_alloc(sizeof(ScopeId) * local_table -> scope_count);
     }
 
     symbol_count = NEXT_POWER_OF_TWO(symbol_count);
@@ -40,11 +41,11 @@ void global_symbol_table_init(GlobalSymbolTable* table) {
     u64 scope_array_size  = sizeof(Scope)  * scope_count;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count;
 
-    table -> scopes = malloc(scope_array_size);
+    table -> scopes = lily_alloc(scope_array_size);
     table -> scope_count = 1; // ScopeId 0 is reserved for the compiler
     table -> scope_capacity = scope_count;
 
-    table -> symbols = malloc(symbol_array_size);
+    table -> symbols = lily_alloc(symbol_array_size);
     table -> symbol_count = 0;
     table -> symbol_capacity = symbol_count;
 
@@ -108,7 +109,7 @@ SymbolId global_symbol_table_create_symbol(GlobalSymbolTable* table) {
         u64 old_size = table -> symbol_capacity * sizeof(Symbol);
         u64 new_size = old_size * 2;
 
-        table -> symbols = realloc(table -> symbols, new_size);
+        table -> symbols = lily_realloc(table -> symbols, new_size);
         table -> symbol_capacity *= 2;
     }
 
@@ -120,7 +121,7 @@ ScopeId global_symbol_table_create_scope(GlobalSymbolTable* table) {
         u64 old_size = table -> scope_capacity * sizeof(Scope);
         u64 new_size = old_size * 2;
 
-        table -> scopes = realloc(table -> scopes, new_size);
+        table -> scopes = lily_realloc(table -> scopes, new_size);
         table -> scope_capacity *= 2;
     }
 

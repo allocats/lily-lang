@@ -6,6 +6,7 @@
 #include "symbols/table/local/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -20,11 +21,11 @@ void local_symbol_table_init(LocalSymbolTable* table, u32 scope_count_estimate, 
     u64 scope_array_size  = sizeof(Scope)  * scope_count_estimate;
     u64 symbol_array_size = sizeof(Symbol) * symbol_count_estimate;
 
-    table -> scopes = malloc(scope_array_size);
+    table -> scopes = lily_alloc(scope_array_size);
     table -> scope_count = 1; // ScopeId 0 is reserved for the compiler
     table -> scope_capacity = scope_count_estimate;
 
-    table -> symbols = malloc(symbol_array_size);
+    table -> symbols = lily_alloc(symbol_array_size);
     table -> symbol_count = 0;
     table -> symbol_capacity = symbol_count_estimate;
 
@@ -63,7 +64,7 @@ SymbolId local_symbol_table_create_symbol(LocalSymbolTable* table) {
         u64 old_size = table -> symbol_capacity * sizeof(Symbol);
         u64 new_size = old_size * 2;
 
-        table -> symbols = realloc(table -> symbols, new_size);
+        table -> symbols = lily_realloc(table -> symbols, new_size);
         table -> symbol_capacity *= 2;
     }
 
@@ -75,7 +76,7 @@ ScopeId local_symbol_table_create_scope(LocalSymbolTable* table) {
         u64 old_size = table -> scope_capacity * sizeof(Scope);
         u64 new_size = old_size * 2;
 
-        table -> scopes = realloc(table -> scopes, new_size);
+        table -> scopes = lily_realloc(table -> scopes, new_size);
         table -> scope_capacity *= 2;
 
         for (u32 i = table -> scope_count; i < table -> scope_capacity; i += 1) {

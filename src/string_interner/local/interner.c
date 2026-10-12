@@ -6,6 +6,7 @@
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <string.h>
@@ -39,8 +40,8 @@ static void resize_entries(LocalStringInterner* interner);
 void local_string_interner_init(LocalStringInterner* interner, u8 id) {
     assert(interner != null);
 
-    interner -> buckets = malloc(init_bucket_size);
-    interner -> entries = malloc(init_entry_size);
+    interner -> buckets = lily_alloc(init_bucket_size);
+    interner -> entries = lily_alloc(init_entry_size);
 
     interner -> bucket_capacity = init_cap;
     interner -> entry_capacity = init_cap;
@@ -263,7 +264,7 @@ static void resize_buckets(LocalStringInterner* interner) {
 
     u64 new_size = new_capacity * sizeof(StringBucket);
 
-    StringBucket* new_buckets = realloc(interner -> buckets, new_size);
+    StringBucket* new_buckets = lily_realloc(interner -> buckets, new_size);
 
     for (u32 i = 0; i < new_capacity; i += 1) {
         new_buckets[i].id = local_string_create_id(interner -> id, LOCAL_STRING_ID_NONE);
@@ -294,7 +295,7 @@ static void resize_entries(LocalStringInterner* interner) {
     u64 old_size = sizeof(StringEntry) * interner -> entry_capacity; 
     u64 new_size = old_size * 2;
 
-    interner -> entries = realloc(interner -> entries, new_size);
+    interner -> entries = lily_realloc(interner -> entries, new_size);
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated entries from %lu to %lu bytes", old_size, new_size);

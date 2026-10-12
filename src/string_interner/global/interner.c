@@ -9,6 +9,7 @@
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -36,16 +37,22 @@ void global_string_interner_init(GlobalStringInterner *interner) {
 
     u32 local_count = driver.local_string_interner_count;
 
-    remapper.ids = malloc(sizeof(StringId*) * local_count); 
+    remapper.ids = lily_alloc(sizeof(StringId*) * local_count); 
 
-    u32 local_string_count = 0;
+    u32 local_string_count = 128; 
 
     for (u8 i = 0; i < local_count; i += 1) {
         u32 count = local_interners[i].count;
 
-        remapper.ids[i] = malloc(sizeof(StringId) * count);
+        remapper.ids[i] = lily_alloc(sizeof(StringId) * count);
 
         local_string_count += count;
+    }
+
+    static constexpr u32 threshold = U32_MAX / 2;
+
+    if (local_string_count > threshold) {
+        local_string_count = threshold;
     }
 
     /*
@@ -53,15 +60,15 @@ void global_string_interner_init(GlobalStringInterner *interner) {
      * i know it's over allocating, but removes extra reallocations during the merge
      *
      */
-    u32 capacity = NEXT_POWER_OF_TWO(local_string_count * 1.25f);
+    u32 capacity = local_string_count == threshold ? U32_MAX : NEXT_POWER_OF_TWO(local_string_count + local_string_count / 4);
 
-    interner -> buckets = malloc(sizeof(StringBucket) * capacity);
-    interner -> entries = malloc(sizeof(StringEntry) * local_string_count);
+    interner -> buckets = lily_alloc(sizeof(StringBucket) * capacity);
+    interner -> entries = lily_alloc(sizeof(StringEntry) * local_string_count);
 
     memset(interner -> buckets, U8_MAX, sizeof(StringBucket) * capacity);
 
     interner -> bucket_capacity = capacity;
-    interner -> entry_capacity  = capacity;
+    interner -> entry_capacity  = local_string_count;
 
     interner -> count = 0;
 
@@ -248,7 +255,7 @@ static void resize_buckets(GlobalStringInterner* interner) {
 
     u64 new_size = new_capacity * sizeof(StringBucket);
 
-    StringBucket* new_buckets = realloc(interner -> buckets, new_size);
+    StringBucket* new_buckets = lily_realloc(interner -> buckets, new_size);
     memset(new_buckets, U8_MAX, new_size);
 
     debug_log("Reallocated GlobalStringInterner -> buckets from %lu to %lu", new_size / 2, new_size);
@@ -276,7 +283,7 @@ static void resize_entries(GlobalStringInterner* interner) {
     u64 old_size = sizeof(StringEntry) * interner -> entry_capacity; 
     u64 new_size = old_size * 2;
 
-    interner -> entries = realloc(interner -> entries, new_size);
+    interner -> entries = lily_realloc(interner -> entries, new_size);
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated GlobalStringInterner -> entries from %lu to %lu bytes", old_size, new_size);

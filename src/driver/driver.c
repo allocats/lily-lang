@@ -14,6 +14,7 @@
 #include "utils/types.h"
 #include "workspace/types.h"
 #include "workspace/workspace.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <dirent.h>
@@ -45,7 +46,7 @@ void driver_init(Driver* driver, const char* home) {
 
     /*
      *
-     * Scratch arena, used for temporary allocations to avoid small malloc/free calls
+     * Scratch arena, used for temporary allocations to avoid small lily_alloc/free calls
      *
      */
     arena_init(&driver -> scratch_arena, ARENA_KB(2), ALIGN_DEFAULT);
@@ -88,7 +89,7 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a diagnostic engine attached to said thread
      *
      */
-    driver -> local_diagnostic_engines = malloc(sizeof(DiagnosticEngine) * thread_count);
+    driver -> local_diagnostic_engines = lily_alloc(sizeof(DiagnosticEngine) * thread_count);
     driver -> local_diagnostic_engine_count = thread_count;
 
     for (u8 i = 0; i < thread_count; i += 1) {
@@ -100,7 +101,7 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a string interner attached to said thread
      *
      */
-    driver -> local_string_interners = malloc(sizeof(LocalStringInterner) * thread_count);
+    driver -> local_string_interners = lily_alloc(sizeof(LocalStringInterner) * thread_count);
     driver -> local_string_interner_count = thread_count;
 
     for (u8 i = 0; i < thread_count; i += 1) {
@@ -112,7 +113,7 @@ void driver_init(Driver* driver, const char* home) {
      * for each thread there exists a symbol table attached to said thread
      *
      */
-    driver -> local_symbol_tables = malloc(sizeof(LocalSymbolTable) * thread_count);
+    driver -> local_symbol_tables = lily_alloc(sizeof(LocalSymbolTable) * thread_count);
     driver -> local_symbol_table_count = thread_count;
 
     /*

@@ -4,6 +4,7 @@
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 
@@ -20,7 +21,7 @@ void ast_init(Ast* ast) {
 
     arena_init(&ast -> gpa, ARENA_KB(2), ALIGN_DEFAULT);
 
-    ast -> nodes = calloc(init_cap, sizeof(AstNode));
+    ast -> nodes = lily_calloc(init_cap, sizeof(AstNode));
     ast -> count = 0;
     ast -> capacity = init_cap;
 
@@ -52,7 +53,7 @@ AstNodeId ast_alloc_node(Ast* ast) {
         u64 old_size = sizeof(AstNode) * ast -> capacity;
         u64 new_size = old_size * 2;
 
-        ast -> nodes = realloc(ast -> nodes, new_size);
+        ast -> nodes = lily_realloc(ast -> nodes, new_size);
         ast -> capacity *= 2;
 
         debug_log("Reallocated nodes from %lu to %lu bytes", old_size, new_size);

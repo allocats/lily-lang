@@ -8,6 +8,7 @@
 #include "tokens/tokens.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -66,9 +67,9 @@ void file_interner_init(FileInterner* interner) {
     debug_log("Init buffer arena with %uMB", ARENA_KB(init_buffer_mb));
 
     // interner -> buckets = arena_alloc(&interner -> interner_arena, init_bucket_size);
-    interner -> buckets = malloc(init_bucket_size);
+    interner -> buckets = lily_alloc(init_bucket_size);
     // interner -> entries = arena_calloc(&interner -> interner_arena, init_entry_size);
-    interner -> entries = malloc(init_entry_size);
+    interner -> entries = lily_alloc(init_entry_size);
 
     interner -> bucket_capacity = init_cap;
     interner -> entry_capacity = init_cap;
@@ -246,7 +247,7 @@ static void resize_buckets(FileInterner* interner) {
     u32 new_capacity = interner -> bucket_capacity * 2;
 
     // FileBucket* new_buckets = arena_realloc(&interner -> interner_arena, interner -> buckets, old_size, new_size);
-    FileBucket* new_buckets = realloc(interner -> buckets, new_size);
+    FileBucket* new_buckets = lily_realloc(interner -> buckets, new_size);
     memset(new_buckets, U8_MAX, new_size);
 
     debug_log("Reallocated buckets from %lu -> %lu bytes", old_size , new_size);
@@ -274,7 +275,7 @@ static void resize_entries(FileInterner* interner) {
     u64 new_size = old_size * 2;
 
     // interner -> entries = arena_realloc(&interner -> interner_arena, interner -> entries, old_size, new_size);
-    interner -> entries = realloc(interner -> entries, new_size);
+    interner -> entries = lily_realloc(interner -> entries, new_size);
     interner -> entry_capacity *= 2;
 
     debug_log("Reallocated entries from %lu to %lu bytes", old_size, new_size);

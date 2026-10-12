@@ -1,6 +1,7 @@
 #include "tokens/tokens.h"
 #include "tokens/types.h"
 #include "utils/debug.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@ void token_array_init(TokenArray* array, u64 capacity) {
 
     u64 size = sizeof(Token) * capacity;
 
-    array -> items = malloc(size);
+    array -> items = lily_alloc(size);
     array -> count = 0;
     array -> capacity = capacity;
 

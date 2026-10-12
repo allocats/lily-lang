@@ -1,6 +1,7 @@
 #include "types/table/table.h"
 #include "types/table/types.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <pthread.h>
@@ -25,9 +26,9 @@ void type_table_init(TypeTable *table) {
 
     arena_init(&table -> gpa, ARENA_KB(1), ALIGN_DEFAULT);
 
-    table -> entries = calloc(init_capacity, sizeof(Type));
-    table -> nominal_buckets = malloc(bucket_size);
-    table -> structural_buckets = malloc(bucket_size);
+    table -> entries = lily_calloc(init_capacity, sizeof(Type));
+    table -> nominal_buckets = lily_alloc(bucket_size);
+    table -> structural_buckets = lily_alloc(bucket_size);
 
     table -> entry_count = 0;
     table -> entry_capacity = init_capacity;
