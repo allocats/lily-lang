@@ -13,8 +13,6 @@
 
 Driver driver = {0};
 
-int **testing = 0;
-
 i32 main(i32 argc, char **argv) {
     assert(argc > 0);
     assert(argv != null);
