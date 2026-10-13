@@ -2,9 +2,10 @@
 #define LILY_TYPE_SYSTEM_TYPES_TYPES_H
 
 #include "types/entries/kinds.h"
+#include <assert.h>
 
 typedef struct {
-    TypeId id;
+    // TypeId id;
     TypeKind kind;
 
     u16 alignment;
@@ -12,11 +13,14 @@ typedef struct {
 
     u32 hash;
 
-    StringId name_id;
+    /*
+     *
+     * GLOBAL_SYMBOL_ID_NONE for structural types!
+     *
+     */
     SymbolId symbol_id;
 
     union {
-        TypeBase base_type;
         TypePointer pointer_type;
         TypeArray array_type;
         TypeStruct struct_type;
@@ -26,7 +30,6 @@ typedef struct {
     } as;
 } Type;
 
-[[deprecated("Do not use this, just to see size here")]]
-static constexpr u64 __type_size = sizeof(Type);
+static_assert(32 == sizeof(Type)); // Size of Type changed!
 
 #endif // !LILY_TYPE_SYSTEM_TYPES_TYPES_H

@@ -113,10 +113,10 @@ typedef struct {
         AstTypeFunction function_type;
         AstTypeVariadic variadic_type;
     } as;
-} AstNode;
 
-[[deprecated("Do not use this, just to see size here")]]
-static constexpr u64 __ast_node_size = sizeof(AstNode);
+} __attribute__((aligned(64))) AstNode;
+
+static_assert(64 == sizeof(AstNode)); // Size of AstNode changed!
 
 /*
  *

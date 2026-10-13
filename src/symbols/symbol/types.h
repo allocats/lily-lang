@@ -5,6 +5,8 @@
 #include "resolver_stack/types.h"
 #include "symbols/symbol/kinds.h"
 
+#include <assert.h>
+
 typedef struct {
     SymbolKind kind;
 
@@ -72,7 +74,6 @@ typedef struct {
     } as;
 } Symbol;
 
-[[deprecated("Do not use this, just to see size here")]]
-static constexpr u64 __symbol_size = sizeof(Symbol);
+static_assert(48 == sizeof(Symbol)); // Sizeof Symbol changed!
 
 #endif // !LILY_SYMBOLS_SYMBOL_TYPES_H

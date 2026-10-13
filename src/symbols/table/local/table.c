@@ -1,5 +1,4 @@
 #include "symbols/table/local/table.h"
-#include "ast/types.h"
 #include "ids.h"
 #include "symbols/table/common_types.h"
 #include "symbols/table/local/types.h"

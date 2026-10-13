@@ -38,10 +38,6 @@ static const char *TYPE_KIND_STRINGS[] = {
  */
 
 typedef struct {
-    StringId name_id;
-} TypeBase;
-
-typedef struct {
     TypeId pointee_id;
 } TypePointer;
 
@@ -53,21 +49,15 @@ typedef struct {
 typedef struct {
     TypeId *fields;
     u32 field_count;
-
-    SymbolId symbol_id;
 } TypeStruct;
 
 typedef struct {
     TypeId *fields;
     u32 field_count;
-
-    SymbolId symbol_id;
 } TypeUnion;
 
 typedef struct {
     TypeId underlying_type_id;
-
-    SymbolId symbol_id;
 } TypeEnum;
 
 typedef struct {

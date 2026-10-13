@@ -55,13 +55,13 @@ SymbolId local_scope_intern(LocalSymbolTable *table, ScopeId scope_id, StringId 
     u32 index = hash & mask;
 
     while (local_symbol_get_id(scope->entries[index]) != LOCAL_SYMBOL_ID_NONE) {
-        // ScopeBucket bucket = scope -> buckets[index];
-        //
-        // if (bucket.hash == hash) {
-        //     if (bucket.string_id == global_string_id) {
-        //         return scope -> entries[index];
-        //     }
-        // }
+        ScopeBucket bucket = scope->buckets[index];
+
+        if (bucket.hash == hash) {
+            if (bucket.string_id == global_string_id) {
+                return scope->entries[index];
+            }
+        }
 
         index = (index + 1) & mask;
     }
