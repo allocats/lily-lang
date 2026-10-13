@@ -55,20 +55,70 @@ typedef enum {
 
 typedef struct {
     WorkspaceId id;
+
+    /*
+     *
+     * The name of the workspace i.e.  "Lily Program <3"
+     *
+     * TODO: Need to expose the compiler an add functions to set this value
+     * 
+     */
     str8 name;
 
+    /*
+     *
+     * Pretty self explanatory, just set the target output architecture
+     *
+     * TODO: have this affect LLVM codegen
+     *
+     */
     TargetOS target_os;
 
+    /*
+     *
+     * The string interner for AFTER parsing, once all files are parsed the thread local 
+     * interners are merged into one single `GlobalStringInterner`
+     *
+     */
     GlobalStringInterner global_string_interner;
 
+    /*
+     *
+     * A map that maps string ids of `std/io` to actual `FileId`'s
+     *
+     */
     StandardLibraryMap standard_library_map;
 
+    /*
+     *
+     * Interner for registered files, includes stdlib and any discovered files through `#include` and `#import`
+     *
+     */
     FileInterner file_interner;
 
+    /*
+     *
+     * The symbol table for AFTER the first pass, the first pass register all the top level symbols for each file in j
+     * parallel into an array of `LocalSymbolTable`, afterwards a merge pass merges all the local symbols and 
+     * resolves imports into one single global symbol table
+     *
+     */
     GlobalSymbolTable global_symbol_table;
 
+    /*
+     *
+     * Type table
+     *
+     */
     TypeTable type_table;
 
+    /*
+     *
+     * NOTE: this might be removed or moved
+     *
+     * Shorthand for primitive types
+     *
+     */
     BuiltinTypes builtin_types;
 
     /*
@@ -79,7 +129,11 @@ typedef struct {
      */
     SymbolId entry_point_id;
 
-    // Maybe maker timers per workspace
+    /*
+     *
+     * Timers for compiler stats
+     *
+     */
     Timer frontend_timer;
     Timer backend_timer;
     Timer linker_timer;
