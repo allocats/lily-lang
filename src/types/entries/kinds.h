@@ -18,7 +18,8 @@
     X(TYPE_FUNCTION) \
     X(TYPE_POINTER)  \
     X(TYPE_STRUCT)   \
-    X(TYPE_UNION)
+    X(TYPE_UNION)    \
+    X(TYPE_KIND_COUNT)
 
 typedef enum : u8 {
     TYPES(GENERATE_ENUM)

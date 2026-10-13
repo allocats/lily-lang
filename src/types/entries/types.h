@@ -12,6 +12,9 @@ typedef struct {
 
     u32 hash;
 
+    StringId name_id;
+    SymbolId symbol_id;
+
     union {
         TypeBase base_type;
         TypePointer pointer_type;

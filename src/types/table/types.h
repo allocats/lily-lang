@@ -28,10 +28,6 @@ typedef struct {
     u32 structural_resize_threshold_as_u32;
     u32 entry_resize_threshold_as_u32;
 
-    // pthread_rwlock_t mutex;
-
-    u8 __padding[8];
-
     Arena gpa;
 } TypeTable;
 

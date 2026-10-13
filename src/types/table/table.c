@@ -1,10 +1,16 @@
 #include "types/table/table.h"
+#include "ids.h"
+#include "types/entries/family.h"
+#include "types/entries/kinds.h"
+#include "types/entries/types.h"
+#include "types/hash/hash.h"
 #include "types/table/types.h"
+#include "utils/macros.h"
 #include "utils/types.h"
 #include "utils/wrappers.h"
 
 #include <assert.h>
-#include <pthread.h>
+#include <string.h>
 
 /*
  *
@@ -12,15 +18,19 @@
  *
  */
 static constexpr u32 init_capacity         = 128;
-static constexpr u32 init_resize_threshold = (u64)(init_capacity * 0.75f);
+static constexpr f32 load_factor           = 0.75f;
+static constexpr u32 init_resize_threshold = (u64)(init_capacity * load_factor);
+static constexpr u64 bucket_size           = sizeof(TypeBucket) * init_capacity;
+
+static void resize_entries(TypeTable *table);
+static void resize_nominal_buckets(TypeTable *table);
+static void resize_structural_buckets(TypeTable *table);
 
 /*
  *
- * Initial array sizes
+ * Creation and deletion
  *
  */
-static constexpr u64 bucket_size = sizeof(TypeBucket) * init_capacity;
-
 void type_table_init(TypeTable *table) {
     assert(table != null);
 
@@ -44,16 +54,152 @@ void type_table_init(TypeTable *table) {
 
     memset(table->nominal_buckets, U8_MAX, bucket_size);
     memset(table->structural_buckets, U8_MAX, bucket_size);
-
-    // pthread_rwlock_init(&table -> mutex, null);
 }
 
 void type_table_destroy(TypeTable *table) {
-    // pthread_rwlock_destroy(&table -> mutex);
-
     arena_destroy(&table->gpa);
 
     free(table->entries);
     free(table->nominal_buckets);
     free(table->structural_buckets);
+}
+
+/*
+ *
+ * Interning
+ *
+ */
+TypeId type_table_intern_nominal(TypeTable *table, TypeKind kind, SymbolId symbol_id, StringId name_id) {
+    assert(table != null);
+    assert(kind < TYPE_KIND_COUNT);
+    assert(symbol_id != GLOBAL_SYMBOL_ID_NONE);
+    assert(name_id != GLOBAL_STRING_ID_NONE);
+
+    if (UNLIKELY(table->nominal_count >= table->nominal_resize_threshold_as_u32)) {
+        resize_nominal_buckets(table);
+    }
+
+    u32 hash  = hash_nominal_entry(kind, symbol_id, name_id);
+    u32 mask  = table->nominal_capacity - 1;
+    u32 index = hash & mask;
+
+    while (table->nominal_buckets[index].id != TYPE_ID_NONE) {
+        TypeBucket bucket = table->nominal_buckets[index];
+
+        if (bucket.hash == hash) {
+            Type entry = table->entries[bucket.id];
+
+            if (entry.kind == kind && entry.symbol_id == symbol_id && entry.name_id == name_id) {
+                return entry.id;
+            }
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table->entry_count >= table->entry_resize_threshold_as_u32)) {
+        resize_entries(table);
+    }
+
+    TypeId id = table->entry_count++;
+
+    table->nominal_buckets[index].id   = id;
+    table->nominal_buckets[index].hash = hash;
+
+    table->nominal_count += 1;
+
+    Type *type = &table->entries[id];
+
+    type->id   = id;
+    type->hash = hash;
+    type->kind = kind;
+
+    type->name_id   = name_id;
+    type->symbol_id = symbol_id;
+
+    type->alignment = 0;
+    type->size      = 0;
+
+    return id;
+}
+
+/*
+ *
+ * Resizing functions
+ *
+ */
+static void resize_entries(TypeTable *table) {
+    u64 old_size = table->entry_capacity * sizeof(Type);
+    u64 new_size = old_size * 2;
+
+    table->entries = lily_realloc(table->entries, new_size);
+    table->entry_capacity *= 2;
+
+    table->entry_resize_threshold_as_u32 = (u32)(table->entry_capacity * load_factor);
+}
+
+static void resize_nominal_buckets(TypeTable *table) {
+    u64 old_size = table->nominal_capacity * sizeof(TypeBucket);
+    u64 new_size = old_size * 2;
+
+    u32 new_capacity = table->nominal_capacity * 2;
+
+    u32 mask = new_capacity - 1;
+
+    TypeBucket *buckets = lily_realloc(table->nominal_buckets, new_size);
+    memset(buckets, U8_MAX, new_size);
+
+    for (u32 i = 0; i < table->entry_count; i += 1) {
+        Type entry = table->entries[i];
+
+        if (type_family_lut[entry.kind] != TYPE_FAMILY_NOMINAL) {
+            continue;
+        }
+
+        u32 index = entry.hash & mask;
+
+        while (buckets[index].id != TYPE_ID_NONE) {
+            index = (index + 1) & mask;
+        }
+
+        buckets[index].id   = i;
+        buckets[index].hash = entry.hash;
+    }
+
+    table->nominal_buckets                 = buckets;
+    table->nominal_capacity                = new_capacity;
+    table->nominal_resize_threshold_as_u32 = (u32)(new_capacity * load_factor);
+}
+
+static void resize_structural_buckets(TypeTable *table) {
+    u64 old_size = table->structural_capacity * sizeof(TypeBucket);
+    u64 new_size = old_size * 2;
+
+    u32 new_capacity = table->structural_capacity * 2;
+
+    u32 mask = new_capacity - 1;
+
+    TypeBucket *buckets = lily_realloc(table->structural_buckets, new_size);
+    memset(buckets, U8_MAX, new_size);
+
+    for (u32 i = 0; i < table->entry_count; i += 1) {
+        Type entry = table->entries[i];
+
+        if (type_family_lut[entry.kind] != TYPE_FAMILY_STRUCTURAL) {
+            continue;
+        }
+
+        u32 index = entry.hash & mask;
+
+        while (buckets[index].id != TYPE_ID_NONE) {
+            index = (index + 1) & mask;
+        }
+
+        buckets[index].id   = i;
+        buckets[index].hash = entry.hash;
+    }
+
+    table->structural_buckets                 = buckets;
+    table->structural_capacity                = new_capacity;
+    table->structural_resize_threshold_as_u32 = (u32)(new_capacity * load_factor);
 }
