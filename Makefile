@@ -3,6 +3,7 @@ CC = clang
 # TODO: remove `-g -fno-omit-frame-pointer` and add `-DNDEBUG` when done building the compiler, bloats the binary massively
 CF = -std=c23 -Isrc -Wall -Wextra -O2 -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer 
 DF = -DDEBUG_MODE
+LF = -lpthread -lLLVM
 
 SRC_DIR = src
 BUILD_DIR = build
@@ -18,7 +19,7 @@ OBJS = $(SRCS:$(SRC_DIR)/%.c=$(BUILD_DIR)/%.o)
 
 
 $(BINARY): $(OBJS) | $(BIN_DIR)
-	$(CC) $(CF) -o $@ $(OBJS)
+	$(CC) $(CF) $(LF) -o $@ $(OBJS)
 	rm -rf $(STD_PATH)
 	mkdir -p $(STD_PATH)
 	cp -r ./stdlib $(STD_PATH)/std

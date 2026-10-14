@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <threads.h>
 #include <unistd.h>
 
 extern thread_local ThreadContext thread_context;

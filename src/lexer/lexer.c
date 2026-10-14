@@ -10,8 +10,8 @@
 #include "utils/wrappers.h"
 
 #include <assert.h>
+#include <pthread.h>
 #include <string.h>
-#include <threads.h>
 
 extern thread_local ThreadContext thread_context;
 

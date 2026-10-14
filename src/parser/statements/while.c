@@ -11,7 +11,7 @@
 #include "threadpool/types.h"
 #include "tokens/kinds.h"
 
-#include <threads.h>
+#include <pthread.h>
 
 extern thread_local ThreadContext thread_context;
 

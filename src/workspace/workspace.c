@@ -28,7 +28,6 @@
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
-#include <threads.h>
 
 extern Driver driver;
 
@@ -199,6 +198,8 @@ void compile_workspace(Workspace *ws) {
         &ws->global_symbol_table,
         &ws->builtin_types
     );
+
+    // resolve_symbols(ws);
 
     timer_end(&ws->frontend_timer);
 

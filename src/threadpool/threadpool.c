@@ -6,7 +6,6 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <threads.h>
 
 thread_local ThreadContext thread_context;
 

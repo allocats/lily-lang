@@ -22,9 +22,9 @@
 
 #include <assert.h>
 #include <linux/limits.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-#include <threads.h>
 
 extern Driver driver;
 extern thread_local ThreadContext thread_context;

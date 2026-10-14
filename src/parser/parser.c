@@ -17,7 +17,7 @@
 #include "tokens/types.h"
 
 #include <assert.h>
-#include <threads.h>
+#include <pthread.h>
 
 extern Driver driver;
 extern thread_local ThreadContext thread_context;

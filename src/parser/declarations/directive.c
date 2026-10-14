@@ -9,7 +9,7 @@
 #include "parser/recovery/types.h"
 #include "threadpool/types.h"
 
-#include <threads.h>
+#include <pthread.h>
 
 extern thread_local ThreadContext thread_context;
 
