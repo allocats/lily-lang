@@ -3,31 +3,11 @@
 
 #include "ids.h"
 
-typedef struct {
-    TypeId va_list_type_id;
+#include <stdarg.h>
 
-    TypeId void_type_id;
-    TypeId bool_type_id;
-    TypeId char_type_id;
-
-    TypeId u8_type_id;
-    TypeId u16_type_id;
-    TypeId u32_type_id;
-    TypeId u64_type_id;
-    TypeId usize_type_id;
-
-    TypeId i8_type_id;
-    TypeId i16_type_id;
-    TypeId i32_type_id;
-    TypeId i64_type_id;
-    TypeId isize_type_id;
-
-    TypeId f32_type_id;
-    TypeId f64_type_id;
-} BuiltinTypes;
+//X(variadic, "...", 0, 0)
 
 #define BUILTIN_TYPES(X)                              \
-    X(variadic, "...", 0, 0)                          \
     X(void, "void", 0, 0)                             \
     X(bool, "bool", sizeof(bool), _Alignof(bool))     \
     X(char, "char", sizeof(char), _Alignof(char))     \
@@ -48,5 +28,60 @@ typedef struct {
     X(f64, "f64", sizeof(f64), _Alignof(f64))         \
                                                       \
     X(va_list, "va_list", sizeof(va_list), _Alignof(va_list))
+
+/*
+ *
+ * Struct to shorthand to primitives
+ *
+ */
+
+typedef struct {
+
+#define X(id_, name_, size_, alignment_) TypeId type_##id_;
+    BUILTIN_TYPES(X)
+#undef X
+
+} BuiltinTypeIds;
+
+static_assert(64 == sizeof(BuiltinTypeIds));
+
+/*
+ *
+ * Builtin type struct for registering symbols/type entries
+ *
+ */
+
+typedef struct {
+    str8 name;
+    u32 size;
+    u16 alignment;
+} BuiltinType;
+
+/*
+ *
+ * Array macro shenanigans, constructs an array of builtins from the above macro
+ *
+ */
+
+static const BuiltinType builtin_types[] = {
+
+#define X(id, name_, size_, alignment_) \
+                                        \
+    {                                   \
+        .name = {                       \
+            .ptr = name_,               \
+            .len = sizeof(name_) - 1,   \
+        },                              \
+        .size      = size_,             \
+        .alignment = alignment_,        \
+    },
+
+    BUILTIN_TYPES(X)
+
+#undef X
+
+};
+
+static constexpr u32 builtin_type_count = sizeof(builtin_types) / sizeof(BuiltinType);
 
 #endif // !LILY_TYPES_BUILTINS_TYPES_H

@@ -1,6 +1,7 @@
 #ifndef LILY_SYMBOLS_TABLE_LOCAL_H
 #define LILY_SYMBOLS_TABLE_LOCAL_H
 
+#include "string_interner/global/types.h"
 #include "symbols/table/local/types.h"
 
 static constexpr u32 LOCAL_SCOPE_ID_BIT_OFFSET  = 24u;
@@ -8,6 +9,8 @@ static constexpr u32 LOCAL_SYMBOL_ID_BIT_OFFSET = 24u;
 
 void local_symbol_table_init(LocalSymbolTable *table, u32 scope_count_estimate, u32 symbol_count_estimate, u8 id);
 void local_symbol_table_destroy(LocalSymbolTable *table);
+
+void local_symbol_table_register_builtins(LocalSymbolTable *table, GlobalStringInterner *interner);
 
 SymbolId local_symbol_table_create_symbol(LocalSymbolTable *table);
 ScopeId local_symbol_table_create_scope(LocalSymbolTable *table);

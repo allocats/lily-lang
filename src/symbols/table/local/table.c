@@ -1,7 +1,10 @@
 #include "symbols/table/local/table.h"
 #include "ids.h"
+#include "string_interner/global/interner.h"
+#include "string_interner/global/types.h"
 #include "symbols/table/common_types.h"
 #include "symbols/table/local/types.h"
+#include "types/builtins/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "utils/wrappers.h"
@@ -49,6 +52,8 @@ void local_symbol_table_destroy(LocalSymbolTable *table) {
 
     free(table->scopes);
     free(table->symbols);
+
+    table = null;
 }
 
 /*
@@ -99,6 +104,35 @@ SymbolId local_table_lookup(LocalSymbolTable *table, ScopeId scope_id, StringId 
     }
 
     return LOCAL_SYMBOL_ID_NONE;
+}
+
+/*
+ *
+ * Register builtin types and symbols
+ *
+ */
+
+void local_symbol_table_register_builtins(LocalSymbolTable *table, GlobalStringInterner *interner) {
+    ScopeId scope_id = local_scope_create_id(table->id, COMPILER_SCOPE_ID);
+
+    for (u32 i = 0; i < builtin_type_count; i += 1) {
+        StringId name_id = global_string_intern_str8(interner, builtin_types[i].name);
+
+        SymbolId id       = local_scope_lookup(table, scope_id, name_id);
+        SymbolId local_id = local_symbol_get_id(id);
+
+        assert(local_id == LOCAL_SYMBOL_ID_NONE);
+
+        id       = local_scope_intern(table, scope_id, name_id);
+        local_id = local_symbol_get_id(id);
+
+        Symbol *symbol = &table->symbols[local_id];
+
+        symbol->kind                   = SYMBOL_TYPE;
+        symbol->file_id                = FILE_ID_NONE;
+        symbol->ast_node_id            = AST_NODE_ID_NONE;
+        symbol->as.type_symbol.type_id = TYPE_ID_NONE;
+    }
 }
 
 /*

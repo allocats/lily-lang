@@ -52,10 +52,12 @@ void symbols_register_top_level(Workspace *ws, File *file) {
         return;
     }
 
+    const ScopeId local_compiler_scope_id = local_scope_create_id(thread_context.symbol_table->id, COMPILER_SCOPE_ID);
+
     Registrar r = {
         .file     = file,
         .ast      = &file->ast,
-        .scope_id = COMPILER_SCOPE_ID,
+        .scope_id = local_compiler_scope_id,
         .table    = thread_context.symbol_table,
         .ws       = ws
     };

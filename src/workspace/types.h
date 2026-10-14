@@ -119,7 +119,7 @@ typedef struct {
      * Shorthand for primitive types
      *
      */
-    BuiltinTypes builtin_types;
+    BuiltinTypeIds builtin_types;
 
     /*
      *

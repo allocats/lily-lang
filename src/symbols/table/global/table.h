@@ -1,6 +1,7 @@
 #ifndef LILY_SYMBOLS_TABLE_GLOBAL_H
 #define LILY_SYMBOLS_TABLE_GLOBAL_H
 
+#include "string_interner/global/types.h"
 #include "symbols/table/global/types.h"
 
 /*
@@ -11,6 +12,7 @@
  */
 void global_symbol_table_init(GlobalSymbolTable *table);
 void global_symbol_table_destroy(GlobalSymbolTable *table);
+void global_symbol_table_register_builtins(GlobalSymbolTable *table, GlobalStringInterner *interner);
 
 SymbolId global_symbol_table_create_symbol(GlobalSymbolTable *table);
 ScopeId global_symbol_table_create_scope(GlobalSymbolTable *table);

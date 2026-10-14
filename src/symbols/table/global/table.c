@@ -1,6 +1,9 @@
 #include "symbols/table/global/table.h"
 #include "driver/types.h"
+#include "ids.h"
+#include "string_interner/global/interner.h"
 #include "symbols/symbol/types.h"
+#include "symbols/table/common_types.h"
 #include "symbols/table/global/types.h"
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"
@@ -53,6 +56,11 @@ void global_symbol_table_init(GlobalSymbolTable *table) {
         global_scope_init(table, i);
     }
 
+    /*
+     *
+     * 1..N local tables later...
+     *
+     */
     for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
         LocalSymbolTable *local_table = &driver.local_symbol_tables[i];
 
@@ -96,6 +104,33 @@ void global_symbol_table_destroy(GlobalSymbolTable *table) {
 
 ScopeId global_scope_from_local_scope(ScopeId id) {
     return remapper.scope_ids[local_scope_get_table_id(id)][local_scope_get_id(id)];
+}
+
+/*
+ *
+ * Builtin types
+ *
+ */
+
+void global_symbol_table_register_builtins(GlobalSymbolTable *table, GlobalStringInterner *interner) {
+    ScopeId scope_id = COMPILER_SCOPE_ID;
+
+    for (u32 i = 0; i < builtin_type_count; i += 1) {
+        StringId name_id = global_string_intern_str8(interner, builtin_types[i].name);
+
+        SymbolId id = global_scope_lookup(table, scope_id, name_id);
+
+        assert(id == GLOBAL_SYMBOL_ID_NONE);
+
+        id = global_scope_intern(table, scope_id, name_id);
+
+        Symbol *symbol = &table->symbols[id];
+
+        symbol->kind                   = SYMBOL_TYPE;
+        symbol->file_id                = FILE_ID_NONE;
+        symbol->ast_node_id            = AST_NODE_ID_NONE;
+        symbol->as.type_symbol.type_id = TYPE_ID_NONE;
+    }
 }
 
 /*

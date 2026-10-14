@@ -15,6 +15,7 @@
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"
 #include "threadpool/threadpool.h"
+#include "types/builtins/builtins.h"
 #include "types/table/table.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
@@ -150,6 +151,9 @@ void compile_workspace(Workspace *ws) {
         LocalSymbolTable *local_table = &driver.local_symbol_tables[i];
 
         local_symbol_table_init(local_table, local_scope_count_estimate, local_symbol_count_estimate, i);
+
+        // register builtin types
+        local_symbol_table_register_builtins(local_table, &ws->global_string_interner);
     }
 
     register_top_level_symbols_for_workspace(ws);
@@ -163,13 +167,38 @@ void compile_workspace(Workspace *ws) {
      */
     global_symbol_table_init(&ws->global_symbol_table);
 
+    // register builtin types
+    global_symbol_table_register_builtins(&ws->global_symbol_table, &ws->global_string_interner);
+
+    /*
+     *
+     * Update files to use the new global scope id
+     *
+     */
     for (u32 i = 0; i < ws->file_interner.count; i += 1) {
         File *file = ws->file_interner.entries[i];
 
         file->scope_id = global_scope_from_local_scope(file->scope_id);
     }
 
+    /*
+     *
+     * first pass
+     *
+     */
     resolve_imports(ws);
+
+    /*
+     *
+     * Register all the builtin types into the type table
+     *
+     */
+    type_table_register_builtin_types(
+        &ws->type_table,
+        &ws->global_string_interner,
+        &ws->global_symbol_table,
+        &ws->builtin_types
+    );
 
     timer_end(&ws->frontend_timer);
 
