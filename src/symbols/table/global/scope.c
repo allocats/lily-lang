@@ -22,11 +22,21 @@ void global_scope_init(GlobalSymbolTable *table, ScopeId id) {
     scope->count    = 0;
     scope->capacity = scope_init_capacity;
 
-    scope->parent = GLOBAL_SCOPE_ID_NONE;
+    scope->parent = id == COMPILER_SCOPE_ID ? GLOBAL_SCOPE_ID_NONE : COMPILER_SCOPE_ID;
 
     scope->resize_threshold_as_u32 = (u32)(scope_init_capacity * scope_load_factor);
 
     memset(scope->entries, U8_MAX, sizeof(SymbolId) * scope_init_capacity);
+}
+
+ScopeId global_scope_enter(GlobalSymbolTable *table, ScopeId parent) {
+    ScopeId new_scope               = global_symbol_table_create_scope(table);
+    table->scopes[new_scope].parent = parent;
+    return new_scope;
+}
+
+ScopeId global_scope_exit(GlobalSymbolTable *table, ScopeId id) {
+    return table->scopes[id].parent;
 }
 
 SymbolId global_scope_intern_from_local_symbol(GlobalSymbolTable *table, ScopeId scope_id, Symbol *local_symbol) {

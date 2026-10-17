@@ -4,13 +4,13 @@
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "ids.h"
+#include "resolver_stack/types.h"
 #include "string_interner/global/interner.h"
 #include "symbols/register/types.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/table/local/table.h"
 #include "threadpool/types.h"
 #include "utils/macros.h"
-#include "workspace/workspace.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -154,6 +154,8 @@ static void register_function(Registrar *r, AstNode *node) {
         symbol->as.function_symbol.signature_state = RESOLVE_UNRESOLVED;
         symbol->as.function_symbol.parameter_count = node->as.func_decl.parameters.count;
         symbol->as.function_symbol.parameters      = null;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -186,6 +188,8 @@ static void register_struct(Registrar *r, AstNode *node) {
         symbol->as.struct_symbol.resolved_type_id = TYPE_ID_NONE;
         symbol->as.struct_symbol.field_count      = node->as.struct_decl.fields.count;
         symbol->as.struct_symbol.fields           = null;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -218,6 +222,8 @@ static void register_union(Registrar *r, AstNode *node) {
         symbol->as.union_symbol.resolved_type_id = TYPE_ID_NONE;
         symbol->as.union_symbol.field_count      = node->as.union_decl.fields.count;
         symbol->as.union_symbol.fields           = null;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -250,6 +256,8 @@ static void register_enum(Registrar *r, AstNode *node) {
         symbol->as.enum_symbol.resolved_type_id = TYPE_ID_NONE;
         symbol->as.enum_symbol.variant_count    = node->as.enum_decl.variants.count;
         symbol->as.enum_symbol.variants         = null;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -280,6 +288,8 @@ static void register_variable(Registrar *r, AstNode *node) {
         symbol->flags       = node->flags;
 
         symbol->as.variable_symbol.type_id = TYPE_ID_NONE;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -307,7 +317,8 @@ static void register_import(Registrar *r, AstNode *node) {
 
         Symbol *symbol = local_symbol_get(id);
 
-        symbol->kind = SYMBOL_IMPORT;
+        symbol->kind  = SYMBOL_IMPORT;
+        symbol->state = RESOLVE_RESOLVED;
 
         symbol->ast_node_id = node->id;
         symbol->file_id     = r->file->id;
@@ -323,6 +334,8 @@ static void register_import(Registrar *r, AstNode *node) {
 
         symbol->as.import_symbol.file_id  = import_directive_node->as.import_directive.file_id;
         symbol->as.import_symbol.scope_id = LOCAL_SCOPE_ID_NONE;
+
+        node->resolved_symbol_id = id;
     }
 }
 
@@ -361,12 +374,12 @@ static void error_symbol_redefined(Registrar *r, AstNode *node, SymbolId symbol_
         snprintf(original_msg.ptr, original_msg.len, "'%.*s' is defined here", STR8_FMT(name_str));
         snprintf(original_help.ptr, original_help.len, "'%.*s' is defined here", STR8_FMT(name_str));
 
-        File *file            = workspace_get_file(r->ws, symbol->file_id);
+        File *file            = r->ws->file_interner.entries[symbol->file_id];
         AstNode *defined_node = &file->ast.nodes[symbol->ast_node_id];
 
         diagnostic_add_token_span(
             engine,
-            r->file,
+            file,
             DIAG_NOTE,
             defined_node->tokens,
             original_msg.ptr,

@@ -4,7 +4,7 @@
 #include "diagnostics/types.h"
 #include "driver/types.h"
 #include "ids.h"
-#include "symbols/resolve/merge/types.h"
+#include "symbols/resolve/types.h"
 #include "symbols/table/global/table.h"
 #include "symbols/table/global/types.h"
 #include "utils/macros.h"
@@ -27,9 +27,9 @@ static void error_symbol_redefined(Resolver *r, SymbolId original_id, SymbolId r
  */
 void resolve_imports(Workspace *ws) {
     Resolver r = {
-        .scope_id = COMPILER_SCOPE_ID,
-        .table    = &ws->global_symbol_table,
-        .ws       = ws
+        .scope_id     = COMPILER_SCOPE_ID,
+        .symbol_table = &ws->global_symbol_table,
+        .ws           = ws
     };
 
     for (u32 i = 0; i < ws->file_interner.count; i += 1) {
@@ -80,7 +80,7 @@ static void resolve_import_directive(Resolver *r, AstNode *node) {
 }
 
 static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id) {
-    GlobalSymbolTable *table = r->table;
+    GlobalSymbolTable *table = r->symbol_table;
 
     Scope src_scope = table->scopes[src_id];
 
@@ -112,8 +112,8 @@ static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id) {
 static void error_symbol_redefined(Resolver *r, SymbolId original_id, SymbolId redefined_id, StringId name) {
     DiagnosticEngine *engine = &driver.local_diagnostic_engines[0];
 
-    Symbol original  = r->table->symbols[original_id];
-    Symbol redefined = r->table->symbols[redefined_id];
+    Symbol original  = r->symbol_table->symbols[original_id];
+    Symbol redefined = r->symbol_table->symbols[redefined_id];
 
     str8 name_str = r->ws->global_string_interner.entries[name].str;
 

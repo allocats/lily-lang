@@ -58,7 +58,7 @@ void global_symbol_table_init(GlobalSymbolTable *table) {
 
     /*
      *
-     * 1..N local tables later...
+     * 0..N local tables later...
      *
      */
     for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
@@ -104,6 +104,31 @@ void global_symbol_table_destroy(GlobalSymbolTable *table) {
 
 ScopeId global_scope_from_local_scope(ScopeId id) {
     return remapper.scope_ids[local_scope_get_table_id(id)][local_scope_get_id(id)];
+}
+
+/*
+ *
+ * Lookups
+ *
+ */
+SymbolId global_symbol_table_lookup(GlobalSymbolTable *table, ScopeId scope_id, StringId global_string_id) {
+    assert(table != null);
+    assert(scope_id < table->scope_count);
+    assert(global_string_id != GLOBAL_STRING_ID_NONE);
+
+    while (scope_id != GLOBAL_SCOPE_ID_NONE) {
+        SymbolId id = global_scope_lookup(table, scope_id, global_string_id);
+
+        if (id != GLOBAL_SYMBOL_ID_NONE) {
+            return id;
+        }
+
+        Scope scope = table->scopes[scope_id];
+
+        scope_id = scope.parent;
+    }
+
+    return GLOBAL_SYMBOL_ID_NONE;
 }
 
 /*
@@ -158,6 +183,10 @@ ScopeId global_symbol_table_create_scope(GlobalSymbolTable *table) {
 
         table->scopes = lily_realloc(table->scopes, new_size);
         table->scope_capacity *= 2;
+
+        for (u32 i = table->scope_count; i < table->scope_capacity; i += 1) {
+            global_scope_init(table, i);
+        }
     }
 
     return table->scope_count++;

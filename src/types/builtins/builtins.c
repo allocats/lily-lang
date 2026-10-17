@@ -1,4 +1,5 @@
 #include "ids.h"
+#include "resolver_stack/types.h"
 #include "string_interner/global/interner.h"
 #include "string_interner/global/types.h"
 #include "symbols/table/global/table.h"
@@ -28,6 +29,11 @@ void type_table_register_builtin_types(
 
         table->entries[id].size      = type.size;
         table->entries[id].alignment = type.alignment;
+
+        Symbol *symbol = &symbol_table->symbols[symbol_id];
+
+        symbol->state                  = RESOLVE_RESOLVED;
+        symbol->as.type_symbol.type_id = id;
 
         TypeId *pointer_hack = (TypeId *)builtin_ids;
 

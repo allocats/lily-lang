@@ -220,6 +220,8 @@ AstNodeId parse_function_declaration(Parser *p, AstNodeId id, StringId name) {
         parameter_node->as.param_decl.name      = parameter_name_id;
         parameter_node->as.param_decl.type_expr = parameter_type_expr_id;
 
+        parameter_node->tokens.end = p->cursor;
+
         if (parser_is_node(p, parameter_type_expr_id, AST_TYPE_VARIADIC)) {
             node = parser_get_node(p, id);
 
@@ -257,13 +259,14 @@ AstNodeId parse_function_declaration(Parser *p, AstNodeId id, StringId name) {
                 return parser_error(p, id, RECOVERY_DECLARATION);
             }
 
-            parser_append_id_list(
-                p,
-                &node->as.func_decl.parameters,
-                parameter_id
-            );
+            // parser_append_id_list(
+            //     p,
+            //     &node->as.func_decl.parameters,
+            //     parameter_id
+            // );
 
             parser_advance(p);
+
             break;
         }
 

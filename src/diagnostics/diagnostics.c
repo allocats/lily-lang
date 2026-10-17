@@ -284,6 +284,20 @@ void diagnostic_add_token_span(DiagnosticEngine *engine, File *file, DiagKind ki
     Token *start_tok = &file->tokens.items[span.start];
     Token *end_tok   = &file->tokens.items[span.end - 1];
 
+    if (span.start == span.end) {
+        diagnostic_add_token(
+            engine,
+            file,
+            kind,
+            start_tok,
+            DIAG_LOC_WHOLE_TOK,
+            msg,
+            help
+        );
+
+        return;
+    }
+
     char *cursor    = file->buffer.ptr;
     char *tok_start = file->buffer.ptr + start_tok->start;
 

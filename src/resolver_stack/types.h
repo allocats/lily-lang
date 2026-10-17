@@ -4,7 +4,7 @@
 #include "ids.h"
 #include "utils/types.h"
 
-static constexpr u64 RESOLVER_STACK_MAX = 256;
+static constexpr u64 RESOLVER_STACK_MAX = 511;
 
 /*
  *
@@ -16,7 +16,7 @@ static constexpr u64 RESOLVER_STACK_MAX = 256;
     X(RESOLVE_UNRESOLVED) \
     X(RESOLVE_RESOLVING)  \
     X(RESOLVE_RESOLVED)   \
-    X(RESOLVE_ERRO)
+    X(RESOLVE_ERROR)
 
 typedef enum : u8 {
     STATES(GENERATE_ENUM)

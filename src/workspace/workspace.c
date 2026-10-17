@@ -11,6 +11,7 @@
 #include "string_interner/local/interner.h"
 #include "symbols/register/register.h"
 #include "symbols/resolve/merge/merge.h"
+#include "symbols/resolve/resolve.h"
 #include "symbols/table/global/table.h"
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"
@@ -21,7 +22,6 @@
 #include "utils/macros.h"
 #include "utils/timer.h"
 #include "utils/types.h"
-#include "workspace/types.h"
 
 #include <assert.h>
 #include <linux/limits.h>
@@ -199,7 +199,7 @@ void compile_workspace(Workspace *ws) {
         &ws->builtin_types
     );
 
-    // resolve_symbols(ws);
+    resolve_symbols(ws);
 
     timer_end(&ws->frontend_timer);
 
