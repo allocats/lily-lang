@@ -710,6 +710,8 @@ static AstNodeId parse_member_access(Parser *p, AstNodeId left) {
         p->file,
         member_token
     );
+    member_node->tokens.start = p->cursor - 1;
+    member_node->tokens.end   = p->cursor;
 
     node = parser_get_node(p, id);
 

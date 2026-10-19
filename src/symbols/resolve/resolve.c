@@ -9,6 +9,7 @@
 #include "resolver_stack/types.h"
 #include "string_interner/global/interner.h"
 #include "symbols/resolve/errors/errors.h"
+#include "symbols/resolve/expressions/expressions.h"
 #include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/resolve/types.h"
 #include "symbols/symbol/kinds.h"
@@ -20,6 +21,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 extern Driver driver;
 
@@ -37,12 +39,10 @@ static StringId main_string_id = GLOBAL_STRING_ID_NONE;
  *
  */
 
-static bool resolve_symbol(Workspace *ws, SymbolId id);
 static bool resolve_symbol_body(Workspace *ws, SymbolId id);
 
-static bool resolve_function_signature(Resolver *r, SymbolId id);
 static bool resolve_function(Resolver *r, SymbolId id);
-
+static bool resolve_import(Resolver *r, SymbolId id);
 static bool resolve_block(Resolver *r, AstNodeId id);
 
 void resolve_symbols(Workspace *ws) {
@@ -67,15 +67,18 @@ void resolve_symbols(Workspace *ws) {
     }
 }
 
-static bool resolve_symbol(Workspace *ws, SymbolId id) {
+bool resolve_symbol(Workspace *ws, SymbolId id) {
     assert(id != GLOBAL_SYMBOL_ID_NONE);
 
     Symbol *symbol = &ws->global_symbol_table.symbols[id];
 
-    if (symbol->state == RESOLVE_RESOLVED)
+    if (symbol->state == RESOLVE_RESOLVED) {
         return true;
-    if (symbol->state == RESOLVE_ERROR)
+    }
+
+    if (symbol->state == RESOLVE_ERROR) {
         return false;
+    }
 
     ResolveQuery query = {
         .kind      = QUERY_SYMBOL,
@@ -179,6 +182,9 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     case SYMBOL_FUNCTION:
         return resolve_function(&r, id);
 
+    case SYMBOL_IMPORT:
+        return resolve_import(&r, id);
+
     case SYMBOL_ERROR:
         return false;
 
@@ -187,13 +193,16 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     }
 }
 
-static bool resolve_function_signature(Resolver *r, SymbolId id) {
+bool resolve_function_signature(Resolver *r, SymbolId id) {
     Symbol *symbol = resolver_get_symbol(r, id);
 
-    if (symbol->as.function_symbol.signature_state == RESOLVE_RESOLVED)
+    if (symbol->as.function_symbol.signature_state == RESOLVE_RESOLVED) {
         return true;
-    if (symbol->as.function_symbol.signature_state == RESOLVE_ERROR)
+    }
+
+    if (symbol->as.function_symbol.signature_state == RESOLVE_ERROR) {
         return false;
+    }
 
     if (symbol->as.function_symbol.signature_state == RESOLVE_RESOLVING) {
         UNREACHABLE("How the fweak. Please report this one");
@@ -208,6 +217,8 @@ static bool resolve_function_signature(Resolver *r, SymbolId id) {
             &r->symbol_table->symbol_data_arena,
             sizeof(SymbolId) * parameter_count
         );
+
+        memset(symbol->as.function_symbol.parameters, U8_MAX, sizeof(SymbolId) * parameter_count);
     }
 
     bool result = true;
@@ -233,7 +244,7 @@ static bool resolve_function_signature(Resolver *r, SymbolId id) {
 
     symbol->as.function_symbol.scope_id = resolver_enter_scope(r);
 
-    for (u32 i = 0; i < node.as.func_decl.parameters.count; i += 1) {
+    for (u32 i = 0; i < parameter_count; i += 1) {
         AstNodeId parameter_id  = node.as.func_decl.parameters.ids[i];
         AstNode *parameter_node = &r->file->ast.nodes[parameter_id];
 
@@ -264,16 +275,28 @@ static bool resolve_function_signature(Resolver *r, SymbolId id) {
         Symbol *parameter_symbol = resolver_get_symbol(r, parameter_symbol_id);
 
         parameter_symbol->kind        = SYMBOL_PARAMETER;
+        parameter_symbol->state       = RESOLVE_RESOLVED;
         parameter_symbol->file_id     = r->file->id;
         parameter_symbol->ast_node_id = parameter_id;
         parameter_symbol->flags       = parameter_node->flags;
 
         parameter_symbol->as.parameter_symbol.type_id = parameter_type_id;
 
+        /*
+         *
+         * Type and tag the AST
+         *
+         */
+        parameter_node->resolved_type_id   = parameter_type_id;
+        parameter_node->resolved_symbol_id = parameter_symbol_id;
+
         symbol = resolver_get_symbol(r, id);
 
         symbol->as.function_symbol.parameters[i] = parameter_symbol_id;
     }
+
+    // Just in case refetch
+    symbol = resolver_get_symbol(r, id);
 
     TypeId return_type_id = resolve_type_expression(r, node.as.func_decl.return_type_expr);
 
@@ -292,6 +315,12 @@ static bool resolve_function_signature(Resolver *r, SymbolId id) {
      */
     r->file     = r_file_restore;
     r->scope_id = r_scope_restore;
+
+    if (result == true) {
+        symbol->as.function_symbol.signature_state = RESOLVE_RESOLVED;
+    } else {
+        symbol->as.function_symbol.signature_state = RESOLVE_ERROR;
+    }
 
     return result;
 }
@@ -453,6 +482,16 @@ static bool resolve_function(Resolver *r, SymbolId id) {
     return result;
 }
 
+static bool resolve_import(Resolver *r, SymbolId id) {
+    Symbol *symbol = &r->symbol_table->symbols[id];
+
+    File *file = r->ws->file_interner.entries[symbol->as.import_symbol.file_id];
+
+    symbol->as.import_symbol.scope_id = file->scope_id;
+
+    return true;
+}
+
 static bool resolve_block(Resolver *r, AstNodeId id) {
     AstNode node = r->file->ast.nodes[id];
 
@@ -472,20 +511,63 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
         case AST_FOR_LOOP:
         case AST_BLOCK:
         case AST_RETURN_STMT:
-        case AST_DEFER_STMT:
+        case AST_DEFER_STMT: {
             break;
+        }
+
+        /*
+         *
+         * Skip these, have nothing to resolve, just avoids the `UNREACHABLE` below
+         * will add labels some time in the future, not that high of priority
+         *
+         */
+        case AST_CONTINUE_STMT:
+        case AST_BREAK_STMT: {
+            break;
+        }
 
         case AST_FUNCTION_CALL:
-        case AST_BINARY_OP:
-            break;
+        case AST_BINARY_OP: {
+            if (resolve_expression(r, stmt_id, TYPE_ID_NONE) == TYPE_ID_NONE) {
+                result = false;
+            }
 
+            break;
+        }
+
+        /*
+         *
+         * Unused expressions, these just do nothing if they appear in this array and therefore are a POISON
+         * and should be EVICTED AND ERRADICTAED from the source code
+         *
+         */
         case AST_MEMBER_ACCESS:
         case AST_INDEX:
         case AST_UNARY_OP:
         case AST_IDENTIFIER:
         case AST_LITERAL:
-        case AST_STRUCT_LITERAL:
+        case AST_STRUCT_LITERAL: {
+            /*
+             *
+             * First resolve the expression, if it has no errors then emit the unused expression 
+             * error, to not flood the stdout with a bunch of noise. I am trying to keep errors 
+             * minimal and clear
+             *
+             */
+            if (resolve_expression(r, stmt_id, TYPE_ID_NONE) != TYPE_ID_NONE) {
+                diagnostic_add_token_span(
+                    &driver.global_diagnostic_engine,
+                    r->file,
+                    DIAG_ERROR,
+                    stmt.tokens,
+                    "expression is unused",
+                    "remove this expression or assign it to a variable"
+                );
+            }
+
+            result = false;
             break;
+        }
 
         default:
             UNREACHABLE("Impossible statement %s", AST_KIND_STRINGS[stmt.kind]);

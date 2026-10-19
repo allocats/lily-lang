@@ -318,7 +318,7 @@ static void register_import(Registrar *r, AstNode *node) {
         Symbol *symbol = local_symbol_get(id);
 
         symbol->kind  = SYMBOL_IMPORT;
-        symbol->state = RESOLVE_RESOLVED;
+        symbol->state = RESOLVE_UNRESOLVED;
 
         symbol->ast_node_id = node->id;
         symbol->file_id     = r->file->id;

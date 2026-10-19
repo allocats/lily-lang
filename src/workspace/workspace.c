@@ -12,6 +12,7 @@
 #include "symbols/register/register.h"
 #include "symbols/resolve/merge/merge.h"
 #include "symbols/resolve/resolve.h"
+#include "symbols/symbol/kinds.h"
 #include "symbols/table/global/table.h"
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"

@@ -103,6 +103,8 @@ typedef struct {
      * The resolved TypeID for this type
      */
     TypeId resolved_type_id;
+
+    ScopeId scope_id;
 } SymbolStruct, SymbolUnion;
 
 /*
@@ -131,6 +133,8 @@ typedef struct {
      * The resolved TypeID for this type
      */
     TypeId resolved_type_id;
+
+    ScopeId scope_id;
 } SymbolEnum;
 
 /*

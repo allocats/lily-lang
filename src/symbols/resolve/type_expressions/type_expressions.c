@@ -31,11 +31,14 @@ TypeId resolve_type_expression(Resolver *r, AstNodeId expr_id) {
     case AST_TYPE_POINTER:
         return resolve_pointer_type(r, node.as.pointer_type.base_type);
 
-    case AST_TYPE_FUNCTION:
+    case AST_TYPE_VARIADIC:
+        return r->builtin_types.type_va_list;
+
+        // case AST_TYPE_FUNCTION:
         // return resolve_function_type(r, node.as.function_type);
 
     default:
-        UNREACHABLE("Type Expression");
+        UNREACHABLE("Type Expression %s", AST_KIND_STRINGS[node.kind]);
     }
 }
 

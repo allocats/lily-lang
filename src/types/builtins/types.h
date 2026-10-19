@@ -7,6 +7,11 @@
 
 //X(variadic, "...", 0, 0)
 
+typedef struct {
+    char *ptr;
+    usize len;
+} __string;
+
 #define BUILTIN_TYPES(X)                             \
     X(void, "void", 0, 0)                            \
     X(bool, "bool", sizeof(bool), alignof(bool))     \
@@ -41,9 +46,10 @@ typedef struct {
     BUILTIN_TYPES(X)
 #undef X
 
+    TypeId type_string;
 } BuiltinTypeIds;
 
-static_assert(64 == sizeof(BuiltinTypeIds));
+static_assert(68 == sizeof(BuiltinTypeIds));
 
 /*
  *

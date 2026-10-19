@@ -259,11 +259,11 @@ AstNodeId parse_function_declaration(Parser *p, AstNodeId id, StringId name) {
                 return parser_error(p, id, RECOVERY_DECLARATION);
             }
 
-            // parser_append_id_list(
-            //     p,
-            //     &node->as.func_decl.parameters,
-            //     parameter_id
-            // );
+            parser_append_id_list(
+                p,
+                &node->as.func_decl.parameters,
+                parameter_id
+            );
 
             parser_advance(p);
 
