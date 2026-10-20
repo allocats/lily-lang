@@ -11,6 +11,8 @@
 #include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
 #include "symbols/table/global/table.h"
+#include "tokens/kinds.h"
+#include "types/builtins/types.h"
 #include "types/entries/entries.h"
 #include "types/entries/kinds.h"
 #include "types/table/table.h"
@@ -23,9 +25,12 @@ extern Driver driver;
 
 static TypeId resolve_identifier(Resolver *r, AstNode *node);
 static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type);
+static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type);
 
 static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node);
+
+static bool is_expression_addressable(Resolver *r, AstNode *node);
 
 /*
  *
@@ -42,6 +47,8 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
         return resolve_literal(r, node, expected_type);
 
     case AST_UNARY_OP:
+        return resolve_unary_op(r, node, expected_type);
+
     case AST_BINARY_OP:
         break;
 
@@ -89,7 +96,9 @@ static TypeId resolve_identifier(Resolver *r, AstNode *node) {
         return TYPE_ID_NONE;
     }
 
-    if (!resolve_symbol(r->ws, symbol_id)) {
+    Symbol symbol = r->symbol_table->symbols[symbol_id];
+
+    if (symbol.kind != SYMBOL_FUNCTION && !resolve_symbol(r->ws, symbol_id)) {
         return TYPE_ID_NONE;
     }
 
@@ -135,6 +144,83 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
             return r->builtin_types.type_i64;
         }
     }
+    }
+}
+
+static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type) {
+    AstNode *operand_node = &r->ast->nodes[node->as.unary_op.operand];
+
+    TypeId operand_type_id = resolve_expression(r, node->as.unary_op.operand, TYPE_ID_NONE);
+
+    if (operand_type_id == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    switch (node->as.unary_op.op) {
+    case TOK_AMP: {
+        if (!is_expression_addressable(r, operand_node)) {
+            resolver_cannot_reference_rvalue(r, operand_node);
+            return TYPE_ID_NONE;
+        }
+
+        return type_table_intern_pointer(r->type_table, operand_type_id);
+    }
+
+    case TOK_STAR: {
+        if (!type_is_kind(r->type_table, operand_type_id, TYPE_POINTER)) {
+            resolver_cannot_derefence_non_pointer(r, operand_node, operand_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        return r->type_table->entries[operand_type_id].as.pointer_type.pointee_id;
+    }
+
+    case TOK_BANG: {
+        TypeId bool_type_id = r->builtin_types.type_bool;
+
+        if (operand_type_id != bool_type_id) {
+            resolver_mismatched_types(r, node, bool_type_id, operand_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        return bool_type_id;
+    }
+
+    case TOK_PLUS: {
+        BuiltinTypeIds builtins = r->builtin_types;
+
+        if (!type_is_float(builtins, operand_type_id) && !type_is_int(builtins, operand_type_id)) {
+            resolver_cannot_apply_unary_op(r, node, '+', operand_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        return operand_type_id;
+    }
+
+    case TOK_MINUS: {
+        BuiltinTypeIds builtins = r->builtin_types;
+
+        if (!type_is_float(builtins, operand_type_id) && !type_is_signed_int(builtins, operand_type_id)) {
+            resolver_cannot_apply_unary_op(r, node, '-', operand_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        return operand_type_id;
+    }
+
+    case TOK_TILDE: {
+        BuiltinTypeIds builtins = r->builtin_types;
+
+        if (operand_type_id != builtins.type_bool && !type_is_signed_int(builtins, operand_type_id)) {
+            resolver_cannot_apply_unary_op(r, node, '~', operand_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        return operand_type_id;
+    }
+
+    default:
+        UNREACHABLE("Impossible unary op operator %s", TOKEN_KIND_STRINGS[node->as.unary_op.operand]);
     }
 }
 
@@ -373,5 +459,57 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
     default: {
         UNREACHABLE("Invalid callee %s", AST_KIND_STRINGS[node->kind]);
     }
+    }
+}
+
+static bool is_expression_addressable(Resolver *r, AstNode *node) {
+    switch (node->kind) {
+    case AST_IDENTIFIER: {
+        if (node->resolved_symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+            return false;
+        }
+
+        const Symbol *symbol = &r->symbol_table->symbols[node->resolved_symbol_id];
+
+        return symbol->kind == SYMBOL_VARIABLE || symbol->kind == SYMBOL_PARAMETER || symbol->kind == SYMBOL_FUNCTION;
+    }
+
+    case AST_MEMBER_ACCESS: {
+        if (node->resolved_symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+            return false;
+        }
+
+        const Symbol *symbol = &r->symbol_table->symbols[node->resolved_symbol_id];
+
+        switch (symbol->kind) {
+        case SYMBOL_VARIABLE:
+            return true;
+
+        case SYMBOL_FIELD: {
+            AstNode *object_node = &r->ast->nodes[node->as.member_access.object];
+
+            if (type_is_kind(r->type_table, object_node->resolved_type_id, TYPE_POINTER)) {
+                return true;
+            }
+
+            return is_expression_addressable(r, object_node);
+        }
+
+        default:
+            return false;
+        }
+    }
+
+    case AST_INDEX: {
+        AstNode *identifier = &r->ast->nodes[node->as.index.identifier];
+        return is_expression_addressable(r, identifier);
+    }
+
+    case AST_UNARY_OP: {
+        return node->as.unary_op.op == TOK_STAR;
+    }
+
+    default:
+        return false;
     }
 }

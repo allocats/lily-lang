@@ -1,3 +1,4 @@
+#include <stdio.h>
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
@@ -67,6 +68,8 @@ i32 main(i32 argc, char **argv) {
     // threadpool_wait(&driver.thread_pool);
 
     bool has_errors = false;
+
+    printf("\n");
 
     for (u8 i = 0; i < driver.local_diagnostic_engine_count; i += 1) {
         bool errored = diagnostics_print(&driver.local_diagnostic_engines[i]);

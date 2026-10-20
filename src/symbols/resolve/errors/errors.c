@@ -8,6 +8,8 @@
 
 extern Driver driver;
 
+static str8 type_to_diagnostic_str(Resolver *r, DiagnosticEngine *engine, TypeId type_id);
+
 void resolver_error_symbol_redefined(Resolver *r, AstNode *node, SymbolId symbol_id, StringId name) {
     DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
@@ -68,6 +70,57 @@ void resolver_undeclared_identifier(Resolver *r, AstNode *node, StringId name_id
     str8 name = r->interner->entries[name_id].str;
 
     snprintf(msg.ptr, msg.len, "undeclared identifier: '%.*s'", STR8_FMT(name));
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        null
+    );
+}
+
+void resolver_cannot_reference_rvalue(Resolver *r, AstNode *node) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        "cannot take the reference of a rvalue",
+        "is not a lvalue"
+    );
+}
+
+void resolver_cannot_derefence_non_pointer(Resolver *r, AstNode *node, TypeId type_id) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 type = type_to_diagnostic_str(r, engine, type_id);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+    snprintf(msg.ptr, msg.len, "cannot deference non-pointer type '%.*s'", STR8_FMT(type));
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        null
+    );
+}
+
+void resolver_cannot_apply_unary_op(Resolver *r, AstNode *node, char op, TypeId type_id) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 type = type_to_diagnostic_str(r, engine, type_id);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+    snprintf(msg.ptr, msg.len, "cannot apply unary operator '%c' to type '%.*s'", op, STR8_FMT(type));
 
     diagnostic_add_token_span(
         engine,

@@ -68,7 +68,7 @@ void cli_print_workspace_stats(Workspace *ws) {
         total_lines_of_code += ws->file_interner.entries[i]->lines_of_code;
     }
 
-    fprintf(stdout, "\nStats for Workspace %u (\"%.*s\")\n", ws->id, STR8_FMT(ws->name));
+    fprintf(stdout, "Stats for Workspace %u (\"%.*s\")\n", ws->id, STR8_FMT(ws->name));
     fprintf(stdout, "%u files (%u lines of code)\n", file_count, total_lines_of_code);
 
     f64 frontend_time = timer_elapsed_seconds(&ws->frontend_timer);
