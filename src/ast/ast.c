@@ -7,6 +7,7 @@
 #include "utils/wrappers.h"
 
 #include <assert.h>
+#include <string.h>
 
 static constexpr u32 init_cap = 64;
 
@@ -21,7 +22,7 @@ void ast_init(Ast *ast) {
 
     arena_init(&ast->gpa, ARENA_KB(2), ALIGN_DEFAULT);
 
-    ast->nodes    = lily_calloc(init_cap, sizeof(AstNode));
+    ast->nodes    = lily_aligned_alloc(alignof(AstNode), init_cap * sizeof(AstNode));
     ast->count    = 0;
     ast->capacity = init_cap;
 
@@ -53,7 +54,11 @@ AstNodeId ast_alloc_node(Ast *ast) {
         u64 old_size = sizeof(AstNode) * ast->capacity;
         u64 new_size = old_size * 2;
 
-        ast->nodes = lily_realloc(ast->nodes, new_size);
+        AstNode *new_nodes = lily_aligned_alloc(alignof(AstNode), new_size);
+        memcpy(new_nodes, ast->nodes, old_size);
+        free(ast->nodes);
+
+        ast->nodes = new_nodes;
         ast->capacity *= 2;
 
         debug_log("Reallocated nodes from %lu to %lu bytes", old_size, new_size);

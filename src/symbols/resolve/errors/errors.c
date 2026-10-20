@@ -89,8 +89,21 @@ void resolver_cannot_reference_rvalue(Resolver *r, AstNode *node) {
         r->file,
         DIAG_ERROR,
         node->tokens,
-        "cannot take the reference of a rvalue",
-        "is not a lvalue"
+        "cannot take the reference of an rvalue",
+        "is not an lvalue"
+    );
+}
+
+void resolver_cannot_dereference_rvalue(Resolver *r, AstNode *node) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        "cannot dereference an rvalue",
+        "is not an lvalue"
     );
 }
 

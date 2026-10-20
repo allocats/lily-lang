@@ -24,6 +24,19 @@ void *lily_alloc(usize size) {
 }
 
 [[gnu::alloc_size(2)]]
+void *lily_aligned_alloc(usize alignment, usize size) {
+    assert(size != 0 && "Received zero in allocation request");
+
+    void *ptr = aligned_alloc(alignment, size);
+
+    if (UNLIKELY(ptr == null)) {
+        out_of_memory_abort(size);
+    }
+
+    return ptr;
+}
+
+[[gnu::alloc_size(2)]]
 void *lily_realloc(void *ptr, usize size) {
     assert(ptr != null && "Received null in reallocation request");
     assert(size != 0 && "Received zero in reallocation request");

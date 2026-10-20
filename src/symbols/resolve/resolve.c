@@ -95,7 +95,7 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
 
             File *file = ws->file_interner.entries[symbol->file_id];
 
-            AstNode node = file->ast.nodes[symbol->ast_node_id];
+            const AstNode *node = &file->ast.nodes[symbol->ast_node_id];
 
             str8 name = ws->global_string_interner.entries[symbol->name_id].str;
 
@@ -109,7 +109,7 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
                 &driver.global_diagnostic_engine,
                 file,
                 DIAG_ERROR,
-                node.tokens,
+                node->tokens,
                 msg.ptr,
                 help.ptr
             );
@@ -127,7 +127,7 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
 
         File *file = ws->file_interner.entries[symbol->file_id];
 
-        AstNode node = file->ast.nodes[symbol->ast_node_id];
+        const AstNode *node = &file->ast.nodes[symbol->ast_node_id];
 
         str8 name = ws->global_string_interner.entries[symbol->name_id].str;
 
@@ -141,7 +141,7 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
             &driver.global_diagnostic_engine,
             file,
             DIAG_ERROR,
-            node.tokens,
+            node->tokens,
             msg.ptr,
             help.ptr
         );
@@ -163,9 +163,9 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
 static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     assert(id != GLOBAL_SYMBOL_ID_NONE);
 
-    Symbol symbol = ws->global_symbol_table.symbols[id];
+    const Symbol *symbol = &ws->global_symbol_table.symbols[id];
 
-    File *file = ws->file_interner.entries[symbol.file_id];
+    File *file = ws->file_interner.entries[symbol->file_id];
 
     Resolver r = {
         .ast           = &file->ast,
@@ -178,7 +178,7 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
         .ws            = ws,
     };
 
-    switch (symbol.kind) {
+    switch (symbol->kind) {
     case SYMBOL_FUNCTION:
         return resolve_function(&r, id);
 
@@ -189,7 +189,7 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
         return false;
 
     default:
-        UNREACHABLE("Found %s, ID=%u", SYMBOL_KIND_STRINGS[symbol.kind], id);
+        UNREACHABLE("Found %s, ID=%u", SYMBOL_KIND_STRINGS[symbol->kind], id);
     }
 }
 
@@ -236,8 +236,8 @@ bool resolve_function_signature(Resolver *r, SymbolId id) {
      * set the new state
      *
      */
-    File *file   = r->ws->file_interner.entries[symbol->file_id];
-    AstNode node = file->ast.nodes[symbol->ast_node_id];
+    File *file          = r->ws->file_interner.entries[symbol->file_id];
+    const AstNode *node = &file->ast.nodes[symbol->ast_node_id];
 
     r->file     = file;
     r->scope_id = file->scope_id;
@@ -245,7 +245,7 @@ bool resolve_function_signature(Resolver *r, SymbolId id) {
     symbol->as.function_symbol.scope_id = resolver_enter_scope(r);
 
     for (u32 i = 0; i < parameter_count; i += 1) {
-        AstNodeId parameter_id  = node.as.func_decl.parameters.ids[i];
+        AstNodeId parameter_id  = node->as.func_decl.parameters.ids[i];
         AstNode *parameter_node = &r->file->ast.nodes[parameter_id];
 
         assert(parameter_node->kind == AST_PARAMETER_DECL);
@@ -298,7 +298,7 @@ bool resolve_function_signature(Resolver *r, SymbolId id) {
     // Just in case refetch
     symbol = resolver_get_symbol(r, id);
 
-    TypeId return_type_id = resolve_type_expression(r, node.as.func_decl.return_type_expr);
+    TypeId return_type_id = resolve_type_expression(r, node->as.func_decl.return_type_expr);
 
     if (return_type_id == TYPE_ID_NONE) {
         result = false;
@@ -330,27 +330,27 @@ static bool resolve_function(Resolver *r, SymbolId id) {
         return false;
     }
 
-    Symbol symbol = r->symbol_table->symbols[id];
-    AstNode node  = r->file->ast.nodes[symbol.ast_node_id];
+    const Symbol *symbol = &r->symbol_table->symbols[id];
+    const AstNode *node  = &r->file->ast.nodes[symbol->ast_node_id];
 
     /*
      *
      * Early return as `instrinic` and `foreign` functions do not have bodies
      *
      */
-    if (symbol.flags & AST_FLAG_INTRINSIC || symbol.flags & AST_FLAG_FOREIGN) {
+    if (symbol->flags & AST_FLAG_INTRINSIC || symbol->flags & AST_FLAG_FOREIGN) {
 
         /*
          *
          * RULE: main function cannot have any modifiers
          *
          */
-        if (symbol.name_id == main_string_id) {
+        if (symbol->name_id == main_string_id) {
             diagnostic_add_token_span(
                 &driver.global_diagnostic_engine,
                 r->file,
                 DIAG_ERROR,
-                node.tokens,
+                node->tokens,
                 "'main' cannot have function modifiers",
                 "remove all function modifiers"
             );
@@ -369,23 +369,23 @@ static bool resolve_function(Resolver *r, SymbolId id) {
      *   3. 'main' may only be present ONCE in a workspace
      *
      */
-    if (symbol.name_id == main_string_id) {
+    if (symbol->name_id == main_string_id) {
 
         /*
          *
          * Rule 1
          *
          */
-        if (symbol.as.function_symbol.parameter_count != 0) {
-            AstNodeId param_start_id = node.as.func_decl.parameters.ids[0];
-            AstNodeId param_end_id   = node.as.func_decl.parameters.ids[node.as.func_decl.parameters.count - 1];
+        if (symbol->as.function_symbol.parameter_count != 0) {
+            AstNodeId param_start_id = node->as.func_decl.parameters.ids[0];
+            AstNodeId param_end_id   = node->as.func_decl.parameters.ids[node->as.func_decl.parameters.count - 1];
 
-            AstNode param_start_node = r->file->ast.nodes[param_start_id];
-            AstNode param_end_node   = r->file->ast.nodes[param_end_id];
+            AstNode *param_start_node = &r->file->ast.nodes[param_start_id];
+            AstNode *param_end_node   = &r->file->ast.nodes[param_end_id];
 
             SpanU32 span = {
-                .start = param_start_node.tokens.start,
-                .end   = param_end_node.tokens.end,
+                .start = param_start_node->tokens.start,
+                .end   = param_end_node->tokens.end,
             };
 
             diagnostic_add_token_span(
@@ -405,10 +405,10 @@ static bool resolve_function(Resolver *r, SymbolId id) {
          * Rule 2
          *
          */
-        if (symbol.as.function_symbol.return_type_id != r->builtin_types.type_void) {
-            AstNode node = r->file->ast.nodes[symbol.ast_node_id];
+        if (symbol->as.function_symbol.return_type_id != r->builtin_types.type_void) {
+            const AstNode *node = &r->file->ast.nodes[symbol->ast_node_id];
 
-            AstNode return_expr = r->file->ast.nodes[node.as.func_decl.return_type_expr];
+            AstNode return_expr = r->file->ast.nodes[node->as.func_decl.return_type_expr];
 
             diagnostic_add_token_span(
                 &driver.global_diagnostic_engine,
@@ -428,15 +428,15 @@ static bool resolve_function(Resolver *r, SymbolId id) {
          *
          */
         if (r->ws->entry_point_id != GLOBAL_SYMBOL_ID_NONE) {
-            Symbol original_declaration = r->symbol_table->symbols[r->ws->entry_point_id];
-            File *original_file         = r->ws->file_interner.entries[original_declaration.file_id];
-            AstNode original_node       = original_file->ast.nodes[original_declaration.ast_node_id];
+            Symbol *original_declaration = &r->symbol_table->symbols[r->ws->entry_point_id];
+            File *original_file          = r->ws->file_interner.entries[original_declaration->file_id];
+            AstNode *original_node       = &original_file->ast.nodes[original_declaration->ast_node_id];
 
             diagnostic_add_token_span(
                 &driver.global_diagnostic_engine,
                 original_file,
                 DIAG_NOTE,
-                original_node.tokens,
+                original_node->tokens,
                 "multiple entrypoint 'main' functions found",
                 "'main' is defined here"
             );
@@ -445,7 +445,7 @@ static bool resolve_function(Resolver *r, SymbolId id) {
                 &driver.global_diagnostic_engine,
                 r->file,
                 DIAG_ERROR,
-                node.tokens,
+                node->tokens,
                 "multiple entrypoint 'main' functions found",
                 "remove this file/function from the workspace or rename the function"
             );
@@ -468,9 +468,9 @@ static bool resolve_function(Resolver *r, SymbolId id) {
      */
     ScopeId r_scope_id_restore = r->scope_id;
 
-    r->scope_id = symbol.as.function_symbol.scope_id;
+    r->scope_id = symbol->as.function_symbol.scope_id;
 
-    bool result = resolve_block(r, node.as.func_decl.body);
+    bool result = resolve_block(r, node->as.func_decl.body);
 
     /*
      *
@@ -493,17 +493,17 @@ static bool resolve_import(Resolver *r, SymbolId id) {
 }
 
 static bool resolve_block(Resolver *r, AstNodeId id) {
-    AstNode node = r->file->ast.nodes[id];
+    const AstNode *node = &r->file->ast.nodes[id];
 
-    assert(node.kind == AST_BLOCK);
+    assert(node->kind == AST_BLOCK);
 
     bool result = true;
 
-    for (u32 i = 0; i < node.as.block.statements.count; i += 1) {
-        AstNodeId stmt_id = node.as.block.statements.ids[i];
-        AstNode stmt      = r->file->ast.nodes[stmt_id];
+    for (u32 i = 0; i < node->as.block.statements.count; i += 1) {
+        const AstNodeId stmt_id = node->as.block.statements.ids[i];
+        const AstNode *stmt     = &r->file->ast.nodes[stmt_id];
 
-        switch (stmt.kind) {
+        switch (stmt->kind) {
         case AST_VARIABLE_DECL:
         case AST_EXECUTE_DIRECTIVE:
         case AST_IF_STMT:
@@ -559,7 +559,7 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
                     &driver.global_diagnostic_engine,
                     r->file,
                     DIAG_ERROR,
-                    stmt.tokens,
+                    stmt->tokens,
                     "expression is unused",
                     "remove this expression or assign it to a variable"
                 );
@@ -570,7 +570,7 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
         }
 
         default:
-            UNREACHABLE("Impossible statement %s", AST_KIND_STRINGS[stmt.kind]);
+            UNREACHABLE("Impossible statement %s", AST_KIND_STRINGS[stmt->kind]);
         }
     }
 

@@ -12,6 +12,13 @@ void *lily_alloc(usize size);
 
 /*
  *
+ * aligned_alloc() wrapper that causes a failure should malloc() fail
+ *
+ */
+void *lily_aligned_alloc(usize alignment, usize size);
+
+/*
+ *
  * realloc() wrapper that causes a failure should realloc() fail
  *
  */

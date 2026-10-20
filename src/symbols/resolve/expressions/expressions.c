@@ -26,6 +26,7 @@ extern Driver driver;
 static TypeId resolve_identifier(Resolver *r, AstNode *node);
 static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type);
+static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type);
 
 static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node);
@@ -50,7 +51,7 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
         return resolve_unary_op(r, node, expected_type);
 
     case AST_BINARY_OP:
-        break;
+        return resolve_binary_op(r, node, expected_type);
 
     case AST_FUNCTION_CALL:
         return resolve_function_call(r, node, expected_type);
@@ -96,9 +97,9 @@ static TypeId resolve_identifier(Resolver *r, AstNode *node) {
         return TYPE_ID_NONE;
     }
 
-    Symbol symbol = r->symbol_table->symbols[symbol_id];
+    const Symbol *symbol = &r->symbol_table->symbols[symbol_id];
 
-    if (symbol.kind != SYMBOL_FUNCTION && !resolve_symbol(r->ws, symbol_id)) {
+    if (symbol->kind != SYMBOL_FUNCTION && !resolve_symbol(r->ws, symbol_id)) {
         return TYPE_ID_NONE;
     }
 
@@ -118,7 +119,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
     }
 
     case LITERAL_NULL: {
-        if (type_is_kind(r->type_table, expected_type, TYPE_POINTER)) {
+        if (expected_type != TYPE_ID_NONE && type_is_kind(r->type_table, expected_type, TYPE_POINTER)) {
             return expected_type;
         } else {
             return type_table_intern_pointer(r->type_table, r->builtin_types.type_void);
@@ -130,7 +131,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
     }
 
     case LITERAL_FLOATING: {
-        if (type_is_float(r->builtin_types, expected_type)) {
+        if (expected_type != TYPE_ID_NONE && type_is_float(r->builtin_types, expected_type)) {
             return expected_type;
         } else {
             return r->builtin_types.type_f64;
@@ -138,7 +139,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
     }
 
     case LITERAL_INTEGER: {
-        if (type_is_int(r->builtin_types, expected_type)) {
+        if (expected_type != TYPE_ID_NONE && type_is_int(r->builtin_types, expected_type)) {
             return expected_type;
         } else {
             return r->builtin_types.type_i64;
@@ -167,6 +168,11 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
     }
 
     case TOK_STAR: {
+        if (!is_expression_addressable(r, operand_node)) {
+            resolver_cannot_dereference_rvalue(r, operand_node);
+            return TYPE_ID_NONE;
+        }
+
         if (!type_is_kind(r->type_table, operand_type_id, TYPE_POINTER)) {
             resolver_cannot_derefence_non_pointer(r, operand_node, operand_type_id);
             return TYPE_ID_NONE;
@@ -220,8 +226,11 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
     }
 
     default:
-        UNREACHABLE("Impossible unary op operator %s", TOKEN_KIND_STRINGS[node->as.unary_op.operand]);
+        UNREACHABLE("Impossible unary op operator %s", TOKEN_KIND_STRINGS[node->as.unary_op.op]);
     }
+}
+
+static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type) {
 }
 
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type) {
@@ -239,8 +248,10 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
         return TYPE_ID_NONE;
     }
 
-    Symbol *calle_symbol = &r->symbol_table->symbols[callee_symbol_id];
-    assert(calle_symbol->kind == SYMBOL_FUNCTION);
+    const Symbol *callee_symbol = &r->symbol_table->symbols[callee_symbol_id];
+    assert(callee_symbol->kind == SYMBOL_FUNCTION);
+
+    node->resolved_symbol_id = callee_symbol_id;
 
     /*
      *
@@ -253,7 +264,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     ScopeId r_scope_id = r->scope_id;
 
     // get the callee's file
-    File *callee_file = r->ws->file_interner.entries[calle_symbol->file_id];
+    File *callee_file = r->ws->file_interner.entries[callee_symbol->file_id];
 
     r->ast      = &callee_file->ast;
     r->file     = callee_file;
@@ -280,22 +291,22 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     r->scope_id = r_scope_id;
 
     // refetch
-    calle_symbol = &r->symbol_table->symbols[callee_symbol_id];
+    callee_symbol = &r->symbol_table->symbols[callee_symbol_id];
 
-    bool is_variadic = calle_symbol->flags & AST_FLAG_VARIADIC;
+    bool is_variadic = callee_symbol->flags & AST_FLAG_VARIADIC;
 
     u32 argument_count  = node->as.func_call.arguments.count;
-    u32 parameter_count = calle_symbol->as.function_symbol.parameter_count;
+    u32 parameter_count = callee_symbol->as.function_symbol.parameter_count;
 
     if (is_variadic) {
         parameter_count -= 1;
     }
 
-    if (is_variadic && argument_count < parameter_count - 1) {
+    if (is_variadic && argument_count < parameter_count) {
         DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
         str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
-        str8 name = r->interner->entries[calle_symbol->name_id].str;
+        str8 name = r->interner->entries[callee_symbol->name_id].str;
 
         snprintf(msg.ptr, msg.len, "'%.*s' takes %u or more arguments", STR8_FMT(name), parameter_count);
 
@@ -311,7 +322,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
         DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
         str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
-        str8 name = r->interner->entries[calle_symbol->name_id].str;
+        str8 name = r->interner->entries[callee_symbol->name_id].str;
 
         snprintf(
             msg.ptr,
@@ -337,10 +348,10 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
         AstNode *argument_node     = &r->ast->nodes[argument_node_id];
 
         if (i < parameter_count) {
-            SymbolId parameter_symbol_id = calle_symbol->as.function_symbol.parameters[i];
-            Symbol parameter_symbol      = r->symbol_table->symbols[parameter_symbol_id];
+            SymbolId parameter_symbol_id = callee_symbol->as.function_symbol.parameters[i];
+            Symbol *parameter_symbol     = &r->symbol_table->symbols[parameter_symbol_id];
 
-            TypeId parameter_type_id = parameter_symbol.as.parameter_symbol.type_id;
+            TypeId parameter_type_id = parameter_symbol->as.parameter_symbol.type_id;
             TypeId argument_type_id  = resolve_expression(r, argument_node_id, parameter_type_id);
 
             if (argument_type_id == TYPE_ID_NONE) {
@@ -357,7 +368,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
         }
     }
 
-    TypeId return_type_id = calle_symbol->as.function_symbol.return_type_id;
+    TypeId return_type_id = callee_symbol->as.function_symbol.return_type_id;
 
     if (expected_type != TYPE_ID_NONE) {
         if (!types_are_assignable(r->type_table, &r->builtin_types, expected_type, return_type_id)) {
@@ -369,6 +380,12 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
 
     return return_type_id;
 }
+
+/*
+ *
+ * Herlper functions
+ *
+ */
 
 /*
  *

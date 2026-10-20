@@ -22,14 +22,14 @@ TypeId resolve_type_expression(Resolver *r, AstNodeId expr_id) {
         return r->ws->builtin_types.type_void;
     }
 
-    AstNode node = r->ast->nodes[expr_id];
+    AstNode *node = &r->ast->nodes[expr_id];
 
-    switch (node.kind) {
+    switch (node->kind) {
     case AST_TYPE_BASE:
-        return resolve_base_type(r, node.as.base_type.expr);
+        return resolve_base_type(r, node->as.base_type.expr);
 
     case AST_TYPE_POINTER:
-        return resolve_pointer_type(r, node.as.pointer_type.base_type);
+        return resolve_pointer_type(r, node->as.pointer_type.base_type);
 
     case AST_TYPE_VARIADIC:
         return r->builtin_types.type_va_list;
@@ -38,7 +38,7 @@ TypeId resolve_type_expression(Resolver *r, AstNodeId expr_id) {
         // return resolve_function_type(r, node.as.function_type);
 
     default:
-        UNREACHABLE("Type Expression %s", AST_KIND_STRINGS[node.kind]);
+        UNREACHABLE("Type Expression %s", AST_KIND_STRINGS[node->kind]);
     }
 }
 
