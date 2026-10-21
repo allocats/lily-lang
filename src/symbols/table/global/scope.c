@@ -9,7 +9,6 @@
 
 #include <assert.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <string.h>
 
 static void global_scope_resize(GlobalSymbolTable *table, Scope *scope);

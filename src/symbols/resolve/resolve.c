@@ -10,6 +10,7 @@
 #include "string_interner/global/interner.h"
 #include "symbols/resolve/errors/errors.h"
 #include "symbols/resolve/expressions/expressions.h"
+#include "symbols/resolve/statements/statements.h"
 #include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/resolve/types.h"
 #include "symbols/symbol/kinds.h"
@@ -500,11 +501,18 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
     bool result = true;
 
     for (u32 i = 0; i < node->as.block.statements.count; i += 1) {
-        const AstNodeId stmt_id = node->as.block.statements.ids[i];
-        const AstNode *stmt     = &r->file->ast.nodes[stmt_id];
+        AstNodeId stmt_id = node->as.block.statements.ids[i];
+        AstNode *stmt     = &r->file->ast.nodes[stmt_id];
 
         switch (stmt->kind) {
-        case AST_VARIABLE_DECL:
+        case AST_VARIABLE_DECL: {
+            if (!resolve_variable_declaration(r, stmt)) {
+                result = false;
+            }
+
+            break;
+        }
+
         case AST_EXECUTE_DIRECTIVE:
         case AST_IF_STMT:
         case AST_WHILE_LOOP:
@@ -528,7 +536,7 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
 
         case AST_FUNCTION_CALL:
         case AST_BINARY_OP: {
-            if (resolve_expression(r, stmt_id, TYPE_ID_NONE) == TYPE_ID_NONE) {
+            if (resolve_expression(r, stmt, TYPE_ID_NONE) == TYPE_ID_NONE) {
                 result = false;
             }
 
@@ -554,7 +562,7 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
              * minimal and clear
              *
              */
-            if (resolve_expression(r, stmt_id, TYPE_ID_NONE) != TYPE_ID_NONE) {
+            if (resolve_expression(r, stmt, TYPE_ID_NONE) != TYPE_ID_NONE) {
                 diagnostic_add_token_span(
                     &driver.global_diagnostic_engine,
                     r->file,

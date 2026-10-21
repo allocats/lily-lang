@@ -63,3 +63,11 @@ void *lily_calloc(usize number_of_members, usize size_of_member) {
 
     return ptr;
 }
+
+void lily_free(void *ptr) {
+    if (ptr == null) {
+        return;
+    }
+
+    free(ptr);
+}

@@ -31,4 +31,6 @@ void *lily_realloc(void *ptr, usize size);
  */
 void *lily_calloc(usize number_of_members, usize size_of_member);
 
+void lily_free(void *ptr);
+
 #endif // !LILY_UTILS_WRAPPERS_H

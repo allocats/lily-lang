@@ -1,7 +1,7 @@
 CC = clang
 
 # TODO: remove `-g -fno-omit-frame-pointer` and add `-DNDEBUG` when done building the compiler, bloats the binary massively
-CF = -std=c23 -Isrc -Wall -Wextra -O2 -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer
+CF = -std=c23 -Isrc -Wall -Wextra -Og -flto -march=native -D_DEFAULT_SOURCE -g -fno-omit-frame-pointer
 DF = -DDEBUG_MODE
 LF = -lpthread -lLLVM
 

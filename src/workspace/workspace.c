@@ -12,7 +12,6 @@
 #include "symbols/register/register.h"
 #include "symbols/resolve/merge/merge.h"
 #include "symbols/resolve/resolve.h"
-#include "symbols/symbol/kinds.h"
 #include "symbols/table/global/table.h"
 #include "symbols/table/local/table.h"
 #include "symbols/table/local/types.h"
@@ -177,6 +176,11 @@ void compile_workspace(Workspace *ws) {
      */
     for (u32 i = 0; i < ws->file_interner.count; i += 1) {
         File *file = ws->file_interner.entries[i];
+
+        if (file->stage != FILE_PARSED) {
+            timer_end(&ws->frontend_timer);
+            return;
+        }
 
         file->scope_id = global_scope_from_local_scope(file->scope_id);
     }

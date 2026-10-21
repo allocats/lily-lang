@@ -7,9 +7,12 @@
 #include "ids.h"
 #include "string_interner/global/interner.h"
 #include "symbols/resolve/errors/errors.h"
+#include "symbols/resolve/expressions/types.h"
 #include "symbols/resolve/resolve.h"
+#include "symbols/resolve/types.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
+#include "symbols/symbol/types.h"
 #include "symbols/table/global/table.h"
 #include "tokens/kinds.h"
 #include "types/builtins/types.h"
@@ -29,9 +32,18 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
 static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type);
 
+/*
+ *
+ * Binary operatorions!
+ *
+ */
+static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
+static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
+
 static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node);
 
 static bool is_expression_addressable(Resolver *r, AstNode *node);
+static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_const_error);
 
 /*
  *
@@ -74,9 +86,7 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
  *
  */
 
-TypeId resolve_expression(Resolver *r, AstNodeId id, TypeId expected_type) {
-    AstNode *node = &r->ast->nodes[id];
-
+TypeId resolve_expression(Resolver *r, AstNode *node, TypeId expected_type) {
     TypeId type_id = resolve(r, node, expected_type);
 
     node->resolved_type_id = type_id;
@@ -151,7 +161,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
 static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type) {
     AstNode *operand_node = &r->ast->nodes[node->as.unary_op.operand];
 
-    TypeId operand_type_id = resolve_expression(r, node->as.unary_op.operand, TYPE_ID_NONE);
+    TypeId operand_type_id = resolve_expression(r, operand_node, TYPE_ID_NONE);
 
     if (operand_type_id == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
@@ -231,6 +241,47 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
 }
 
 static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type) {
+    TokenKind op = node->as.binary_op.op;
+
+    AstNodeId lhs_id = node->as.binary_op.lhs;
+    AstNodeId rhs_id = node->as.binary_op.rhs;
+
+    AstNode *lhs_node = &r->ast->nodes[lhs_id];
+    AstNode *rhs_node = &r->ast->nodes[rhs_id];
+
+    TypeId lhs_type = resolve_expression(r, lhs_node, expected_type);
+    if (lhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    TypeId rhs_type = resolve_expression(r, rhs_node, lhs_type);
+    if (rhs_type == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (lhs_type != rhs_type && lhs_node->kind == AST_LITERAL) {
+        lhs_type = resolve_expression(r, lhs_node, rhs_type);
+    }
+
+    switch (binary_op_kind_lut[op]) {
+    case BINARY_OP_ASSIGN:
+        return resolve_binary_op_assign(r, lhs_node, rhs_node, op);
+
+    case BINARY_OP_ADDITIVE:
+        return resolve_binary_op_additive(r, lhs_node, rhs_node, op);
+
+    case BINARY_OP_MULTIPLICATIVE:
+    case BINARY_OP_BITWISE:
+    case BINARY_OP_SHIFT:
+    case BINARY_OP_COMPARISON:
+    case BINARY_OP_LOGICAL:
+        break;
+
+    default:
+        UNREACHABLE("Impossilbe binary operator '%s'", TOKEN_KIND_STRINGS[op]);
+    }
+
+    return TYPE_ID_NONE;
 }
 
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type) {
@@ -352,7 +403,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
             Symbol *parameter_symbol     = &r->symbol_table->symbols[parameter_symbol_id];
 
             TypeId parameter_type_id = parameter_symbol->as.parameter_symbol.type_id;
-            TypeId argument_type_id  = resolve_expression(r, argument_node_id, parameter_type_id);
+            TypeId argument_type_id  = resolve_expression(r, argument_node, parameter_type_id);
 
             if (argument_type_id == TYPE_ID_NONE) {
                 return TYPE_ID_NONE;
@@ -364,7 +415,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
                 return TYPE_ID_NONE;
             }
         } else {
-            resolve_expression(r, argument_node_id, TYPE_ID_NONE);
+            resolve_expression(r, argument_node, TYPE_ID_NONE);
         }
     }
 
@@ -379,6 +430,44 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     }
 
     return return_type_id;
+}
+
+/*
+ *
+ * Binary operatorions!
+ *
+ */
+static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op) {
+    bool emitted_const_error = false;
+
+    if (!is_expression_assignable(r, lhs, &emitted_const_error)) {
+        if (!emitted_const_error) {
+            resolver_lhs_is_not_lvalue(r, lhs);
+        }
+
+        return TYPE_ID_NONE;
+    }
+
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    if (!types_are_assignable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op) {
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    // if (types_are_compatible_in_additive()) {
+    //
+    // }
+
+    return lhs_type;
 }
 
 /*
@@ -526,7 +615,168 @@ static bool is_expression_addressable(Resolver *r, AstNode *node) {
         return node->as.unary_op.op == TOK_STAR;
     }
 
+    case AST_BINARY_OP: {
+        TokenKind op = node->as.binary_op.op;
+
+        if (binary_op_kind_lut[op] != BINARY_OP_ADDITIVE) {
+            return false;
+        }
+
+        AstNode *lhs_node = &r->ast->nodes[node->as.binary_op.lhs];
+        AstNode *rhs_node = &r->ast->nodes[node->as.binary_op.rhs];
+
+        TypeId lhs_type = lhs_node->resolved_type_id;
+        TypeId rhs_type = rhs_node->resolved_type_id;
+
+        if (lhs_type == TYPE_ID_NONE || rhs_type == TYPE_ID_NONE) {
+            return false;
+        }
+
+        bool lhs_is_ptr = type_is_kind(r->type_table, lhs_type, TYPE_POINTER);
+        bool rhs_is_ptr = type_is_kind(r->type_table, rhs_type, TYPE_POINTER);
+
+        bool lhs_is_int = type_is_int(r->builtin_types, lhs_type);
+        bool rhs_is_int = type_is_int(r->builtin_types, rhs_type);
+
+        if (lhs_is_ptr && rhs_is_int) {
+            if (op == TOK_PLUS || op == TOK_MINUS) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        if (lhs_is_int && rhs_is_ptr) {
+            if (op == TOK_PLUS) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
     default:
         return false;
+    }
+}
+
+static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_const_error) {
+    if (!is_expression_addressable(r, node)) {
+        return false;
+    }
+
+    switch (node->kind) {
+    case AST_IDENTIFIER: {
+        if (node->resolved_symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+            return false;
+        }
+
+        const Symbol *symbol = &r->symbol_table->symbols[node->resolved_symbol_id];
+
+        if (symbol->flags & AST_FLAG_CONSTANT) {
+            if (type_is_kind(r->type_table, node->resolved_type_id, TYPE_POINTER)) {
+                return true;
+            }
+
+            resolver_cannot_reassign_constant(r, node);
+
+            *emitted_const_error = true;
+
+            return false;
+        }
+
+        return true;
+    }
+
+    case AST_MEMBER_ACCESS: {
+        if (node->resolved_symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+            return false;
+        }
+
+        const Symbol *symbol = &r->symbol_table->symbols[node->resolved_symbol_id];
+
+        switch (symbol->kind) {
+        case SYMBOL_VARIABLE: {
+            if (symbol->flags & AST_FLAG_CONSTANT) {
+                if (type_is_kind(r->type_table, node->resolved_type_id, TYPE_POINTER)) {
+                    return true;
+                }
+
+                resolver_cannot_reassign_constant(r, node);
+
+                *emitted_const_error = true;
+
+                return false;
+            }
+
+            return true;
+        }
+
+        case SYMBOL_FIELD: {
+            return is_expression_assignable(r, &r->ast->nodes[node->as.member_access.object], emitted_const_error);
+        }
+
+        default: {
+            return false;
+        }
+        }
+    }
+
+    case AST_INDEX: {
+        return is_expression_assignable(r, &r->ast->nodes[node->as.index.identifier], emitted_const_error);
+    }
+
+    case AST_UNARY_OP: {
+        return node->as.unary_op.op == TOK_STAR &&
+               is_expression_assignable(r, &r->ast->nodes[node->as.unary_op.operand], emitted_const_error);
+    }
+
+    case AST_BINARY_OP: {
+        TokenKind op = node->as.binary_op.op;
+
+        if (binary_op_kind_lut[op] != BINARY_OP_ADDITIVE) {
+            return false;
+        }
+
+        AstNode *lhs_node = &r->ast->nodes[node->as.binary_op.lhs];
+        AstNode *rhs_node = &r->ast->nodes[node->as.binary_op.rhs];
+
+        TypeId lhs_type = lhs_node->resolved_type_id;
+        TypeId rhs_type = rhs_node->resolved_type_id;
+
+        if (lhs_type == TYPE_ID_NONE || rhs_type == TYPE_ID_NONE) {
+            return false;
+        }
+
+        bool lhs_is_ptr = type_is_kind(r->type_table, lhs_type, TYPE_POINTER);
+        bool rhs_is_ptr = type_is_kind(r->type_table, rhs_type, TYPE_POINTER);
+
+        bool lhs_is_int = type_is_int(r->builtin_types, lhs_type);
+        bool rhs_is_int = type_is_int(r->builtin_types, rhs_type);
+
+        if (lhs_is_ptr && rhs_is_int) {
+            if (op == TOK_PLUS || op == TOK_MINUS) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        if (lhs_is_int && rhs_is_ptr) {
+            if (op == TOK_PLUS) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    default: {
+        return false;
+    }
     }
 }

@@ -145,6 +145,37 @@ void resolver_cannot_apply_unary_op(Resolver *r, AstNode *node, char op, TypeId 
     );
 }
 
+void resolver_cannot_reassign_constant(Resolver *r, AstNode *node, StringId name_id) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+    str8 name = r->interner->entries[name_id].str;
+
+    snprintf(msg.ptr, msg.len, "cannot reassign constant '%.*s'", STR8_FMT(name));
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        "only constant pointers can be reassigned"
+    );
+}
+
+void resolver_lhs_is_not_lvalue(Resolver *r, AstNode *node) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        "cannot assign a value to an rvalue",
+        "is not an lvalue"
+    );
+}
+
 /*
  *
  * Type diagnostics

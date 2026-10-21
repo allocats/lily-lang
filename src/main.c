@@ -1,4 +1,3 @@
-#include <stdio.h>
 #define MEOWRENA_IMPL
 #include "meowrena/meowrena.h"
 #undef MEOWRENA_IMPL
@@ -10,6 +9,7 @@
 #include "workspace/workspace.h"
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 Driver driver = {0};

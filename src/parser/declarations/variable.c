@@ -49,6 +49,7 @@ AstNodeId parse_variable_declaration(Parser *p) {
 
     node = parser_get_node(p, id);
 
+    node->as.variable_decl.type_expr = type_expression_id;
     node->flags |= type_expression_node->flags;
 
     if (parser_check(p, TOK_EQ)) {
