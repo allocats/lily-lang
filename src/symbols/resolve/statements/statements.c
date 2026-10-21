@@ -33,6 +33,7 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
 
     symbol->kind        = SYMBOL_VARIABLE;
     symbol->state       = RESOLVE_RESOLVING;
+    symbol->flags       = node->flags;
     symbol->file_id     = r->file->id;
     symbol->ast_node_id = node->id;
 
