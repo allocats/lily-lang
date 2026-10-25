@@ -16,9 +16,14 @@
 bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     assert(node->kind == AST_VARIABLE_DECL);
 
-    StringId global_string_id = global_string_from_local_id(node->as.variable_decl.name);
+    StringId global_string_id = node->as.variable_decl.name;
 
-    node->as.variable_decl.name = global_string_id;
+    if (node->as.variable_decl.name_convertd_to_global == false) {
+        global_string_id = global_string_from_local_id(node->as.variable_decl.name);
+
+        node->as.variable_decl.name                    = global_string_id;
+        node->as.variable_decl.name_convertd_to_global = true;
+    }
 
     SymbolId symbol_id = global_symbol_table_lookup(r->symbol_table, r->scope_id, global_string_id);
 
@@ -60,7 +65,7 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
         }
 
         if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, expr_type_id)) {
-            resolver_mismatched_types(r, node, type_id, expr_type_id);
+            resolver_mismatched_types(r, init_expr_node, type_id, expr_type_id);
             symbol->state = RESOLVE_ERROR;
             return false;
         }

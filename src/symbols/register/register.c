@@ -270,7 +270,8 @@ static void register_enum(Registrar *r, AstNode *node) {
 static void register_variable(Registrar *r, AstNode *node) {
     StringId global_name_id = global_string_from_local_id(node->as.variable_decl.name);
 
-    node->as.variable_decl.name = global_name_id;
+    node->as.variable_decl.name                    = global_name_id;
+    node->as.variable_decl.name_convertd_to_global = true;
 
     SymbolId id = local_table_lookup(r->table, r->scope_id, global_name_id);
 

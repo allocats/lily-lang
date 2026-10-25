@@ -63,6 +63,7 @@
     X(AST_STRUCT_FIELD_INIT) \
                              \
     X(AST_TYPE_BASE)         \
+    X(AST_TYPE_SLICE)        \
     X(AST_TYPE_ARRAY)        \
     X(AST_TYPE_POINTER)      \
     X(AST_TYPE_FUNCTION)     \
@@ -200,6 +201,7 @@ typedef struct {
 } AstVariantDeclaration;
 
 typedef struct {
+    bool name_convertd_to_global;
     StringId name;
     AstNodeId type_expr;
     AstNodeId init_expr;
@@ -367,6 +369,10 @@ typedef struct {
 typedef struct {
     AstNodeId expr;
 } AstTypeBase;
+
+typedef struct {
+    AstNodeId element;
+} AstTypeSlice;
 
 typedef struct {
     AstNodeId element;

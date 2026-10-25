@@ -23,6 +23,7 @@ typedef struct {
     union {
         TypePointer pointer_type;
         TypeArray array_type;
+        TypeSlice slice_type;
         TypeStruct struct_type;
         TypeUnion union_type;
         TypeEnum enum_type;

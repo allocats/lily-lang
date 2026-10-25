@@ -16,6 +16,7 @@
 #include "symbols/symbol/kinds.h"
 #include "symbols/table/global/table.h"
 #include "types/builtins/types.h"
+#include "types/entries/entries.h"
 #include "utils/macros.h"
 #include "utils/types.h"
 #include "workspace/types.h"
@@ -44,28 +45,35 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id);
 
 static bool resolve_function(Resolver *r, SymbolId id);
 static bool resolve_import(Resolver *r, SymbolId id);
+static bool resolve_variable(Resolver *r, SymbolId id);
 static bool resolve_block(Resolver *r, AstNodeId id);
 
-void resolve_symbols(Workspace *ws) {
+bool resolve_symbols(Workspace *ws) {
     u32 count = ws->global_symbol_table.symbol_count;
 
     main_string_id = global_string_intern_cstr(&ws->global_string_interner, "main");
 
     assert(main_string_id != GLOBAL_STRING_ID_NONE);
 
+    bool result = true;
+
     for (SymbolId i = 0; i < count; i += 1) {
-        resolve_symbol(ws, i);
+        if (!resolve_symbol(ws, i)) {
+            result = false;
+        }
     }
 
     if (ws->entry_point_id == GLOBAL_SYMBOL_ID_NONE) {
         diagnostic_add_generic(
             &driver.global_diagnostic_engine,
             DIAG_ERROR,
-            "no entrypoint function (main) found for Workspace %u(%.*s)",
+            "no entrypoint function (main) found for Workspace %u (%.*s)",
             ws->id,
             STR8_FMT(ws->name)
         );
     }
+
+    return result;
 }
 
 bool resolve_symbol(Workspace *ws, SymbolId id) {
@@ -104,7 +112,12 @@ bool resolve_symbol(Workspace *ws, SymbolId id) {
             str8 help = DIAGNOSTIC_ALLOC_MSG(diagnostic_engine);
 
             snprintf(msg.ptr, msg.len, "'%.*s' embeds itself recursively", STR8_FMT(name));
-            snprintf(help.ptr, help.len, "add indirection: *%.*s", STR8_FMT(name));
+
+            if (symbol->kind == SYMBOL_STRUCT || symbol->kind == SYMBOL_UNION || symbol->kind == SYMBOL_ENUM) {
+                snprintf(help.ptr, help.len, "add indirection: *%.*s", STR8_FMT(name));
+            } else {
+                snprintf(help.ptr, help.len, "invalid declaration value '%.*s'", STR8_FMT(name));
+            }
 
             diagnostic_add_token_span(
                 &driver.global_diagnostic_engine,
@@ -186,6 +199,9 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     case SYMBOL_IMPORT:
         return resolve_import(&r, id);
 
+    case SYMBOL_VARIABLE:
+        return resolve_variable(&r, id);
+
     case SYMBOL_ERROR:
         return false;
 
@@ -241,6 +257,7 @@ bool resolve_function_signature(Resolver *r, SymbolId id) {
     const AstNode *node = &file->ast.nodes[symbol->ast_node_id];
 
     r->file     = file;
+    r->ast      = &file->ast;
     r->scope_id = file->scope_id;
 
     symbol->as.function_symbol.scope_id = resolver_enter_scope(r);
@@ -315,6 +332,7 @@ bool resolve_function_signature(Resolver *r, SymbolId id) {
      *
      */
     r->file     = r_file_restore;
+    r->ast      = &r_file_restore->ast;
     r->scope_id = r_scope_restore;
 
     if (result == true) {
@@ -491,6 +509,78 @@ static bool resolve_import(Resolver *r, SymbolId id) {
     symbol->as.import_symbol.scope_id = file->scope_id;
 
     return true;
+}
+
+static bool resolve_variable(Resolver *r, SymbolId id) {
+    Symbol *symbol = &r->symbol_table->symbols[id];
+
+    File *file    = r->ws->file_interner.entries[symbol->file_id];
+    AstNode *node = &file->ast.nodes[symbol->ast_node_id];
+
+    node->resolved_symbol_id = id;
+
+    /*
+     *
+     * Backup the state!
+     *
+     */
+    ScopeId r_scope_id = r->scope_id;
+    File *r_file       = r->file;
+
+    /*
+     *
+     * Set the new state
+     *
+     */
+    r->scope_id = file->scope_id;
+    r->file     = file;
+    r->ast      = &file->ast;
+
+    bool result = true;
+
+    /*
+     *
+     * Resolve the variable here, as the name has been made global already
+     *
+     *
+     */
+    assert(node->kind == AST_VARIABLE_DECL);
+
+    TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
+
+    if (type_id == TYPE_ID_NONE) {
+        result = false;
+    }
+
+    node->resolved_type_id = type_id;
+
+    if (result && node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+        AstNodeId init_expr_id  = node->as.variable_decl.init_expr;
+        AstNode *init_expr_node = &r->ast->nodes[init_expr_id];
+
+        TypeId init_expr_type_id = resolve_expression(r, init_expr_node, type_id);
+
+        if (init_expr_type_id == TYPE_ID_NONE) {
+            result = false;
+        }
+
+        if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, init_expr_type_id)) {
+            result = false;
+
+            resolver_mismatched_types(r, init_expr_node, type_id, init_expr_type_id);
+        }
+    }
+
+    /*
+     *
+     * Restore the state
+     *
+     */
+    r->scope_id = r_scope_id;
+    r->file     = r_file;
+    r->ast      = &r_file->ast;
+
+    return result;
 }
 
 static bool resolve_block(Resolver *r, AstNodeId id) {

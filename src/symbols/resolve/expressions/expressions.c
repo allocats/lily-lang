@@ -15,6 +15,7 @@
 #include "symbols/symbol/types.h"
 #include "symbols/table/global/table.h"
 #include "tokens/kinds.h"
+#include "tokens/types.h"
 #include "types/builtins/types.h"
 #include "types/entries/entries.h"
 #include "types/entries/kinds.h"
@@ -31,6 +32,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type);
+static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_type);
 
 /*
  *
@@ -39,6 +41,11 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
  */
 static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
 static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
+static TypeId resolve_binary_op_multiplicative(Resolver *r, AstNode *lhs, AstNode *rhs);
+static TypeId resolve_binary_op_bitwise(Resolver *r, AstNode *lhs, AstNode *rhs);
+static TypeId resolve_binary_op_shift(Resolver *r, AstNode *lhs, AstNode *rhs);
+static TypeId resolve_binary_op_comparison(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
+static TypeId resolve_binary_op_logical(Resolver *r, AstNode *lhs, AstNode *rhs);
 
 static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node);
 
@@ -69,7 +76,11 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
         return resolve_function_call(r, node, expected_type);
 
     case AST_INDEX:
+        break;
+
     case AST_MEMBER_ACCESS:
+        return resolve_member_access(r, node, expected_type);
+
     case AST_STRUCT_LITERAL:
         break;
 
@@ -137,7 +148,8 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
     }
 
     case LITERAL_STRING: {
-        return r->builtin_types.type_string;
+        // return r->builtin_types.type_string;
+        return type_table_intern_pointer(r->type_table, r->builtin_types.type_u8);
     }
 
     case LITERAL_FLOATING: {
@@ -271,11 +283,19 @@ static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type
         return resolve_binary_op_additive(r, lhs_node, rhs_node, op);
 
     case BINARY_OP_MULTIPLICATIVE:
+        return resolve_binary_op_multiplicative(r, lhs_node, rhs_node);
+
     case BINARY_OP_BITWISE:
+        return resolve_binary_op_bitwise(r, lhs_node, rhs_node);
+
     case BINARY_OP_SHIFT:
+        return resolve_binary_op_shift(r, lhs_node, rhs_node);
+
     case BINARY_OP_COMPARISON:
+        return resolve_binary_op_comparison(r, lhs_node, rhs_node, op);
+
     case BINARY_OP_LOGICAL:
-        break;
+        return resolve_binary_op_logical(r, lhs_node, rhs_node);
 
     default:
         UNREACHABLE("Impossilbe binary operator '%s'", TOKEN_KIND_STRINGS[op]);
@@ -432,6 +452,18 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     return return_type_id;
 }
 
+static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_type) {
+    SymbolId id = resolve_symbol_from_identifier(r, node);
+
+    if (id == GLOBAL_SYMBOL_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    node->resolved_symbol_id = id;
+
+    return symbol_get_type(r->symbol_table, id);
+}
+
 /*
  *
  * Binary operatorions!
@@ -451,9 +483,60 @@ static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, 
     TypeId lhs_type = lhs->resolved_type_id;
     TypeId rhs_type = rhs->resolved_type_id;
 
-    if (!types_are_assignable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
-        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
-        return TYPE_ID_NONE;
+    if (type_is_kind(r->type_table, lhs_type, TYPE_POINTER)) {
+        if (op == TOK_EQ) {
+            if (!types_are_assignable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+                resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+                return TYPE_ID_NONE;
+            }
+        } else if (op == TOK_PLUS_EQ || op == TOK_MINUS_EQ) {
+            if (!type_is_int(r->builtin_types, rhs_type)) {
+                DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+                diagnostic_add_token_span(
+                    engine,
+                    r->file,
+                    DIAG_ERROR,
+                    rhs->tokens,
+                    "pointer arithmetic requires an integer",
+                    "expression does not evaluate to an integer"
+                );
+
+                return TYPE_ID_NONE;
+            }
+        } else {
+            DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+            u32 index = lhs->tokens.end + 1;
+
+            Token *token = &r->file->tokens.items[index];
+
+            str8 token_string = {
+                .ptr = r->file->buffer.ptr + token->start,
+                .len = token->length
+            };
+
+            str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+            snprintf(msg.ptr, msg.len, "can't use the '%.*s' operator in pointer assignment", STR8_FMT(token_string));
+
+            diagnostic_add_token(
+                engine,
+                r->file,
+                DIAG_ERROR,
+                token,
+                DIAG_LOC_WHOLE_TOK,
+                msg.ptr,
+                "only the '=', '+=', and '-=' operators are allowed here"
+            );
+
+            return TYPE_ID_NONE;
+        }
+    } else {
+        if (!types_are_assignable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+            resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+            return TYPE_ID_NONE;
+        }
     }
 
     return lhs_type;
@@ -463,11 +546,261 @@ static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs
     TypeId lhs_type = lhs->resolved_type_id;
     TypeId rhs_type = rhs->resolved_type_id;
 
-    // if (types_are_compatible_in_additive()) {
-    //
-    // }
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    bool lhs_is_ptr = type_is_kind(r->type_table, lhs_type, TYPE_POINTER);
+    bool rhs_is_ptr = type_is_kind(r->type_table, rhs_type, TYPE_POINTER);
+
+    if (lhs_is_ptr) {
+        switch (op) {
+        case TOK_PLUS: {
+            if (!type_is_int(r->builtin_types, rhs_type)) {
+                diagnostic_add_token_span(
+                    &driver.global_diagnostic_engine,
+                    r->file,
+                    DIAG_ERROR,
+                    rhs->tokens,
+                    "pointer arithmetic requires an integer",
+                    "expression does not evaluate to an integer"
+                );
+
+                return TYPE_ID_NONE;
+            }
+
+            return lhs_type;
+        }
+
+        case TOK_MINUS: {
+            if (type_is_int(r->builtin_types, rhs_type)) {
+                return lhs_type;
+            }
+
+            if (rhs_is_ptr) {
+                return lhs_type;
+            }
+
+            diagnostic_add_token_span(
+                &driver.global_diagnostic_engine,
+                r->file,
+                DIAG_ERROR,
+                rhs->tokens,
+                "invalid operand for pointer subtraction",
+                "expected an integer or a pointer here"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        default: {
+            UNREACHABLE("Impossible case %s", TOKEN_KIND_STRINGS[op]);
+        }
+        }
+    }
+
+    if (rhs_is_ptr) {
+        if (type_is_int(r->builtin_types, lhs_type) && op == TOK_PLUS) {
+            return rhs_type;
+        }
+
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            rhs->tokens,
+            "can't subtract a pointer from a non-pointer",
+            "try swapping the operands"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_numeric(r->builtin_types, lhs_type)) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            lhs->tokens,
+            "invalid operand in arithmetic",
+            "expected a numeric type e.g i32, f64"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_numeric(r->builtin_types, rhs_type)) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            rhs->tokens,
+            "invalid operand in arithmetic",
+            "expected a numeric type e.g i32, f64"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (!types_are_arithmeticable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
 
     return lhs_type;
+}
+
+static TypeId resolve_binary_op_multiplicative(Resolver *r, AstNode *lhs, AstNode *rhs) {
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    if (!types_are_arithmeticable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_binary_op_bitwise(Resolver *r, AstNode *lhs, AstNode *rhs) {
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    if (!type_is_int(r->builtin_types, lhs_type) && lhs_type != r->builtin_types.type_bool) {
+        resolver_expected_int(r, rhs, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_int(r->builtin_types, rhs_type) && rhs_type != r->builtin_types.type_bool) {
+        resolver_expected_int(r, rhs, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!types_are_arithmeticable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_binary_op_shift(Resolver *r, AstNode *lhs, AstNode *rhs) {
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    if (!type_is_int(r->builtin_types, lhs_type)) {
+        resolver_expected_int(r, rhs, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_unsigned_int(r->builtin_types, rhs_type)) {
+        resolver_expected_unsigned_int(r, rhs, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!types_are_arithmeticable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    return lhs_type;
+}
+
+static TypeId resolve_binary_op_comparison(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op) {
+    static constexpr bool lut[TYPE_KIND_COUNT] = {
+        [TYPE_ARRAY]    = false,
+        [TYPE_BASE]     = true,
+        [TYPE_ENUM]     = true,
+        [TYPE_ERROR]    = false,
+        [TYPE_FUNCTION] = false,
+        [TYPE_POINTER]  = true,
+        [TYPE_SLICE]    = false,
+        [TYPE_STRUCT]   = false,
+        [TYPE_UNION]    = false,
+    };
+
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    TypeKind lhs_kind = r->type_table->entries[lhs_type].kind;
+    TypeKind rhs_kind = r->type_table->entries[rhs_type].kind;
+
+    if (!lut[lhs_kind]) {
+        resolver_type_is_not_comparable(r, lhs, lhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!lut[rhs_kind]) {
+        resolver_type_is_not_comparable(r, rhs, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (!types_are_comparable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
+        resolver_cannot_compare_types(r, rhs, lhs_type, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (lhs_type == r->builtin_types.type_bool) {
+        if (op != TOK_BANG_EQ && op != TOK_EQ_EQ) {
+            Token *token = &r->file->tokens.items[lhs->tokens.end + 1];
+
+            str8 operator = {
+                .ptr = r->file->buffer.ptr + token->start,
+                .len = token->length
+            };
+
+            str8 msg = DIAGNOSTIC_ALLOC_MSG((&driver.global_diagnostic_engine));
+
+            snprintf(msg.ptr, msg.len, "cannot compare booleans with the '%.*s' operator", STR8_FMT(operator));
+
+            diagnostic_add_token(
+                &driver.global_diagnostic_engine,
+                r->file,
+                DIAG_ERROR,
+                token,
+                DIAG_LOC_WHOLE_TOK,
+                msg.ptr,
+                "only the '!=' and '==' operators can be used on booleans"
+            );
+
+            return TYPE_ID_NONE;
+        }
+    }
+
+    return r->builtin_types.type_bool;
+}
+
+static TypeId resolve_binary_op_logical(Resolver *r, AstNode *lhs, AstNode *rhs) {
+    TypeId lhs_type = lhs->resolved_type_id;
+    TypeId rhs_type = rhs->resolved_type_id;
+
+    assert(lhs_type != TYPE_ID_NONE);
+    assert(rhs_type != TYPE_ID_NONE);
+
+    TypeId bool_type_id = r->builtin_types.type_bool;
+
+    if (lhs_type != bool_type_id) {
+        resolver_mismatched_types(r, lhs, bool_type_id, lhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    if (rhs_type != bool_type_id) {
+        resolver_mismatched_types(r, rhs, bool_type_id, rhs_type);
+        return TYPE_ID_NONE;
+    }
+
+    return bool_type_id;
 }
 
 /*
@@ -516,6 +849,49 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
         }
 
         Symbol *object_symbol = &r->symbol_table->symbols[object_id];
+
+        if (object_symbol->kind == SYMBOL_VARIABLE || object_symbol->kind == SYMBOL_PARAMETER) {
+            TypeId type_id = TYPE_ID_NONE;
+
+            if (object_symbol->kind == SYMBOL_VARIABLE) {
+                type_id = object_symbol->as.variable_symbol.type_id;
+            } else {
+                type_id = object_symbol->as.parameter_symbol.type_id;
+            }
+
+            Type *type = &r->type_table->entries[type_id];
+
+            /*
+             *
+             * Auto dereferencing 
+             *
+             */
+            while (type->kind == TYPE_POINTER) {
+                type = &r->type_table->entries[type->as.pointer_type.pointee_id];
+            }
+
+            if (type->symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+                DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+                str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+                str8 name = r->interner->entries[object_symbol->name_id].str;
+
+                snprintf(msg.ptr, msg.len, "'%.*s' has no member scope", STR8_FMT(name));
+
+                diagnostic_add_token_span(
+                    engine,
+                    r->file,
+                    DIAG_ERROR,
+                    object_node->tokens,
+                    msg.ptr,
+                    "type is not a structure"
+                );
+
+                return GLOBAL_SYMBOL_ID_NONE;
+            }
+
+            object_symbol = &r->symbol_table->symbols[type->symbol_id];
+        }
 
         ScopeId object_scope_id = symbol_get_members_scope(object_symbol);
 
@@ -680,7 +1056,7 @@ static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_c
                 return true;
             }
 
-            resolver_cannot_reassign_constant(r, node);
+            resolver_cannot_reassign_constant(r, node, symbol->name_id);
 
             *emitted_const_error = true;
 
@@ -704,7 +1080,7 @@ static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_c
                     return true;
                 }
 
-                resolver_cannot_reassign_constant(r, node);
+                resolver_cannot_reassign_constant(r, node, symbol->name_id);
 
                 *emitted_const_error = true;
 

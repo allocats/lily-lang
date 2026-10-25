@@ -173,6 +173,58 @@ TypeId type_table_intern_pointer(TypeTable *table, TypeId pointee_type_id) {
     return id;
 }
 
+TypeId type_table_intern_slice(TypeTable *table, TypeId element_type_id) {
+    assert(table != null);
+    assert(element_type_id != TYPE_ID_NONE);
+
+    if (UNLIKELY(table->structural_count >= table->structural_resize_threshold_as_u32)) {
+        resize_structural_buckets(table);
+    }
+
+    u32 hash  = hash_u32_with_base(hash_u32(TYPE_SLICE), element_type_id);
+    u32 mask  = table->structural_capacity - 1;
+    u32 index = hash & mask;
+
+    while (table->structural_buckets[index].id != TYPE_ID_NONE) {
+        TypeBucket bucket = table->structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            Type entry = table->entries[bucket.id];
+
+            if (entry.kind == TYPE_SLICE && entry.as.slice_type.element_id == element_type_id) {
+                return bucket.id;
+            }
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    if (UNLIKELY(table->entry_count >= table->entry_resize_threshold_as_u32)) {
+        resize_entries(table);
+    }
+
+    TypeId id = table->entry_count++;
+
+    table->structural_buckets[index].id   = id;
+    table->structural_buckets[index].hash = hash;
+
+    table->structural_count += 1;
+
+    Type *type = &table->entries[id];
+
+    type->hash = hash;
+    type->kind = TYPE_SLICE;
+
+    type->symbol_id = GLOBAL_SYMBOL_ID_NONE;
+
+    type->alignment = alignof(void *);
+    type->size      = sizeof(void *);
+
+    type->as.slice_type.element_id = element_type_id;
+
+    return id;
+}
+
 /*
  *
  * Lookups
@@ -219,6 +271,31 @@ TypeId type_table_lookup_pointer(TypeTable *table, TypeId pointee_type_id) {
             Type entry = table->entries[bucket.id];
 
             if (entry.kind == TYPE_POINTER && entry.as.pointer_type.pointee_id == pointee_type_id) {
+                return bucket.id;
+            }
+        }
+
+        index = (index + 1) & mask;
+    }
+
+    return TYPE_ID_NONE;
+}
+
+TypeId type_table_lookup_slice(TypeTable *table, TypeId element_type_id) {
+    assert(table != null);
+    assert(element_type_id != TYPE_ID_NONE);
+
+    u32 hash  = hash_u32_with_base(hash_u32(TYPE_SLICE), element_type_id);
+    u32 mask  = table->structural_capacity - 1;
+    u32 index = hash & mask;
+
+    while (table->structural_buckets[index].id != TYPE_ID_NONE) {
+        TypeBucket bucket = table->structural_buckets[index];
+
+        if (bucket.hash == hash) {
+            Type entry = table->entries[bucket.id];
+
+            if (entry.kind == TYPE_SLICE && entry.as.slice_type.element_id == element_type_id) {
                 return bucket.id;
             }
         }

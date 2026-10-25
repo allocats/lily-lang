@@ -57,7 +57,6 @@ typedef struct {
 
     pthread_mutex_t mutex;
 
-    Arena buffer_arena;
     Arena interner_arena;
 } FileInterner;
 

@@ -108,6 +108,7 @@ typedef struct {
          * types
          */
         AstTypeBase base_type;
+        AstTypeSlice slice_type;
         AstTypeArray array_type;
         AstTypePointer pointer_type;
         AstTypeFunction function_type;

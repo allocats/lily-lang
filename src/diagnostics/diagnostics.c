@@ -2,6 +2,7 @@
 #include "cli/cli.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
+#include "files/types.h"
 #include "utils/debug.h"
 #include "utils/macros.h"
 #include "workspace/workspace.h"
@@ -14,7 +15,7 @@
 
 extern Driver driver;
 
-static constexpr u64 diagnostic_init_arena_size_kb = 4;
+static constexpr u64 diagnostic_init_arena_size_kb = 16;
 static constexpr u64 diagnostic_default_threshold  = 32;
 
 static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagnostic_init_arena_size_kb));
@@ -26,7 +27,7 @@ static_assert(sizeof(Diagnostic) * diagnostic_default_threshold < ARENA_KB(diagn
  */
 
 void diagnostic_engine_init(DiagnosticEngine *engine) {
-    arena_init(&engine->arena, ARENA_KB(diagnostic_init_arena_size_kb), ALIGN_DEFAULT);
+    arena_init(&engine->arena, diagnostic_init_arena_size_kb, ALIGN_DEFAULT);
     debug_log("Init diagnostic's arena with %luKB", diagnostic_init_arena_size_kb);
 
     engine->diags    = arena_alloc_array(&engine->arena, Diagnostic, diagnostic_default_threshold);
@@ -206,8 +207,10 @@ void diagnostic_add_generic(DiagnosticEngine *engine, DiagKind kind, char *fmt, 
 }
 
 void diagnostic_add_token(DiagnosticEngine *engine, File *file, DiagKind kind, Token *tok, u8 loc, const char *msg, const char *help) {
-    if (kind == DIAG_ERROR)
+    if (kind == DIAG_ERROR) {
         engine->error_count++;
+        file->stage = FILE_ERROR;
+    }
 
     if (engine->count >= engine->threshold_value) {
         engine->count++;
@@ -273,8 +276,10 @@ void diagnostic_add_token(DiagnosticEngine *engine, File *file, DiagKind kind, T
 }
 
 void diagnostic_add_token_span(DiagnosticEngine *engine, File *file, DiagKind kind, SpanU32 span, const char *msg, const char *help) {
-    if (kind == DIAG_ERROR)
+    if (kind == DIAG_ERROR) {
         engine->error_count++;
+        file->stage = FILE_ERROR;
+    }
 
     if (engine->count >= engine->threshold_value) {
         engine->count++;

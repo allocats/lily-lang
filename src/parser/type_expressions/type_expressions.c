@@ -22,7 +22,8 @@ extern thread_local ThreadContext thread_context;
 
 typedef enum {
     TYPE_MOD_POINTER,
-    TYPE_MOD_ARRAY
+    TYPE_MOD_ARRAY,
+    TYPE_MOD_SLICE
 } TypeModifierKind;
 
 typedef struct {
@@ -60,7 +61,7 @@ AstNodeId parse_type_expression(Parser *p) {
                     &token,
                     DIAG_LOC_START_OF_TOK,
                     "too many type modifiers",
-                    "type expression has too many pointer/array modifiers"
+                    "type expression has too many pointer/array/slice modifiers"
                 );
 
                 AstNodeId id = parser_create_node(p);
@@ -81,8 +82,26 @@ AstNodeId parse_type_expression(Parser *p) {
             parser_advance(p);
 
             if (parser_check(p, TOK_R_BRACKET)) {
+                if (modifier_count >= type_modifier_max) {
+                    Token closing_bracket = parser_peek(p);
+
+                    diagnostic_add_token(
+                        thread_context.diagnostic_engine,
+                        p->file,
+                        DIAG_ERROR,
+                        &closing_bracket,
+                        DIAG_LOC_START_OF_TOK,
+                        "too many type modifiers",
+                        "type expression has too many pointer/array/slice modifiers"
+                    );
+
+                    AstNodeId id = parser_create_node(p);
+
+                    return parser_error(p, id, RECOVERY_EXPRESSION);
+                }
+
                 modifiers[modifier_count++] = (TypeModifier){
-                    .kind      = TYPE_MOD_ARRAY,
+                    .kind      = TYPE_MOD_SLICE,
                     .size_expr = AST_NODE_ID_NONE
                 };
 
@@ -122,7 +141,7 @@ AstNodeId parse_type_expression(Parser *p) {
                     &token,
                     DIAG_LOC_END_OF_TOK,
                     "too many type modifiers",
-                    "type expression has too many pointer/array modifiers"
+                    "type expression has too many pointer/array/slice modifiers"
                 );
 
                 AstNodeId id = parser_create_node(p);
@@ -331,6 +350,14 @@ AstNodeId parse_type_expression(Parser *p) {
             array_node->as.array_type.size_expr = modifier.size_expr;
 
             id = array_id;
+        } else if (modifier.kind == TYPE_MOD_SLICE) {
+            AstNodeId slice_id  = parser_create_node(p);
+            AstNode *slice_node = parser_get_node(p, slice_id);
+
+            slice_node->kind                  = AST_TYPE_SLICE;
+            slice_node->as.slice_type.element = id;
+
+            id = slice_id;
         }
     }
 

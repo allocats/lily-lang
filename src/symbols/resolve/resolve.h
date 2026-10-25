@@ -4,7 +4,7 @@
 #include "symbols/resolve/types.h"
 #include "workspace/types.h"
 
-void resolve_symbols(Workspace *ws);
+bool resolve_symbols(Workspace *ws);
 bool resolve_symbol(Workspace *ws, SymbolId id);
 bool resolve_function_signature(Resolver *r, SymbolId id);
 

@@ -1,5 +1,6 @@
 #include "workspace/workspace.h"
 #include "ast/types.h"
+#include "codegen/codegen.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "files/types.h"
@@ -204,11 +205,17 @@ void compile_workspace(Workspace *ws) {
         &ws->builtin_types
     );
 
-    resolve_symbols(ws);
+    if (!resolve_symbols(ws)) {
+        timer_end(&ws->frontend_timer);
+        return;
+    }
 
     timer_end(&ws->frontend_timer);
 
     timer_start(&ws->backend_timer);
+
+    codegen(ws);
+
     timer_end(&ws->backend_timer);
 
     timer_start(&ws->linker_timer);

@@ -38,7 +38,6 @@ static constexpr u32 init_bucket_size = init_cap * sizeof(FileBucket);
 static constexpr u32 init_entry_size  = init_cap * sizeof(File *);
 
 static constexpr u32 init_interner_kb = 4;
-static constexpr u32 init_buffer_mb   = 32;
 
 static void resize_buckets(FileInterner *interner);
 static void resize_entries(FileInterner *interner);
@@ -61,12 +60,7 @@ void file_interner_init(FileInterner *interner) {
     arena_init(&interner->interner_arena, ARENA_KB(init_interner_kb), ALIGN_DEFAULT);
     debug_log("Init interner arena with %uKB", ARENA_KB(init_interner_kb));
 
-    arena_init(&interner->buffer_arena, ARENA_MB(init_buffer_mb), ALIGN_DEFAULT);
-    debug_log("Init buffer arena with %uMB", ARENA_KB(init_buffer_mb));
-
-    // interner -> buckets = arena_alloc(&interner -> interner_arena, init_bucket_size);
     interner->buckets = lily_alloc(init_bucket_size);
-    // interner -> entries = arena_calloc(&interner -> interner_arena, init_entry_size);
     interner->entries = lily_alloc(init_entry_size);
 
     interner->bucket_capacity = init_cap;
@@ -92,7 +86,6 @@ inline void file_interner_destroy(FileInterner *interner) {
     }
 
     arena_destroy(&interner->interner_arena);
-    arena_destroy(&interner->buffer_arena);
 
     free(interner->buckets);
     free(interner->entries);
@@ -308,6 +301,7 @@ static void file_init(File *file, FileId id, str8 path, u32 path_hash, str8 buff
 inline void file_destroy(File *file) {
     assert(file);
 
+    free(file->buffer.ptr);
     free(file->path.ptr);
 
     token_array_destroy(&file->tokens);
@@ -331,7 +325,7 @@ static bool allocate_buffer(FileInterner *interner, str8 path, str8 *buffer) {
 
     pthread_mutex_lock(&interner->mutex);
 
-    buffer->ptr = arena_calloc(&interner->buffer_arena, buffer_size);
+    buffer->ptr = lily_calloc(buffer_size, sizeof(char));
     buffer->len = buffer_size;
 
     pthread_mutex_unlock(&interner->mutex);

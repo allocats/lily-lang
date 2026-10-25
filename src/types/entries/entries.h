@@ -11,8 +11,11 @@ bool type_is_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_signed_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_unsigned_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_float(BuiltinTypeIds builtins, TypeId id);
+bool type_is_numeric(BuiltinTypeIds builtins, TypeId id);
 
 bool types_are_assignable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);
+bool types_are_arithmeticable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);
+bool types_are_comparable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);
 
 bool type_can_cast_to(TypeTable *table, BuiltinTypeIds *builtins, TypeId from, TypeId to);
 

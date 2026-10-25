@@ -1,3 +1,4 @@
+#include "symbols/resolve/errors/errors.h"
 #include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "symbols/resolve/types.h"
@@ -297,6 +298,7 @@ void resolver_mismatched_types(Resolver *r, AstNode *node, TypeId expected, Type
     str8 found_str    = type_to_diagnostic_str(r, engine, found);
 
     str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
     snprintf(msg.ptr, msg.len, "expected '%s', but found '%s'", expected_str.ptr, found_str.ptr);
 
     char *help_ptr = null;
@@ -316,5 +318,101 @@ void resolver_mismatched_types(Resolver *r, AstNode *node, TypeId expected, Type
         node->tokens,
         msg.ptr,
         help_ptr
+    );
+}
+
+void resolver_cannot_compare_types(Resolver *r, AstNode *node, TypeId lhs, TypeId rhs) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 lhs_str = type_to_diagnostic_str(r, engine, lhs);
+    str8 rhs_str = type_to_diagnostic_str(r, engine, rhs);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+    snprintf(msg.ptr, msg.len, "cannot compare types '%s' and '%s'", lhs_str.ptr, rhs_str.ptr);
+
+    char *help_ptr = null;
+
+    if (type_can_cast_to(r->type_table, &r->builtin_types, rhs, lhs)) {
+        str8 help = DIAGNOSTIC_ALLOC_MSG(engine);
+
+        snprintf(help.ptr, help.len, "try casting to '%s', cast(%s)(...)", lhs_str.ptr, lhs_str.ptr);
+
+        help_ptr = help.ptr;
+    }
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        help_ptr
+    );
+}
+
+void resolver_expected_unsigned_int(Resolver *r, AstNode *node, TypeId found) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 found_str = type_to_diagnostic_str(r, engine, found);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+    snprintf(msg.ptr, msg.len, "expected an unsigned integer, but found '%s'", found_str.ptr);
+
+    char *help_ptr = null;
+
+    if (type_is_signed_int(r->builtin_types, found)) {
+        str8 help = DIAGNOSTIC_ALLOC_MSG(engine);
+
+        snprintf(help.ptr, help.len, "try casting to unsigned integer, cast(32)(...)");
+
+        help_ptr = help.ptr;
+    }
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        help_ptr
+    );
+}
+
+void resolver_expected_int(Resolver *r, AstNode *node, TypeId found) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 found_str = type_to_diagnostic_str(r, engine, found);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+    snprintf(msg.ptr, msg.len, "expected an integer, but found '%s'", found_str.ptr);
+
+    char *help_ptr = null;
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        help_ptr
+    );
+}
+
+void resolver_type_is_not_comparable(Resolver *r, AstNode *node, TypeId found) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    str8 found_str = type_to_diagnostic_str(r, engine, found);
+
+    str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+    snprintf(msg.ptr, msg.len, "'%s' cannot be used in comparisons", found_str.ptr);
+
+    diagnostic_add_token_span(
+        engine,
+        r->file,
+        DIAG_ERROR,
+        node->tokens,
+        msg.ptr,
+        "only base types, pointers, and enums maybe be used in comparisons"
     );
 }

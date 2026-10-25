@@ -17,6 +17,7 @@
     X(TYPE_ERROR)    \
     X(TYPE_FUNCTION) \
     X(TYPE_POINTER)  \
+    X(TYPE_SLICE)    \
     X(TYPE_STRUCT)   \
     X(TYPE_UNION)    \
     X(TYPE_KIND_COUNT)
@@ -45,6 +46,10 @@ typedef struct {
     TypeId element_id;
     u64 size;
 } TypeArray;
+
+typedef struct {
+    TypeId element_id;
+} TypeSlice;
 
 typedef struct {
     TypeId *fields;
