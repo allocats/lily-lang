@@ -87,6 +87,20 @@ typedef struct {
 
     /*
      *
+     * Declarations block
+     *
+     */
+    LLVMBasicBlockRef declarations_block;
+
+    /*
+     *
+     * Current block;
+     *
+     */
+    LLVMBasicBlockRef current_block;
+
+    /*
+     *
      * The current workspace
      *
      */

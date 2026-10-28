@@ -126,7 +126,12 @@ static bool codegen_file(const File *file) {
     memset(ctx->string_map, 0, string_map_size);
     memset(ctx->symbol_map, 0, symbol_map_size);
 
+    // ===== va list ptr ======
     ctx->llvm_ap_address = null;
+
+    // ===== blocks ======
+    ctx->declarations_block = null;
+    ctx->current_block      = null;
 
     /*
      *
@@ -248,8 +253,11 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
     bool result = true;
 
     ctx->is_release_mode = false; // TODO: make this actually work
-    ctx->emit_llvm_ir    = false; // TODO: make this actually work
+    ctx->emit_llvm_ir    = true;  // TODO: make this actually work
     ctx->build_directory = build_directory;
+
+    ctx->declarations_block = null;
+    ctx->current_block      = null;
 
     /*
      *

@@ -134,8 +134,18 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
         parameter_count -= 1;
     }
 
-    LLVMBasicBlockRef entry_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, function, "entry");
-    LLVMPositionBuilderAtEnd(ctx->llvm_builder, entry_block);
+    /*
+     *  ================================
+     *
+     *      Declarations (Alloca)
+     *
+     *  ================================
+     */
+
+    LLVMBasicBlockRef declaration_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, function, "declarations");
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, declaration_block);
+
+    ctx->declarations_block = declaration_block;
 
     for (u32 i = 0; i < parameter_count; i += 1) {
         const SymbolId parameter_id    = symbol->as.function_symbol.parameters[i];
@@ -143,14 +153,36 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
 
         LLVMTypeRef parameter_type     = type_to_llvm_type(parameter_symbol->as.parameter_symbol.type_id);
         LLVMValueRef parameter_address = LLVMBuildAlloca(ctx->llvm_builder, parameter_type, "");
-        LLVMValueRef parameter_value   = LLVMGetParam(function, i);
-
-        LLVMBuildStore(ctx->llvm_builder, parameter_value, parameter_address);
 
         ctx->symbol_map[parameter_id] = parameter_address;
     }
 
+    /*
+     *  ===============================
+     *
+     *      Entry (Store params)    
+     *
+     *  ===============================
+     */
+
+    LLVMBasicBlockRef entry_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, function, "entry");
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, entry_block);
+
+    ctx->current_block = entry_block;
+
+    for (u32 i = 0; i < parameter_count; i += 1) {
+        const SymbolId parameter_id = symbol->as.function_symbol.parameters[i];
+
+        LLVMValueRef parameter_address = ctx->symbol_map[parameter_id];
+        LLVMValueRef parameter_value   = LLVMGetParam(function, i);
+
+        LLVMBuildStore(ctx->llvm_builder, parameter_value, parameter_address);
+    }
+
     if (is_variadic) {
+        // Set the builder to the stack allocations block
+        LLVMPositionBuilderAtEnd(ctx->llvm_builder, ctx->declarations_block);
+
         LLVMTypeRef types[4] = {
             LLVMInt32TypeInContext(ctx->llvm_ctx),
             LLVMInt32TypeInContext(ctx->llvm_ctx),
@@ -163,6 +195,9 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
         LLVMSetAlignment(ap_address, 16);
 
         ctx->llvm_ap_address = ap_address;
+
+        // Reset the builder back to the current block
+        LLVMPositionBuilderAtEnd(ctx->llvm_builder, ctx->current_block);
 
         const u32 intrinsic_id = LLVMLookupIntrinsicID("llvm.va_start", sizeof("llvm.va_start") - 1);
         assert(intrinsic_id != 0);
@@ -183,6 +218,14 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
         LLVMBuildCall2(ctx->llvm_builder, va_start_type, va_start_fn, args, 1, "");
     }
 
+    /*
+     *  ======================
+     *
+     *      Function Body
+     *
+     *  ======================
+     */
+
     const AstNode *block = &ctx->file->ast.nodes[node->as.func_decl.body];
 
     for (u32 i = 0; i < block->as.block.statements.count; i += 1) {
@@ -193,6 +236,17 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
     }
 
     LLVMBuildRetVoid(ctx->llvm_builder);
+
+    /*
+     *  ===================================
+     *
+     *      Terminate the declarations
+     *
+     *  ===================================
+     */
+
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, declaration_block);
+    LLVMBuildBr(ctx->llvm_builder, entry_block);
 
     return true;
 }
