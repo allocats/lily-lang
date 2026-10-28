@@ -253,7 +253,7 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
     bool result = true;
 
     ctx->is_release_mode = false; // TODO: make this actually work
-    ctx->emit_llvm_ir    = true;  // TODO: make this actually work
+    ctx->emit_llvm_ir    = false; // TODO: make this actually work
     ctx->build_directory = build_directory;
 
     ctx->declarations_block = null;
