@@ -13,10 +13,10 @@
 #include "utils/wrappers.h"
 
 #include <assert.h>
+#include <stdio.h>
 
 #include <llvm-c/Core.h>
 #include <llvm-c/Types.h>
-#include <stdio.h>
 
 extern thread_local ThreadContext thread_context;
 
@@ -45,7 +45,17 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
         return codegen_intrsinic_function(ctx, symbol_id, symbol);
     }
 
-    str8 name = ctx->ws->global_string_interner.entries[symbol->name_id].str;
+    str8 function_name = ctx->ws->global_string_interner.entries[symbol->name_id].str;
+    str8 mangled_name  = {0};
+
+    if (symbol_id == ctx->ws->entry_point_id || symbol->flags & AST_FLAG_FOREIGN) {
+        mangled_name = function_name;
+    } else {
+        const u32 mangled_name_len = function_name.len + 16;
+
+        mangled_name.ptr = lily_alloc(mangled_name_len);
+        mangled_name.len = snprintf(mangled_name.ptr, mangled_name_len, "%.*s_%u", STR8_FMT(function_name), symbol_id);
+    }
 
     TypeId return_type_id = symbol->as.function_symbol.return_type_id;
     assert(return_type_id != TYPE_ID_NONE);
@@ -76,7 +86,7 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
     }
 
     LLVMTypeRef function_type = LLVMFunctionType(return_type, parameter_types, parameter_count, is_variadic);
-    LLVMValueRef function     = LLVMGetOrInsertFunction(ctx->llvm_module, name.ptr, name.len, function_type);
+    LLVMValueRef function     = LLVMGetOrInsertFunction(ctx->llvm_module, mangled_name.ptr, mangled_name.len, function_type);
 
     if (symbol->flags & AST_FLAG_INLINE) {
         u32 attribute_index = LLVMGetEnumAttributeKindForName("alwaysinline", 12);
@@ -154,7 +164,7 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
 
         ctx->llvm_ap_address = ap_address;
 
-        u32 intrinsic_id = LLVMLookupIntrinsicID("llvm.va_start", sizeof("llvm.va_start") - 1);
+        const u32 intrinsic_id = LLVMLookupIntrinsicID("llvm.va_start", sizeof("llvm.va_start") - 1);
         assert(intrinsic_id != 0);
 
         LLVMTypeRef va_start_overload_types[] = {LLVMPointerTypeInContext(ctx->llvm_ctx, 0)};
@@ -191,7 +201,7 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
  *
  * ===========================================
  *
- *                  Intriniscs
+ *                 Intriniscs
  *
  * ===========================================
  * 
@@ -209,7 +219,7 @@ static LLVMValueRef codegen_intrsinic_function(CodegenCtx *ctx, const SymbolId i
 
     snprintf(full_name.ptr, full_name.len + 1, "llvm.%.*s", STR8_FMT(fn_name));
 
-    u32 intrinsic_id = LLVMLookupIntrinsicID(full_name.ptr, full_name.len);
+    const u32 intrinsic_id = LLVMLookupIntrinsicID(full_name.ptr, full_name.len);
 
     if (intrinsic_id == 0) {
         diagnostic_add_generic(
