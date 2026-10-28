@@ -197,6 +197,7 @@ static bool codegen_file(const File *file) {
         char *ir = LLVMPrintModuleToString(ctx->llvm_module);
 
         FILE *fp = fopen(path, "w+");
+
         if (!fp) {
             diagnostic_add_generic(
                 thread_context.diagnostic_engine,
@@ -204,6 +205,10 @@ static bool codegen_file(const File *file) {
                 "LLVM: Unable to dump LLVM IR to %s",
                 path
             );
+
+            LLVMDisposeModule(ctx->llvm_module);
+            LLVMDisposeMessage(ir);
+
             return false;
         }
 
@@ -211,6 +216,7 @@ static bool codegen_file(const File *file) {
         fprintf(fp, "%s", ir);
 
         fclose(fp);
+        LLVMDisposeMessage(ir);
     }
 
     LLVMDisposeModule(ctx->llvm_module);
@@ -291,15 +297,21 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
         result = false;
     }
 
+    char *cpu          = LLVMGetHostCPUName();
+    char *cpu_features = LLVMGetHostCPUFeatures();
+
     ctx->llvm_target_machine = LLVMCreateTargetMachine(
         ctx->llvm_target,
         ctx->llvm_host_triple_str,
-        "generic",
-        "",
+        cpu,
+        cpu_features,
         ctx->is_release_mode ? LLVMCodeGenLevelDefault : LLVMCodeGenLevelNone,
         LLVMRelocPIC,
         LLVMCodeModelDefault
     );
+
+    LLVMDisposeMessage(cpu);
+    LLVMDisposeMessage(cpu_features);
 
     ctx->llvm_data_target = LLVMCreateTargetDataLayout(ctx->llvm_target_machine);
 
@@ -316,6 +328,7 @@ static void codegen_context_destroy(CodegenCtx *ctx) {
     LLVMDisposePassBuilderOptions(ctx->llvm_pass_builder_options);
     LLVMDisposeTargetMachine(ctx->llvm_target_machine);
     LLVMDisposeMessage(ctx->llvm_host_triple_str);
+    LLVMDisposeTargetData(ctx->llvm_data_target);
 }
 
 /*

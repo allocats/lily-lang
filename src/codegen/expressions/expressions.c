@@ -97,8 +97,20 @@ static LLVMValueRef codegen_identifier(CodegenCtx *ctx, const AstNode *node) {
         return codegen_function_signature(ctx, symbol_id);
     }
 
-    case SYMBOL_VARIANT:
-        break;
+    case SYMBOL_VARIANT: {
+        if (ctx->symbol_map[symbol_id] != null) {
+            return ctx->symbol_map[symbol_id];
+        }
+
+        Type *type_entry = &ctx->ws->type_table.entries[symbol->as.variant_symbol.type_id];
+
+        LLVMTypeRef underlying_type = type_to_llvm_type(type_entry->as.enum_type.underlying_type_id);
+        LLVMValueRef value          = LLVMConstInt(underlying_type, symbol->as.variant_symbol.value, 0);
+
+        ctx->symbol_map[symbol_id] = value;
+
+        return value;
+    }
 
     default:
         UNREACHABLE("Impossible SymbolKind %s", SYMBOL_KIND_STRINGS[symbol->kind]);

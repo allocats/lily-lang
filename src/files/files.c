@@ -305,6 +305,10 @@ inline void file_destroy(File *file) {
 
     token_array_destroy(&file->tokens);
     ast_destroy(&file->ast);
+
+    if (file->object_path.ptr) {
+        free(file->object_path.ptr);
+    }
 }
 
 static bool allocate_buffer(FileInterner *interner, str8 path, str8 *buffer) {
