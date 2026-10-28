@@ -265,7 +265,6 @@ static void resize_entries(FileInterner *interner) {
     u64 old_size = interner->entry_capacity * sizeof(File *);
     u64 new_size = old_size * 2;
 
-    // interner -> entries = arena_realloc(&interner -> interner_arena, interner -> entries, old_size, new_size);
     interner->entries = lily_realloc(interner->entries, new_size);
     interner->entry_capacity *= 2;
 

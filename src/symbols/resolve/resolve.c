@@ -58,6 +58,14 @@ bool resolve_symbols(Workspace *ws) {
     bool result = true;
 
     for (SymbolId i = 0; i < count; i += 1) {
+        Symbol *symbol = &ws->global_symbol_table.symbols[i];
+
+        if (symbol->file_id != FILE_ID_NONE) {
+            File *file               = ws->file_interner.entries[symbol->file_id];
+            AstNode *node            = &file->ast.nodes[symbol->ast_node_id];
+            node->resolved_symbol_id = i;
+        }
+
         if (!resolve_symbol(ws, i)) {
             result = false;
         }

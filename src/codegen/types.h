@@ -1,6 +1,11 @@
 #ifndef LILY_CODEGEN_TYPES_H
 #define LILY_CODEGEN_TYPES_H
 
+#include "files/types.h"
+#include "workspace/types.h"
+
+#include <llvm-c/TargetMachine.h>
+#include <llvm-c/Transforms/PassBuilder.h>
 #include <llvm-c/Types.h>
 
 typedef struct {
@@ -27,6 +32,13 @@ typedef struct {
 
     /*
      *
+     *
+     *
+     */
+    LLVMTargetDataRef llvm_data_target;
+
+    /*
+     *
      * These three fields are created once, and destroyed at the same time.
      * Indexed using the corresponding IDs.
      *
@@ -37,6 +49,61 @@ typedef struct {
     LLVMValueRef *symbol_map;
     LLVMValueRef *string_map;
     LLVMTypeRef *type_map;
-} CodegenCtx;
+
+    /*
+     *
+     * LLVM Triple on the host machine 
+     *
+     */
+    char *llvm_host_triple_str;
+
+    /*
+     *
+     * LLVM Target Reference
+     *
+     */
+    LLVMTargetRef llvm_target;
+
+    /*
+     *
+     * LLVM Target Machine Reference
+     *
+     */
+    LLVMTargetMachineRef llvm_target_machine;
+
+    /*
+     *
+     * LLVM Pass options
+     *
+     */
+    LLVMPassBuilderOptionsRef llvm_pass_builder_options;
+
+    /*
+     *
+     * VA List pointer
+     *
+     */
+    LLVMValueRef llvm_ap_address;
+
+    /*
+     *
+     * The current workspace
+     *
+     */
+    const Workspace *ws;
+
+    /*
+     *
+     * The current file that is being compiled with LLVM 
+     *
+     */
+    File *file;
+
+    // TODO:
+    bool is_release_mode;
+    bool emit_llvm_ir;
+
+    char *build_directory;
+} __attribute__((aligned(64))) CodegenCtx;
 
 #endif // !LILY_CODEGEN_TYPES_H

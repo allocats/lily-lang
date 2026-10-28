@@ -148,7 +148,7 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
     }
 
     case LITERAL_STRING: {
-        // return r->builtin_types.type_string;
+        node->as.literal.as.string = global_string_from_local_id(node->as.literal.as.string);
         return type_table_intern_pointer(r->type_table, r->builtin_types.type_u8);
     }
 

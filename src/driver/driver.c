@@ -1,5 +1,6 @@
 #include "driver/driver.h"
 #include "ast/types.h"
+#include "codegen/types.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
 #include "driver/types.h"
@@ -96,6 +97,14 @@ void driver_init(Driver *driver, const char *home) {
 
     /*
      *
+     * for each thread there exists a codegen context attached to said thread
+     *
+     */
+    driver->codegen_contexts      = lily_aligned_alloc(alignof(CodegenCtx), sizeof(CodegenCtx) * thread_count);
+    driver->codegen_context_count = thread_count;
+
+    /*
+     *
      * for each thread there exists a string interner attached to said thread
      *
      */
@@ -111,7 +120,7 @@ void driver_init(Driver *driver, const char *home) {
      * for each thread there exists a symbol table attached to said thread
      *
      */
-    driver->local_symbol_tables      = lily_alloc(sizeof(LocalSymbolTable) * thread_count);
+    driver->local_symbol_tables      = lily_aligned_alloc(alignof(LocalSymbolTable), sizeof(LocalSymbolTable) * thread_count);
     driver->local_symbol_table_count = thread_count;
 
     /*

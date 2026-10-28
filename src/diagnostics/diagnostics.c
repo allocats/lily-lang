@@ -169,8 +169,9 @@ static Diagnostic *diagnostic_get_new(DiagnosticEngine *engine) {
  */
 
 void diagnostic_add_generic(DiagnosticEngine *engine, DiagKind kind, char *fmt, ...) {
-    if (kind == DIAG_ERROR)
+    if (kind == DIAG_ERROR) {
         engine->error_count++;
+    }
 
     if (engine->count >= engine->threshold_value) {
         engine->count++;

@@ -1,6 +1,7 @@
 #ifndef LILY_DRIVER_TYPES_H
 #define LILY_DRIVER_TYPES_H
 
+#include "codegen/types.h"
 #include "diagnostics/types.h"
 #include "string_interner/local/types.h"
 #include "symbols/table/local/types.h"
@@ -30,6 +31,9 @@ typedef struct {
 
     DiagnosticEngine *local_diagnostic_engines;
     u8 local_diagnostic_engine_count;
+
+    CodegenCtx *codegen_contexts;
+    u8 codegen_context_count;
 
     ThreadPool thread_pool;
 

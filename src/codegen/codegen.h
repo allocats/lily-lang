@@ -3,6 +3,6 @@
 
 #include "workspace/types.h"
 
-void codegen(Workspace *ws);
+bool codegen(Workspace *ws);
 
 #endif // !LILY_CODEGEN_H

@@ -18,7 +18,6 @@ typedef struct {
     u32 id;
 
     Arena scope_data_arena;
-    // Arena symbol_data_arena;
-} LocalSymbolTable;
+} __attribute__((aligned(64))) LocalSymbolTable;
 
 #endif // !LILY_SYMBOLS_TABLE_LOCAL_TYPES_H

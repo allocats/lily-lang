@@ -3,6 +3,7 @@
 
 #include <pthread.h>
 
+#include "codegen/types.h"
 #include "diagnostics/types.h"
 #include "meowrena/meowrena.h"
 #include "string_interner/local/types.h"
@@ -50,6 +51,8 @@ typedef struct {
     LocalSymbolTable *symbol_table;
 
     DiagnosticEngine *diagnostic_engine;
+
+    CodegenCtx *codegen_ctx;
 } ThreadContext;
 
 #endif // !LILY_THREADPOOL_TYPES_H

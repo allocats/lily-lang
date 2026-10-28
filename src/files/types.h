@@ -34,6 +34,7 @@ typedef struct {
     u32 path_hash;
     str8 path;
     str8 buffer;
+    str8 object_path;
 
     Ast ast;
 
@@ -42,7 +43,8 @@ typedef struct {
     ScopeId scope_id;
 
     u32 lines_of_code;
-} File;
+
+} __attribute__((aligned(64))) File;
 
 typedef struct {
     FileBucket *buckets;

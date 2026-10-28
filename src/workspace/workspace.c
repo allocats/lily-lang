@@ -1,11 +1,14 @@
 #include "workspace/workspace.h"
 #include "ast/types.h"
 #include "codegen/codegen.h"
+#include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "files/types.h"
 #include "ids.h"
 #include "lexer/lexer.h"
+#include "linker/linker.h"
 #include "parser/directives/directives.h"
 #include "parser/parser.h"
 #include "string_interner/global/interner.h"
@@ -214,11 +217,23 @@ void compile_workspace(Workspace *ws) {
 
     timer_start(&ws->backend_timer);
 
-    codegen(ws);
+    if (!codegen(ws)) {
+        timer_end(&ws->backend_timer);
+        return;
+    }
 
     timer_end(&ws->backend_timer);
 
     timer_start(&ws->linker_timer);
+
+    if (linker_run(ws) != 0) {
+        diagnostic_add_generic(
+            &driver.global_diagnostic_engine,
+            DIAG_ERROR,
+            "Linker failed!"
+        );
+    }
+
     timer_end(&ws->linker_timer);
 }
 

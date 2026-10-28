@@ -90,7 +90,8 @@ void threadpool_init(Driver *driver, u32 count) {
             .index             = i,
             .string_interner   = &driver->local_string_interners[i],
             .symbol_table      = &driver->local_symbol_tables[i],
-            .diagnostic_engine = &driver->local_diagnostic_engines[i]
+            .diagnostic_engine = &driver->local_diagnostic_engines[i],
+            .codegen_ctx       = &driver->codegen_contexts[i],
         };
 
         pthread_create(&pool->threads[i], null, threadpool_worker, ctx);

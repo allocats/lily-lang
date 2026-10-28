@@ -98,6 +98,9 @@ SymbolId global_scope_intern(GlobalSymbolTable *table, ScopeId scope_id, StringI
     symbol->name_id = global_string_id;
     symbol->state   = RESOLVE_UNRESOLVED;
 
+    symbol->file_id     = FILE_ID_NONE;
+    symbol->ast_node_id = AST_NODE_ID_NONE;
+
     return id;
 }
 

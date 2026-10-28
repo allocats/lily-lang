@@ -39,8 +39,8 @@ TypeId resolve_type_expression(Resolver *r, AstNodeId expr_id) {
     case AST_TYPE_VARIADIC:
         return r->builtin_types.type_va_list;
 
-        // case AST_TYPE_SLICE:
-        //     return resolve_slice_type(r, node->as.slice_type.element);
+    case AST_TYPE_SLICE:
+        return resolve_slice_type(r, node->as.slice_type.element);
 
         // case AST_TYPE_FUNCTION:
         //     return resolve_function_type(r, node.as.function_type);
