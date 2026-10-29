@@ -48,6 +48,9 @@ static bool resolve_import(Resolver *r, SymbolId id);
 static bool resolve_variable(Resolver *r, SymbolId id);
 static bool resolve_block(Resolver *r, AstNodeId id);
 
+static bool node_returns(Resolver *r, const AstNodeId id);
+static bool check_if_function_returns(Resolver *r, const AstNode *node);
+
 bool resolve_symbols(Workspace *ws) {
     u32 count = ws->global_symbol_table.symbol_count;
 
@@ -190,14 +193,15 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     File *file = ws->file_interner.entries[symbol->file_id];
 
     Resolver r = {
-        .ast           = &file->ast,
-        .builtin_types = ws->builtin_types,
-        .file          = file,
-        .interner      = &ws->global_string_interner,
-        .scope_id      = file->scope_id,
-        .symbol_table  = &ws->global_symbol_table,
-        .type_table    = &ws->type_table,
-        .ws            = ws,
+        .ast               = &file->ast,
+        .builtin_types     = ws->builtin_types,
+        .current_symbol_id = id,
+        .file              = file,
+        .interner          = &ws->global_string_interner,
+        .scope_id          = file->scope_id,
+        .symbol_table      = &ws->global_symbol_table,
+        .type_table        = &ws->type_table,
+        .ws                = ws,
     };
 
     switch (symbol->kind) {
@@ -506,6 +510,19 @@ static bool resolve_function(Resolver *r, SymbolId id) {
      */
     r->scope_id = r_scope_id_restore;
 
+    if (result && node->as.func_decl.return_type_expr != AST_NODE_ID_NONE && !check_if_function_returns(r, node)) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            node->tokens,
+            "function does not return in all control paths",
+            null
+        );
+
+        result = false;
+    }
+
     return result;
 }
 
@@ -611,12 +628,19 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
             break;
         }
 
+        case AST_RETURN_STMT: {
+            if (!resolve_return_statement(r, stmt)) {
+                result = false;
+            }
+
+            break;
+        }
+
         case AST_EXECUTE_DIRECTIVE:
         case AST_IF_STMT:
         case AST_WHILE_LOOP:
         case AST_FOR_LOOP:
         case AST_BLOCK:
-        case AST_RETURN_STMT:
         case AST_DEFER_STMT: {
             break;
         }
@@ -699,4 +723,62 @@ ScopeId resolver_enter_scope(Resolver *r) {
 
 ScopeId resolver_exit_scope(Resolver *r) {
     return r->scope_id = global_scope_exit(r->symbol_table, r->scope_id);
+}
+
+static bool node_returns(Resolver *r, const AstNodeId id) {
+    if (id == AST_NODE_ID_NONE) {
+        return false;
+    }
+
+    const AstNode *node = &r->ast->nodes[id];
+
+    switch (node->kind) {
+    case AST_RETURN_STMT: {
+        return true;
+    }
+
+    case AST_BLOCK: {
+        const AstNodeIdList *list = &node->as.block.statements;
+
+        for (u32 i = 0; i < list->count; i += 1) {
+            if (node_returns(r, list->ids[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    case AST_IF_STMT: {
+        const AstIfStatement *if_stmt = &node->as.if_stmt;
+
+        if (if_stmt->else_block == AST_NODE_ID_NONE) {
+            return false;
+        }
+
+        for (u32 i = 0; i < if_stmt->branches.count; i += 1) {
+            if (!node_returns(r, if_stmt->branches.ids[i])) {
+                return false;
+            }
+        }
+
+        return node_returns(r, if_stmt->else_block);
+    }
+
+    case AST_BRANCH: {
+        return node_returns(r, node->as.branch.body);
+    }
+
+    default: {
+        return false;
+    }
+    }
+}
+
+static bool check_if_function_returns(Resolver *r, const AstNode *node) {
+    if (node->as.func_decl.body == AST_NODE_ID_NONE) {
+        return true;
+    }
+
+    return node_returns(r, node->as.func_decl.body);
 }

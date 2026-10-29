@@ -75,14 +75,14 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
     case AST_FUNCTION_CALL:
         return resolve_function_call(r, node, expected_type);
 
-    case AST_INDEX:
-        break;
-
     case AST_MEMBER_ACCESS:
         return resolve_member_access(r, node, expected_type);
 
+    case AST_INDEX:
+        UNREACHABLE("Index not yet supported");
+
     case AST_STRUCT_LITERAL:
-        break;
+        UNREACHABLE("Struct literal not yet supported");
 
     default:
         UNREACHABLE("Impossilbe expression %s", AST_KIND_STRINGS[node->kind]);

@@ -19,27 +19,31 @@ AstNodeId parse_return_statement(Parser *p) {
     node->kind                = AST_RETURN_STMT;
     node->as.return_stmt.expr = AST_NODE_ID_NONE;
 
+    AstNodeId expression_id = AST_NODE_ID_NONE;
+
     parser_advance(p); // advance past `return`
 
-    AstNodeId expression_id = parse_expression(p);
-
     if (!parser_check(p, TOK_SEMI)) {
-        Token previous = parser_peek_behind_by(p, 1);
+        expression_id = parse_expression(p);
 
-        diagnostic_add_token(
-            thread_context.diagnostic_engine,
-            p->file,
-            DIAG_ERROR,
-            &previous,
-            DIAG_LOC_END_OF_TOK,
-            "expected ';'",
-            "add a ';' here"
-        );
+        if (!parser_check(p, TOK_SEMI)) {
+            Token previous = parser_peek_behind_by(p, 1);
 
-        return parser_error(p, id, RECOVERY_STATEMENT);
+            diagnostic_add_token(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                &previous,
+                DIAG_LOC_END_OF_TOK,
+                "expected ';'",
+                "add a ';' here"
+            );
+
+            return parser_error(p, id, RECOVERY_STATEMENT);
+        }
+
+        node = parser_get_node(p, id);
     }
-
-    node = parser_get_node(p, id);
 
     node->tokens.end          = p->cursor;
     node->as.return_stmt.expr = expression_id;

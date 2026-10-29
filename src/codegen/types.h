@@ -8,6 +8,32 @@
 #include <llvm-c/Transforms/PassBuilder.h>
 #include <llvm-c/Types.h>
 
+/* 
+ *
+ * =========================================
+ *
+ *   Block result to check for termination
+ *
+ * =========================================
+ * 
+ */
+
+typedef enum {
+    BLOCK_ERROR,
+    BLOCK_TERMINATED,
+    BLOCK_NOT_TERMINATED,
+} BlockResult;
+
+/* 
+ *
+ * ==========================================
+ *
+ *      Codegen Context, holds everything 
+ *
+ * ==========================================
+ * 
+ */
+
 typedef struct {
     /*
      *

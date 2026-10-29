@@ -48,6 +48,11 @@ typedef struct {
      * Builtin types -> ws.builtin_types
      */
     BuiltinTypeIds builtin_types;
+
+    /*
+     * Current symbol
+     */
+    SymbolId current_symbol_id;
 } Resolver;
 
 #endif // !LILY_SYMBOLS_RESOLVE_TYPES_H

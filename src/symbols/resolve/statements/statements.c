@@ -1,6 +1,8 @@
 #include "symbols/resolve/statements/statements.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
+#include "diagnostics/diagnostics.h"
+#include "driver/types.h"
 #include "ids.h"
 #include "resolver_stack/types.h"
 #include "string_interner/global/interner.h"
@@ -8,10 +10,21 @@
 #include "symbols/resolve/expressions/expressions.h"
 #include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/symbol/kinds.h"
+#include "symbols/symbol/symbol.h"
 #include "symbols/table/global/table.h"
 #include "types/entries/entries.h"
 
 #include <assert.h>
+
+extern Driver driver;
+
+/*
+ *  ==============================
+ *
+ *      Variable Declarations
+ *
+ *  ==============================
+ */
 
 bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     assert(node->kind == AST_VARIABLE_DECL);
@@ -72,6 +85,59 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     }
 
     symbol->state = RESOLVE_RESOLVED;
+
+    return true;
+}
+
+/*
+ *  ==============================
+ *
+ *      Return statements      
+ *
+ *  ==============================
+ */
+
+bool resolve_return_statement(Resolver *r, AstNode *node) {
+    assert(node->kind == AST_RETURN_STMT);
+
+    TypeId return_type_id = symbol_get_type(r->symbol_table, r->current_symbol_id);
+
+    if (return_type_id == TYPE_ID_NONE) {
+        return false;
+    }
+
+    node->resolved_type_id = return_type_id;
+
+    if (node->as.return_stmt.expr == AST_NODE_ID_NONE) {
+        if (return_type_id == r->builtin_types.type_void) {
+            return true;
+        } else {
+            AstNode *expression = &r->ast->nodes[node->as.return_stmt.expr];
+
+            TypeId expression_type_id = resolve_expression(r, expression, return_type_id);
+
+            if (expression_type_id == TYPE_ID_NONE) {
+                return false;
+            }
+
+            resolver_mismatched_types(r, node, return_type_id, expression_type_id);
+
+            return false;
+        }
+    }
+
+    AstNode *expression = &r->ast->nodes[node->as.return_stmt.expr];
+
+    TypeId expression_type_id = resolve_expression(r, expression, return_type_id);
+
+    if (expression_type_id == TYPE_ID_NONE) {
+        return false;
+    }
+
+    if (!types_are_assignable(r->type_table, &r->builtin_types, return_type_id, expression_type_id)) {
+        resolver_mismatched_types(r, node, return_type_id, expression_type_id);
+        return false;
+    }
 
     return true;
 }

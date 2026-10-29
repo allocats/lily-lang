@@ -1,7 +1,7 @@
 #include "ast/types.h"
 #include "codegen/declarations/declarations.h"
 #include "codegen/declarations/intrinsics/intrinsics.h"
-#include "codegen/expressions/expressions.h"
+#include "codegen/statements/statements.h"
 #include "codegen/types.h"
 #include "codegen/types/types.h"
 #include "diagnostics/diagnostics.h"
@@ -228,14 +228,15 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
 
     const AstNode *block = &ctx->file->ast.nodes[node->as.func_decl.body];
 
-    for (u32 i = 0; i < block->as.block.statements.count; i += 1) {
-        const AstNodeId stmt_id  = block->as.block.statements.ids[i];
-        const AstNode *stmt_node = &ctx->file->ast.nodes[stmt_id];
+    const BlockResult result = codegen_block(ctx, block);
 
-        codegen_expression(ctx, stmt_node);
+    if (result == BLOCK_ERROR) {
+        return false;
     }
 
-    LLVMBuildRetVoid(ctx->llvm_builder);
+    if (result == BLOCK_NOT_TERMINATED) {
+        LLVMBuildRetVoid(ctx->llvm_builder);
+    }
 
     /*
      *  ===================================
