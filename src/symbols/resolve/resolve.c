@@ -633,6 +633,27 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
                 result = false;
             }
 
+            if (i != node->as.block.statements.count - 1) {
+                diagnostic_add_token_span(
+                    &driver.global_diagnostic_engine,
+                    r->file,
+                    DIAG_ERROR,
+                    stmt->tokens,
+                    "statements after this 'return' are never executed",
+                    null
+                );
+
+                result = false;
+            }
+
+            break;
+        }
+
+        case AST_DEFER_STMT: {
+            if (!resolve_defer_statement(r, stmt)) {
+                result = false;
+            }
+
             break;
         }
 
@@ -640,8 +661,7 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
         case AST_IF_STMT:
         case AST_WHILE_LOOP:
         case AST_FOR_LOOP:
-        case AST_BLOCK:
-        case AST_DEFER_STMT: {
+        case AST_BLOCK: {
             break;
         }
 

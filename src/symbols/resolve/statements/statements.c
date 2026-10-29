@@ -1,7 +1,6 @@
 #include "symbols/resolve/statements/statements.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
-#include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "ids.h"
 #include "resolver_stack/types.h"
@@ -85,6 +84,29 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     }
 
     symbol->state = RESOLVE_RESOLVED;
+
+    return true;
+}
+/*
+ *  =========================
+ *
+ *      Defer statements      
+ *
+ *  =========================
+ */
+
+bool resolve_defer_statement(Resolver *r, AstNode *node) {
+    assert(node->kind == AST_DEFER_STMT);
+
+    AstNode *expression = &r->ast->nodes[node->as.defer_stmt.expr];
+
+    TypeId expression_type_id = resolve_expression(r, expression, TYPE_ID_NONE);
+
+    if (expression_type_id == TYPE_ID_NONE) {
+        return false;
+    }
+
+    node->resolved_type_id = expression_type_id;
 
     return true;
 }
