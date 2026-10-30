@@ -34,6 +34,16 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
         const AstNode *statement_node = &ctx->file->ast.nodes[statement_id];
 
         switch (statement_node->kind) {
+        case AST_BLOCK: {
+            BlockResult result = codegen_block(ctx, statement_node);
+
+            if (result == BLOCK_ERROR || result == BLOCK_TERMINATED) {
+                return result;
+            }
+
+            break;
+        }
+
         case AST_BINARY_OP:
         case AST_FUNCTION_CALL: {
             if (!codegen_expression(ctx, statement_node)) {
