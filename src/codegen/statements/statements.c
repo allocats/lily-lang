@@ -1,6 +1,7 @@
 #include "codegen/statements/statements.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
+#include "codegen/defers/defers.h"
 #include "codegen/expressions/expressions.h"
 #include "codegen/types.h"
 #include "ids.h"
@@ -26,6 +27,8 @@ static bool codegen_return_statement(CodegenCtx *ctx, const AstNode *node);
 BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
     assert(node->kind == AST_BLOCK);
 
+    defer_context_enter(ctx);
+
     for (u32 i = 0; i < node->as.block.statements.count; i += 1) {
         const AstNodeId statement_id  = node->as.block.statements.ids[i];
         const AstNode *statement_node = &ctx->file->ast.nodes[statement_id];
@@ -40,8 +43,15 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
             break;
         }
 
+        case AST_DEFER_STMT: {
+            defer_context_append(ctx, statement_node->as.defer_stmt.expr);
+
+            break;
+        }
+
         case AST_RETURN_STMT: {
             if (codegen_return_statement(ctx, statement_node)) {
+                defer_context_exit(ctx);
                 return BLOCK_TERMINATED;
             }
 
@@ -52,6 +62,12 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
             UNREACHABLE("Impossible statement %s", AST_KIND_STRINGS[statement_node->kind]);
         }
     }
+
+    if (!defer_context_emit_current_stack(ctx)) {
+        return BLOCK_ERROR;
+    }
+
+    defer_context_exit(ctx);
 
     return BLOCK_NOT_TERMINATED;
 }
@@ -68,6 +84,35 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
 
 static bool codegen_return_statement(CodegenCtx *ctx, const AstNode *node) {
     assert(node->kind == AST_RETURN_STMT);
+
+    // ================ Emit deferred statments ===================
+    if (!defer_context_emit_all_stacks(ctx)) {
+        return false;
+    }
+
+    // ================ emit llvm.va_end ==================
+
+    if (ctx->llvm_ap_address != null) {
+        const u32 intrinsic_id = LLVMLookupIntrinsicID("llvm.va_end", sizeof("llvm.va_end") - 1);
+        assert(intrinsic_id != 0);
+
+        LLVMTypeRef va_end_overload_types[] = {LLVMPointerTypeInContext(ctx->llvm_ctx, 0)};
+        LLVMValueRef va_end_fn              = LLVMGetIntrinsicDeclaration(
+            ctx->llvm_module,
+            intrinsic_id,
+            va_end_overload_types,
+            1
+        );
+
+        LLVMTypeRef param_types[] = {LLVMPointerTypeInContext(ctx->llvm_ctx, 0)};
+        LLVMTypeRef va_end_type   = LLVMFunctionType(LLVMVoidTypeInContext(ctx->llvm_ctx), param_types, 1, 0);
+
+        LLVMValueRef args[] = {ctx->llvm_ap_address};
+
+        LLVMBuildCall2(ctx->llvm_builder, va_end_type, va_end_fn, args, 1, "");
+    }
+
+    // ================ Actual return ===================
 
     if (node->as.return_stmt.expr == AST_NODE_ID_NONE) {
         LLVMBuildRetVoid(ctx->llvm_builder);

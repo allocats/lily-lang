@@ -634,16 +634,26 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
             }
 
             if (i != node->as.block.statements.count - 1) {
+                const u32 remaining_statements = node->as.block.statements.count - i - 1;
+
+                DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+                str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+                const char *fmt = remaining_statements == 1
+                                      ? "%u statement is never executed after this 'return'"
+                                      : "%u statements are never executed after this 'return'";
+
+                snprintf(msg.ptr, msg.len, fmt, remaining_statements);
+
                 diagnostic_add_token_span(
-                    &driver.global_diagnostic_engine,
+                    engine,
                     r->file,
-                    DIAG_ERROR,
+                    DIAG_WARNING,
                     stmt->tokens,
-                    "statements after this 'return' are never executed",
+                    msg.ptr,
                     null
                 );
-
-                result = false;
             }
 
             break;

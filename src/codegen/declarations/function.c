@@ -235,6 +235,29 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
     }
 
     if (result == BLOCK_NOT_TERMINATED) {
+
+        // ============= emit llvm.va_end ==============
+        if (is_variadic) {
+            const u32 intrinsic_id = LLVMLookupIntrinsicID("llvm.va_end", sizeof("llvm.va_end") - 1);
+            assert(intrinsic_id != 0);
+
+            LLVMTypeRef va_end_overload_types[] = {LLVMPointerTypeInContext(ctx->llvm_ctx, 0)};
+            LLVMValueRef va_end_fn              = LLVMGetIntrinsicDeclaration(
+                ctx->llvm_module,
+                intrinsic_id,
+                va_end_overload_types,
+                1
+            );
+
+            LLVMTypeRef param_types[] = {LLVMPointerTypeInContext(ctx->llvm_ctx, 0)};
+            LLVMTypeRef va_end_type   = LLVMFunctionType(LLVMVoidTypeInContext(ctx->llvm_ctx), param_types, 1, 0);
+
+            LLVMValueRef args[] = {ctx->llvm_ap_address};
+
+            LLVMBuildCall2(ctx->llvm_builder, va_end_type, va_end_fn, args, 1, "");
+        }
+
+        // ============= implicit 'return' ==============
         LLVMBuildRetVoid(ctx->llvm_builder);
     }
 

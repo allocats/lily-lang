@@ -26,6 +26,32 @@ typedef enum {
 
 /* 
  *
+ * =========================================
+ *
+ *                Defer stack
+ *
+ * =========================================
+ * 
+ */
+
+typedef struct DeferStack DeferStack;
+
+typedef struct DeferStack {
+    AstNodeId *ids;
+    u32 count;
+    u32 capacity;
+
+    DeferStack *previous;
+} DeferStack;
+
+typedef struct {
+    DeferStack *stack;
+
+    Arena arena;
+} DeferContext;
+
+/* 
+ *
  * ==========================================
  *
  *      Codegen Context, holds everything 
@@ -144,6 +170,10 @@ typedef struct {
     bool emit_llvm_ir;
 
     char *build_directory;
+
+    // ====== Defer Context ======
+    DeferContext defer_ctx;
+
 } __attribute__((aligned(64))) CodegenCtx;
 
 #endif // !LILY_CODEGEN_TYPES_H

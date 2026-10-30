@@ -133,6 +133,10 @@ static bool codegen_file(const File *file) {
     ctx->declarations_block = null;
     ctx->current_block      = null;
 
+    // ===== defers ======
+    ctx->defer_ctx.stack = null;
+    arena_reset(&ctx->defer_ctx.arena);
+
     /*
      *
      * Walk the AST and perform codegen
@@ -259,6 +263,10 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
     ctx->declarations_block = null;
     ctx->current_block      = null;
 
+    // ====== Defer context ======
+    ctx->defer_ctx.stack = null;
+    arena_init(&ctx->defer_ctx.arena, ARENA_KB(4), ALIGN_DEFAULT);
+
     /*
      *
      * Main contexts
@@ -330,6 +338,8 @@ static void codegen_context_destroy(CodegenCtx *ctx) {
     free(ctx->type_map);
     free(ctx->string_map);
     free(ctx->symbol_map);
+
+    arena_destroy(&ctx->defer_ctx.arena);
 
     LLVMDisposeBuilder(ctx->llvm_builder);
     LLVMContextDispose(ctx->llvm_ctx);
