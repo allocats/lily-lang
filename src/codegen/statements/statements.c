@@ -4,7 +4,10 @@
 #include "codegen/defers/defers.h"
 #include "codegen/expressions/expressions.h"
 #include "codegen/types.h"
+#include "codegen/types/types.h"
 #include "ids.h"
+#include "types/entries/entries.h"
+#include "types/entries/kinds.h"
 #include "utils/macros.h"
 
 #include <assert.h>
@@ -13,6 +16,9 @@
 
 // ====== Returns ======
 static bool codegen_return_statement(CodegenCtx *ctx, const AstNode *node);
+
+// ====== Variable Declaration =======
+static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node);
 
 /* 
  *
@@ -39,6 +45,14 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
 
             if (result == BLOCK_ERROR || result == BLOCK_TERMINATED) {
                 return result;
+            }
+
+            break;
+        }
+
+        case AST_VARIABLE_DECL: {
+            if (!codegen_variable_declaration(ctx, statement_node)) {
+                return BLOCK_ERROR;
             }
 
             break;
@@ -134,6 +148,57 @@ static bool codegen_return_statement(CodegenCtx *ctx, const AstNode *node) {
     LLVMValueRef value = codegen_expression(ctx, expression);
 
     LLVMBuildRet(ctx->llvm_builder, value);
+
+    return true;
+}
+
+/* 
+ *
+ * ==================================
+ *
+ *        Variable Declaration
+ *
+ * ==================================
+ * 
+ */
+
+static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node) {
+    assert(node->kind == AST_VARIABLE_DECL);
+
+    LLVMTypeRef type = type_to_llvm_type(node->resolved_type_id);
+
+    // Move builder to the declarations block
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, ctx->declarations_block);
+
+    LLVMValueRef address = LLVMBuildAlloca(ctx->llvm_builder, type, "");
+
+    ctx->symbol_map[node->resolved_symbol_id] = address;
+
+    // Reposition builder back to the function block
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, ctx->current_block);
+
+    if (node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+        const AstNodeId expression_id  = node->as.variable_decl.init_expr;
+        const AstNode *expression_node = &ctx->file->ast.nodes[expression_id];
+
+        LLVMValueRef value = codegen_expression(ctx, expression_node);
+
+        if (value == null) {
+            return false;
+        }
+
+        LLVMBuildStore(ctx->llvm_builder, value, address);
+    } else {
+        if (type_is_kind((TypeTable *)&ctx->ws->type_table, node->resolved_type_id, TYPE_POINTER)) {
+            LLVMValueRef null_value = LLVMConstPointerNull(type);
+
+            if (null_value == null) {
+                return false;
+            }
+
+            LLVMBuildStore(ctx->llvm_builder, null_value, address);
+        }
+    }
 
     return true;
 }
