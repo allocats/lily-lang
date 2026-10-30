@@ -461,8 +461,14 @@ static AstNodeId parse_primary(Parser *p) {
         node->tokens.start -= 1;
         node->tokens.end = node->tokens.start;
 
+        token.start += 1;
+        token.length -= 2;
+
         node->as.literal.kind      = LITERAL_STRING;
         node->as.literal.as.string = local_string_intern_token(thread_context.string_interner, p->file, token);
+
+        token.start -= 1;
+        token.length += 2;
 
         return id;
     }

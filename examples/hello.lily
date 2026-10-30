@@ -1,5 +1,5 @@
 #import "std/io";
 
 main :: fn() {
-    println("Hello there, from lily :3");
+    println("Hello lily <3");
 }
