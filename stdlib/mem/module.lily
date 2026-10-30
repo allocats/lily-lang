@@ -1,6 +1,7 @@
-calloc  :: foreign fn(size: usize) -> *void;
-malloc  :: foreign fn(size: usize) -> *void;
-realloc :: foreign fn(ptr: *void, size: isize) -> *void;
+calloc        :: foreign fn(size: usize) -> *void;
+malloc        :: foreign fn(size: usize) -> *void;
+realloc       :: foreign fn(ptr: *void, size: usize) -> *void;
+aligned_alloc :: foreign fn(alignment: usize, size: usize) -> *void;
 
 free :: foreign fn(ptr: *void);
 

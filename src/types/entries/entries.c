@@ -42,7 +42,7 @@ bool types_are_assignable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs
      *
      */
     if (type_is_kind(table, lhs, TYPE_POINTER) && type_is_kind(table, rhs, TYPE_POINTER)) {
-        return table->entries[lhs].as.pointer_type.pointee_id == builtins->type_void;
+        return table->entries[lhs].as.pointer_type.pointee_id == builtins->type_void || table->entries[rhs].as.pointer_type.pointee_id == builtins->type_void;
     }
 
     u32 lhs_size = table->entries[lhs].size;
