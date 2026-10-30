@@ -155,11 +155,14 @@ static bool codegen_file(const File *file) {
         return false;
     }
 
+    LLVMDisposeMessage(msg);
+
     /*
      *
      * Run LLVM passes
      *
      */
+
     LLVMErrorRef error = LLVMRunPasses(
         ctx->llvm_module,
         ctx->is_release_mode ? "default<O2>" : "default<O0>",

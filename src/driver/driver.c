@@ -145,7 +145,7 @@ void driver_init(Driver *driver, const char *home) {
 
     driver->workspaces[0] = arena_calloc(&driver->workspace_arena, sizeof(Workspace));
 
-    workspace_init(driver->workspaces[0], 0, "Lily Program <3");
+    workspace_init(driver->workspaces[0], 0, "Lily Program");
 }
 
 void driver_destroy(Driver *driver) {

@@ -14,6 +14,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <llvm-c/Core.h>
 #include <llvm-c/Types.h>
@@ -48,6 +49,8 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
     str8 function_name = ctx->ws->global_string_interner.entries[symbol->name_id].str;
     str8 mangled_name  = {0};
 
+    bool name_needs_free = false;
+
     if (symbol_id == ctx->ws->entry_point_id || symbol->flags & AST_FLAG_FOREIGN) {
         mangled_name = function_name;
     } else {
@@ -55,6 +58,8 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
 
         mangled_name.ptr = lily_alloc(mangled_name_len);
         mangled_name.len = snprintf(mangled_name.ptr, mangled_name_len, "%.*s_%u", STR8_FMT(function_name), symbol_id);
+
+        name_needs_free = true;
     }
 
     TypeId return_type_id = symbol->as.function_symbol.return_type_id;
@@ -106,6 +111,10 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
     ctx->symbol_map[symbol_id] = function;
 
     free(parameter_types);
+
+    if (name_needs_free) {
+        free(mangled_name.ptr);
+    }
 
     return function;
 }

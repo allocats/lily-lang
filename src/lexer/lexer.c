@@ -936,7 +936,6 @@ static Token *tokens_get_new_token(Lexer *lexer) {
 
         assert(new_size > old_size);
 
-        // arr -> items = arena_realloc(&arr -> arena, arr -> items, old_size, new_size);
         arr->items = lily_realloc(arr->items, new_size);
         arr->capacity *= 2;
 
