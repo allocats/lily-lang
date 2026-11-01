@@ -7,8 +7,11 @@
 #include "codegen/types.h"
 #include "codegen/types/types.h"
 #include "ids.h"
+#include "symbols/resolve/expressions/types.h"
 #include "symbols/symbol/kinds.h"
 #include "tokens/kinds.h"
+#include "types/entries/entries.h"
+#include "types/entries/kinds.h"
 #include "utils/macros.h"
 #include "utils/wrappers.h"
 
@@ -17,6 +20,9 @@
 #include <llvm-c/Target.h>
 #include <llvm-c/Types.h>
 #include <stdio.h>
+
+// =========== LValues (actual address) =============
+static LLVMValueRef codegen_lvalue(CodegenCtx *ctx, const AstNode *node);
 
 // =========== Identifiers =============
 static LLVMValueRef codegen_identifier(CodegenCtx *ctx, const AstNode *node);
@@ -36,6 +42,12 @@ static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node);
 
 // =========== Binary Op =============
 static LLVMValueRef codegen_binary_op(CodegenCtx *ctx, const AstNode *node);
+static LLVMValueRef codegen_binary_op_assign(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_additive(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_multiplicative(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_bitwise(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_shift(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_comparison(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
 
 /* 
  *
@@ -61,8 +73,41 @@ LLVMValueRef codegen_expression(CodegenCtx *ctx, const AstNode *node) {
     case AST_UNARY_OP:
         return codegen_unary_op(ctx, node);
 
+    case AST_BINARY_OP:
+        return codegen_binary_op(ctx, node);
+
     default:
         return null;
+    }
+}
+
+/* 
+ *
+ * =====================================
+ *
+ *                LValues 
+ *
+ * =====================================
+ * 
+ */
+
+static LLVMValueRef codegen_lvalue(CodegenCtx *ctx, const AstNode *node) {
+    switch (node->kind) {
+    case AST_IDENTIFIER: {
+        return ctx->symbol_map[node->resolved_symbol_id];
+    }
+
+    case AST_UNARY_OP: {
+        assert(node->as.unary_op.op == TOK_STAR);
+
+        const AstNodeId operand_id  = node->as.unary_op.operand;
+        const AstNode *operand_node = &ctx->file->ast.nodes[operand_id];
+
+        return codegen_expression(ctx, operand_node);
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", AST_KIND_STRINGS[node->kind]);
     }
 }
 
@@ -404,7 +449,7 @@ static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node) {
 
     switch (op) {
     case TOK_AMP: {
-        return codegen_expression(ctx, operand_node);
+        return codegen_lvalue(ctx, operand_node);
     }
 
     case TOK_STAR: {
@@ -480,5 +525,263 @@ static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node) {
  */
 
 static LLVMValueRef codegen_binary_op(CodegenCtx *ctx, const AstNode *node) {
-    return null;
+    TokenKind op = node->as.binary_op.op;
+
+    const AstNode *lhs = &ctx->file->ast.nodes[node->as.binary_op.lhs];
+    const AstNode *rhs = &ctx->file->ast.nodes[node->as.binary_op.rhs];
+
+    switch (binary_op_kind_lut[op]) {
+    case BINARY_OP_ASSIGN:
+        return codegen_binary_op_assign(ctx, lhs, rhs, op);
+
+    case BINARY_OP_ADDITIVE:
+        return codegen_binary_op_additive(ctx, lhs, rhs, op);
+
+    case BINARY_OP_MULTIPLICATIVE:
+        return codegen_binary_op_multiplicative(ctx, lhs, rhs, op);
+
+    case BINARY_OP_BITWISE:
+        return codegen_binary_op_bitwise(ctx, lhs, rhs, op);
+
+    case BINARY_OP_SHIFT:
+        return codegen_binary_op_shift(ctx, lhs, rhs, op);
+
+    case BINARY_OP_COMPARISON:
+        return codegen_binary_op_comparison(ctx, lhs, rhs, op);
+
+    default:
+        UNREACHABLE("Impossible case %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_assign(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    switch (op) {
+    case TOK_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        LLVMValueRef value = codegen_expression(ctx, rhs);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    default:
+        UNREACHABLE("Impossible operator %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_additive(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    LLVMTypeRef i8_type = LLVMInt8TypeInContext(ctx->llvm_ctx);
+
+    LLVMValueRef left  = codegen_expression(ctx, lhs);
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    bool lhs_is_pointer = type_is_kind(&ctx->ws->type_table, lhs->resolved_type_id, TYPE_POINTER);
+    bool rhs_is_pointer = type_is_kind(&ctx->ws->type_table, rhs->resolved_type_id, TYPE_POINTER);
+
+    switch (op) {
+    case TOK_PLUS: {
+        if (lhs_is_pointer || rhs_is_pointer) {
+            LLVMValueRef pointer = lhs_is_pointer ? left : right;
+            LLVMValueRef offset  = lhs_is_pointer ? right : left;
+
+            LLVMValueRef indices[1] = {offset};
+
+            return LLVMBuildGEP2(ctx->llvm_builder, i8_type, pointer, indices, 1, "");
+        }
+
+        return LLVMBuildAdd(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_MINUS: {
+        if (lhs_is_pointer && rhs_is_pointer) {
+            return LLVMBuildPtrDiff2(ctx->llvm_builder, i8_type, left, right, "");
+        }
+
+        if (lhs_is_pointer || rhs_is_pointer) {
+            LLVMValueRef pointer = lhs_is_pointer ? left : right;
+            LLVMValueRef offset  = lhs_is_pointer ? right : left;
+
+            offset = LLVMBuildNeg(ctx->llvm_builder, offset, "");
+
+            LLVMValueRef indices[1] = {offset};
+
+            return LLVMBuildGEP2(ctx->llvm_builder, i8_type, pointer, indices, 1, "");
+        }
+
+        return LLVMBuildSub(ctx->llvm_builder, left, right, "");
+    }
+
+    default:
+        UNREACHABLE("Impossible operator %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_multiplicative(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    LLVMValueRef left  = codegen_expression(ctx, lhs);
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    bool lhs_is_float = type_is_float(ctx->ws->builtin_types, lhs->resolved_type_id);
+    bool rhs_is_float = type_is_float(ctx->ws->builtin_types, rhs->resolved_type_id);
+
+    bool lhs_is_signed = type_is_signed_int(ctx->ws->builtin_types, lhs->resolved_type_id);
+    bool rhs_is_signed = type_is_signed_int(ctx->ws->builtin_types, rhs->resolved_type_id);
+
+    switch (op) {
+    case TOK_STAR: {
+        return LLVMBuildMul(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_SLASH: {
+        if (lhs_is_float || rhs_is_float) {
+            return LLVMBuildFDiv(ctx->llvm_builder, left, right, "");
+        }
+
+        if (lhs_is_signed || rhs_is_signed) {
+            return LLVMBuildSDiv(ctx->llvm_builder, left, right, "");
+        }
+
+        return LLVMBuildUDiv(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_PERCENT: {
+        if (lhs_is_float || rhs_is_float) {
+            return LLVMBuildFRem(ctx->llvm_builder, left, right, "");
+        }
+
+        if (lhs_is_signed || rhs_is_signed) {
+            return LLVMBuildSRem(ctx->llvm_builder, left, right, "");
+        }
+
+        return LLVMBuildURem(ctx->llvm_builder, left, right, "");
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_bitwise(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    LLVMValueRef left  = codegen_expression(ctx, lhs);
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    switch (op) {
+    case TOK_AMP: {
+        return LLVMBuildAnd(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_PIPE: {
+        return LLVMBuildOr(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_CARET: {
+        return LLVMBuildXor(ctx->llvm_builder, left, right, "");
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_shift(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    LLVMValueRef left  = codegen_expression(ctx, lhs);
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    bool lhs_is_signed = type_is_signed_int(ctx->ws->builtin_types, lhs->resolved_type_id);
+
+    switch (op) {
+    case TOK_SHL: {
+        return LLVMBuildShl(ctx->llvm_builder, left, right, "");
+    }
+
+    case TOK_SHR: {
+        if (lhs_is_signed) {
+            return LLVMBuildAShr(ctx->llvm_builder, left, right, "");
+        }
+
+        return LLVMBuildLShr(ctx->llvm_builder, left, right, "");
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", TOKEN_KIND_STRINGS[op]);
+    }
+}
+
+static LLVMValueRef codegen_binary_op_comparison(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    LLVMValueRef left  = codegen_expression(ctx, lhs);
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    // Resolver forces LHS and RHS to be of the same family of types. Meaning it has to be 2 floats, 2 uints, 2 ints
+    bool lhs_is_float  = type_is_float(ctx->ws->builtin_types, lhs->resolved_type_id);
+    bool lhs_is_signed = type_is_signed_int(ctx->ws->builtin_types, lhs->resolved_type_id);
+
+    switch (op) {
+    case TOK_EQ_EQ: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealOEQ, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntEQ, left, right, "");
+    }
+
+    case TOK_BANG_EQ: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealONE, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntNE, left, right, "");
+    }
+
+    case TOK_LT: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealOLT, left, right, "");
+        }
+
+        if (lhs_is_signed) {
+            return LLVMBuildICmp(ctx->llvm_builder, LLVMIntSLT, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntULT, left, right, "");
+    }
+
+    case TOK_LT_EQ: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealOLE, left, right, "");
+        }
+
+        if (lhs_is_signed) {
+            return LLVMBuildICmp(ctx->llvm_builder, LLVMIntSLE, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntULE, left, right, "");
+    }
+
+    case TOK_GT: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealOGT, left, right, "");
+        }
+
+        if (lhs_is_signed) {
+            return LLVMBuildICmp(ctx->llvm_builder, LLVMIntSGT, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntUGT, left, right, "");
+    }
+
+    case TOK_GT_EQ: {
+        if (lhs_is_float) {
+            return LLVMBuildFCmp(ctx->llvm_builder, LLVMRealOGE, left, right, "");
+        }
+
+        if (lhs_is_signed) {
+            return LLVMBuildICmp(ctx->llvm_builder, LLVMIntSGE, left, right, "");
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntUGE, left, right, "");
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", TOKEN_KIND_STRINGS[op]);
+    }
 }

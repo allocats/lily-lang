@@ -577,7 +577,7 @@ static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs
             }
 
             if (rhs_is_ptr) {
-                return lhs_type;
+                return r->builtin_types.type_isize;
             }
 
             diagnostic_add_token_span(

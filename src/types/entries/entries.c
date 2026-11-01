@@ -3,7 +3,7 @@
 #include "types/builtins/types.h"
 #include "types/entries/kinds.h"
 
-inline bool type_is_kind(TypeTable *table, TypeId id, TypeKind kind) {
+inline bool type_is_kind(const TypeTable *table, TypeId id, TypeKind kind) {
     return table->entries[id].kind == kind;
 }
 

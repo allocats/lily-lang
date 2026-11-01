@@ -59,6 +59,7 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
         }
 
         case AST_UNARY_OP:
+        case AST_BINARY_OP:
         case AST_FUNCTION_CALL: {
             if (!codegen_expression(ctx, statement_node)) {
                 return BLOCK_ERROR;
@@ -189,7 +190,7 @@ static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node) {
 
         LLVMBuildStore(ctx->llvm_builder, value, address);
     } else {
-        if (type_is_kind((TypeTable *)&ctx->ws->type_table, node->resolved_type_id, TYPE_POINTER)) {
+        if (type_is_kind(&ctx->ws->type_table, node->resolved_type_id, TYPE_POINTER)) {
             LLVMValueRef null_value = LLVMConstPointerNull(type);
 
             if (null_value == null) {

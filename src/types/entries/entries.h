@@ -6,7 +6,7 @@
 #include "types/entries/kinds.h"
 #include "types/table/types.h"
 
-bool type_is_kind(TypeTable *table, TypeId id, TypeKind kind);
+bool type_is_kind(const TypeTable *table, TypeId id, TypeKind kind);
 bool type_is_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_signed_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_unsigned_int(BuiltinTypeIds builtins, TypeId id);
