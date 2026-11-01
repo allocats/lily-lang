@@ -2,27 +2,40 @@
 #include "ast/kinds.h"
 #include "ast/types.h"
 #include "codegen/declarations/declarations.h"
+#include "codegen/declarations/intrinsics/intrinsics.h"
+#include "codegen/declarations/intrinsics/types.h"
 #include "codegen/types.h"
 #include "codegen/types/types.h"
 #include "ids.h"
 #include "symbols/symbol/kinds.h"
+#include "tokens/kinds.h"
 #include "utils/macros.h"
 #include "utils/wrappers.h"
 
 #include <assert.h>
 #include <llvm-c/Core.h>
+#include <llvm-c/Target.h>
 #include <llvm-c/Types.h>
 #include <stdio.h>
 
 // =========== Identifiers =============
 static LLVMValueRef codegen_identifier(CodegenCtx *ctx, const AstNode *node);
 
-// =========== Identifiers =============
+// =========== Function Calls =============
 static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node);
+
+// =========== Intrinsic Calls =============
+static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node);
 
 // =========== Literals =============
 static LLVMValueRef codegen_literal(CodegenCtx *ctx, const AstNode *node);
 static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id);
+
+// =========== Unary Op =============
+static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node);
+
+// =========== Binary Op =============
+static LLVMValueRef codegen_binary_op(CodegenCtx *ctx, const AstNode *node);
 
 /* 
  *
@@ -44,6 +57,9 @@ LLVMValueRef codegen_expression(CodegenCtx *ctx, const AstNode *node) {
 
     case AST_FUNCTION_CALL:
         return codegen_function_call(ctx, node);
+
+    case AST_UNARY_OP:
+        return codegen_unary_op(ctx, node);
 
     default:
         return null;
@@ -130,6 +146,12 @@ static LLVMValueRef codegen_identifier(CodegenCtx *ctx, const AstNode *node) {
  */
 
 static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) {
+    const Symbol *symbol = &ctx->ws->global_symbol_table.symbols[node->resolved_symbol_id];
+
+    if (symbol->flags & AST_FLAG_INTRINSIC) {
+        return codegen_intrinsic_call(ctx, node);
+    }
+
     const AstNode *identifier = &ctx->file->ast.nodes[node->as.func_call.identifier];
 
     LLVMValueRef function = codegen_expression(ctx, identifier);
@@ -152,6 +174,107 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
     }
 
     LLVMValueRef call = LLVMBuildCall2(ctx->llvm_builder, function_type, function, arguments, argument_count, "");
+
+    free(arguments);
+
+    return call;
+}
+
+/* 
+ *
+ * ================================================
+ *
+ *                Intrinsic Calls
+ *
+ * ================================================
+ * 
+ */
+
+static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node) {
+    const AstNode *identifier = &ctx->file->ast.nodes[node->as.func_call.identifier];
+
+    IntrinsicKind kind = INTRINSIC_ID_NONE;
+
+    switch (identifier->kind) {
+    case AST_IDENTIFIER: {
+        kind = intrinsic_get_kind(identifier->as.identifier.name);
+        break;
+    }
+
+    case AST_MEMBER_ACCESS: {
+        const AstNodeId member_id  = identifier->as.member_access.member;
+        const AstNode *member_node = &ctx->file->ast.nodes[member_id];
+
+        assert(member_node->kind == AST_IDENTIFIER);
+
+        kind = intrinsic_get_kind(member_node->as.identifier.name);
+        break;
+    }
+
+    default:
+        kind = INTRINSIC_NONE;
+        break;
+    }
+
+    if (kind == INTRINSIC_NONE) {
+        return null;
+    }
+
+    u32 argument_count = node->as.func_call.arguments.count;
+
+    LLVMValueRef *arguments = lily_alloc(argument_count * sizeof(LLVMValueRef));
+
+    for (u32 i = 0; i < argument_count; i += 1) {
+        const AstNodeId argument_id  = node->as.func_call.arguments.ids[i];
+        const AstNode *argument_node = &ctx->file->ast.nodes[argument_id];
+
+        LLVMValueRef argument = codegen_expression(ctx, argument_node);
+        assert(argument != null);
+
+        arguments[i] = argument;
+    }
+
+    LLVMValueRef call = null;
+
+    switch (kind) {
+    case INTRINSIC_MEMSET: {
+        LLVMValueRef dest = arguments[0];
+        LLVMValueRef byte = arguments[1];
+        LLVMValueRef size = arguments[2];
+
+        u32 alignment = LLVMGetAlignment(dest);
+
+        call = LLVMBuildMemSet(ctx->llvm_builder, dest, byte, size, alignment);
+        break;
+    }
+
+    case INTRINSIC_MEMCPY: {
+        LLVMValueRef dest = arguments[0];
+        LLVMValueRef src  = arguments[1];
+        LLVMValueRef size = arguments[2];
+
+        u32 dest_alignment = LLVMGetAlignment(dest);
+        u32 src_alignment  = LLVMGetAlignment(src);
+
+        call = LLVMBuildMemCpy(ctx->llvm_builder, dest, dest_alignment, src, src_alignment, size);
+        break;
+    }
+
+    case INTRINSIC_MEMMOVE: {
+        LLVMValueRef dest = arguments[0];
+        LLVMValueRef src  = arguments[1];
+        LLVMValueRef size = arguments[2];
+
+        u32 dest_alignment = LLVMGetAlignment(dest);
+        u32 src_alignment  = LLVMGetAlignment(src);
+
+        call = LLVMBuildMemMove(ctx->llvm_builder, dest, dest_alignment, src, src_alignment, size);
+        break;
+    }
+
+    default:
+        UNREACHABLE("Impossible case: %s", INTRINSIC_KIND_STRINGS[kind]);
+    }
 
     free(arguments);
 
@@ -261,4 +384,101 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
     free(copy);
 
     return string;
+}
+
+/* 
+ *
+ * ===========================================
+ *
+ *                 Unary Op
+ *
+ * ===========================================
+ * 
+ */
+
+static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node) {
+    TokenKind op = node->as.unary_op.op;
+
+    const AstNodeId operand_id  = node->as.unary_op.operand;
+    const AstNode *operand_node = &ctx->file->ast.nodes[operand_id];
+
+    switch (op) {
+    case TOK_AMP: {
+        return codegen_expression(ctx, operand_node);
+    }
+
+    case TOK_STAR: {
+        LLVMValueRef address = codegen_expression(ctx, operand_node);
+
+        if (!address) {
+            return null;
+        }
+
+        LLVMTypeRef type = type_to_llvm_type(node->resolved_type_id);
+
+        if (!type) {
+            return null;
+        }
+
+        return LLVMBuildLoad2(ctx->llvm_builder, type, address, "");
+    }
+
+    case TOK_PLUS: {
+        return codegen_expression(ctx, operand_node);
+    }
+
+    case TOK_MINUS: {
+        LLVMValueRef expression = codegen_expression(ctx, operand_node);
+
+        if (!expression) {
+            return null;
+        }
+
+        return LLVMBuildNeg(ctx->llvm_builder, expression, "");
+    }
+
+    case TOK_BANG: {
+        LLVMValueRef expression = codegen_expression(ctx, operand_node);
+
+        if (!expression) {
+            return null;
+        }
+
+        LLVMValueRef zero = LLVMConstInt(type_to_llvm_type(ctx->ws->builtin_types.type_i8), 0, 0);
+
+        if (!zero) {
+            return null;
+        }
+
+        return LLVMBuildICmp(ctx->llvm_builder, LLVMIntEQ, expression, zero, "");
+    }
+
+    case TOK_TILDE: {
+        LLVMValueRef expression = codegen_expression(ctx, operand_node);
+
+        if (!expression) {
+            return null;
+        }
+
+        return LLVMBuildNot(ctx->llvm_builder, expression, "");
+    }
+
+    default: {
+        UNREACHABLE("Impossible operator %s", TOKEN_KIND_STRINGS[op]);
+    }
+    }
+}
+
+/* 
+ *
+ * ===========================================
+ *
+ *                 Binary Op
+ *
+ * ===========================================
+ * 
+ */
+
+static LLVMValueRef codegen_binary_op(CodegenCtx *ctx, const AstNode *node) {
+    return null;
 }

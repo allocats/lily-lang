@@ -22,7 +22,7 @@
 extern thread_local ThreadContext thread_context;
 
 // ========= Intrinsic =========
-static LLVMValueRef codegen_intrsinic_function(CodegenCtx *ctx, const SymbolId id, const Symbol *symbol);
+static LLVMValueRef codegen_intrinsic_function(CodegenCtx *ctx, const SymbolId id, const Symbol *symbol);
 
 /* 
  *
@@ -43,7 +43,7 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
     assert(symbol->kind == SYMBOL_FUNCTION);
 
     if (symbol->flags & AST_FLAG_INTRINSIC) {
-        return codegen_intrsinic_function(ctx, symbol_id, symbol);
+        return codegen_intrinsic_function(ctx, symbol_id, symbol);
     }
 
     str8 function_name = ctx->ws->global_string_interner.entries[symbol->name_id].str;
@@ -225,6 +225,8 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
         LLVMValueRef args[] = {ap_address};
 
         LLVMBuildCall2(ctx->llvm_builder, va_start_type, va_start_fn, args, 1, "");
+
+        // LLVMBuildVAArg(LLVMBuilderRef, LLVMValueRef List, LLVMTypeRef Ty, const char *Name)
     }
 
     /*
@@ -294,7 +296,7 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
  * 
  */
 
-static LLVMValueRef codegen_intrsinic_function(CodegenCtx *ctx, const SymbolId id, const Symbol *symbol) {
+static LLVMValueRef codegen_intrinsic_function(CodegenCtx *ctx, const SymbolId id, const Symbol *symbol) {
     str8 fn_name = ctx->ws->global_string_interner.entries[symbol->name_id].str;
 
     u32 len = fn_name.len + sizeof("llvm.") - 1;
@@ -337,8 +339,8 @@ static LLVMValueRef codegen_intrsinic_function(CodegenCtx *ctx, const SymbolId i
 
         const u32 param_count = symbol->as.function_symbol.parameter_count;
 
-        LLVMTypeRef overload_types[8];
-        u32 overload_count = 0;
+        LLVMTypeRef overload_types[8] = {0};
+        u32 overload_count            = 0;
 
         if (info->return_is_overloaded) {
             overload_types[overload_count++] = type_to_llvm_type(symbol->as.function_symbol.return_type_id);

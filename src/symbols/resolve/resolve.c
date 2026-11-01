@@ -43,8 +43,8 @@ static StringId main_string_id = GLOBAL_STRING_ID_NONE;
 
 static bool resolve_symbol_body(Workspace *ws, SymbolId id);
 
-static bool resolve_function(Resolver *r, SymbolId id);
 static bool resolve_import(Resolver *r, SymbolId id);
+static bool resolve_function(Resolver *r, SymbolId id);
 static bool resolve_variable(Resolver *r, SymbolId id);
 static bool resolve_block(Resolver *r, AstNodeId id);
 

@@ -58,7 +58,7 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
             break;
         }
 
-        case AST_BINARY_OP:
+        case AST_UNARY_OP:
         case AST_FUNCTION_CALL: {
             if (!codegen_expression(ctx, statement_node)) {
                 return BLOCK_ERROR;
