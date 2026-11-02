@@ -268,7 +268,6 @@ static bool codegen_if_statement(CodegenCtx *ctx, const AstNode *node) {
         const AstNode *body_node = &ctx->file->ast.nodes[body_id];
 
         // get branch's blocks
-
         LLVMBasicBlockRef condition_block = condition_blocks[i];
         LLVMBasicBlockRef body_block      = body_blocks[i];
 
@@ -276,7 +275,6 @@ static bool codegen_if_statement(CodegenCtx *ctx, const AstNode *node) {
         ctx->current_block = condition_block;
 
         // ==== branch condition ====
-
         LLVMValueRef condition = codegen_expression(ctx, condition_node);
 
         if (!condition) {
@@ -313,7 +311,6 @@ static bool codegen_if_statement(CodegenCtx *ctx, const AstNode *node) {
 
     // ==== else block ====
     if (else_block != null) {
-        // ==== branch body ====
         LLVMPositionBuilderAtEnd(ctx->llvm_builder, else_block);
         ctx->current_block = else_block;
 
