@@ -14,11 +14,13 @@ AstNodeId parse_statement(Parser *p);
 AstNodeId parse_defer_statement(Parser *p);
 AstNodeId parse_return_statement(Parser *p);
 
-AstNodeId parser_for_loop(Parser *p);
-AstNodeId parser_while_loop(Parser *p);
+AstNodeId parse_if_statement(Parser *p);
 
-AstNodeId parser_break_statement(Parser *p);
-AstNodeId parser_continue_statement(Parser *p);
+AstNodeId parse_for_loop(Parser *p);
+AstNodeId parse_while_loop(Parser *p);
+
+AstNodeId parse_break_statement(Parser *p);
+AstNodeId parse_continue_statement(Parser *p);
 /*
  *
  * recursively making blocks! will create new blocks inside of it

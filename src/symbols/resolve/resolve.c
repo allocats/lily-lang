@@ -46,7 +46,6 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id);
 static bool resolve_import(Resolver *r, SymbolId id);
 static bool resolve_function(Resolver *r, SymbolId id);
 static bool resolve_variable(Resolver *r, SymbolId id);
-static bool resolve_block(Resolver *r, AstNodeId id);
 
 static bool node_returns(Resolver *r, const AstNodeId id);
 static bool check_if_function_returns(Resolver *r, const AstNode *node);
@@ -608,7 +607,7 @@ static bool resolve_variable(Resolver *r, SymbolId id) {
     return result;
 }
 
-static bool resolve_block(Resolver *r, AstNodeId id) {
+bool resolve_block(Resolver *r, AstNodeId id) {
     const AstNode *node = &r->file->ast.nodes[id];
 
     assert(node->kind == AST_BLOCK);
@@ -667,8 +666,15 @@ static bool resolve_block(Resolver *r, AstNodeId id) {
             break;
         }
 
+        case AST_IF_STMT: {
+            if (!resolve_if_statement(r, stmt)) {
+                result = false;
+            }
+
+            break;
+        }
+
         case AST_EXECUTE_DIRECTIVE:
-        case AST_IF_STMT:
         case AST_WHILE_LOOP:
         case AST_FOR_LOOP:
         case AST_BLOCK: {

@@ -14,7 +14,7 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parser_for_loop(Parser *p) {
+AstNodeId parse_for_loop(Parser *p) {
     AstNodeId id  = parser_create_node(p);
     AstNode *node = parser_get_node(p, id);
 

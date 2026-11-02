@@ -7,6 +7,7 @@
 #include "string_interner/global/interner.h"
 #include "symbols/resolve/errors/errors.h"
 #include "symbols/resolve/expressions/expressions.h"
+#include "symbols/resolve/resolve.h"
 #include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
@@ -159,6 +160,67 @@ bool resolve_return_statement(Resolver *r, AstNode *node) {
     if (!types_are_assignable(r->type_table, &r->builtin_types, return_type_id, expression_type_id)) {
         resolver_mismatched_types(r, node, return_type_id, expression_type_id);
         return false;
+    }
+
+    return true;
+}
+
+/*
+ *  ==============================
+ *
+ *          If statements      
+ *
+ *  ==============================
+ */
+
+bool resolve_if_statement(Resolver *r, AstNode *node) {
+    assert(node->kind == AST_IF_STMT);
+
+    TypeId bool_type = r->builtin_types.type_bool;
+
+    u32 branch_count = node->as.if_stmt.branches.count;
+
+    for (u32 i = 0; i < branch_count; i += 1) {
+        AstNodeId branch_id  = node->as.if_stmt.branches.ids[i];
+        AstNode *branch_node = &r->file->ast.nodes[branch_id];
+
+        AstNodeId condition_id  = branch_node->as.branch.condition;
+        AstNode *condition_node = &r->file->ast.nodes[condition_id];
+
+        TypeId condition_type = resolve_expression(r, condition_node, bool_type);
+
+        if (condition_type == TYPE_ID_NONE) {
+            return false;
+        }
+
+        if (condition_type != bool_type) {
+            resolver_mismatched_types(r, condition_node, bool_type, condition_type);
+            return false;
+        }
+
+        resolver_enter_scope(r);
+
+        bool block_result = resolve_block(r, branch_node->as.branch.body);
+
+        resolver_exit_scope(r);
+
+        if (!block_result) {
+            return false;
+        }
+    }
+
+    const AstNodeId else_block_id = node->as.if_stmt.else_block;
+
+    if (else_block_id != AST_NODE_ID_NONE) {
+        resolver_enter_scope(r);
+
+        bool block_result = resolve_block(r, else_block_id);
+
+        resolver_exit_scope(r);
+
+        if (!block_result) {
+            return false;
+        }
     }
 
     return true;

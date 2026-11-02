@@ -10,7 +10,7 @@
 
 extern thread_local ThreadContext thread_context;
 
-AstNodeId parser_continue_statement(Parser *p) {
+AstNodeId parse_continue_statement(Parser *p) {
     AstNodeId id  = parser_create_node(p);
     AstNode *node = parser_get_node(p, id);
 
