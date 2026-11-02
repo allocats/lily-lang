@@ -9,6 +9,7 @@
 #include "types/entries/entries.h"
 #include "types/entries/kinds.h"
 #include "utils/macros.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <llvm-c/Core.h>
@@ -19,6 +20,9 @@ static bool codegen_return_statement(CodegenCtx *ctx, const AstNode *node);
 
 // ====== Variable Declaration =======
 static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node);
+
+// ====== If Statements =======
+static bool codegen_if_statement(CodegenCtx *ctx, const AstNode *node);
 
 /* 
  *
@@ -52,6 +56,14 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
 
         case AST_VARIABLE_DECL: {
             if (!codegen_variable_declaration(ctx, statement_node)) {
+                return BLOCK_ERROR;
+            }
+
+            break;
+        }
+
+        case AST_IF_STMT: {
+            if (!codegen_if_statement(ctx, statement_node)) {
                 return BLOCK_ERROR;
             }
 
@@ -202,4 +214,127 @@ static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node) {
     }
 
     return true;
+}
+
+/* 
+ *
+ * =============================
+ *
+ *        If Statements
+ *
+ * =============================
+ * 
+ */
+
+static bool codegen_if_statement(CodegenCtx *ctx, const AstNode *node) {
+    assert(node->kind == AST_IF_STMT);
+
+    bool result = true;
+
+    // ==== initialization ====
+    const AstNodeId else_id  = node->as.if_stmt.else_block;
+    const AstNode *else_node = &ctx->file->ast.nodes[else_id];
+
+    u32 branch_count = node->as.if_stmt.branches.count;
+
+    LLVMBasicBlockRef *condition_blocks = lily_alloc(branch_count * sizeof(LLVMBasicBlockRef));
+    LLVMBasicBlockRef *body_blocks      = lily_alloc(branch_count * sizeof(LLVMBasicBlockRef));
+
+    LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "if.merge");
+
+    LLVMBasicBlockRef else_block = else_id != AST_NODE_ID_NONE
+                                       ? LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "if.else")
+                                       : null;
+
+    for (u32 i = 0; i < branch_count; i += 1) {
+        condition_blocks[i] = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "if.cond");
+        body_blocks[i]      = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "if.body");
+    }
+
+    // ==== entry from current block ====
+    LLVMBuildBr(ctx->llvm_builder, condition_blocks[0]);
+
+    // ==== each branch ====
+    for (u32 i = 0; i < branch_count; i += 1) {
+        const AstNodeId branch_id  = node->as.if_stmt.branches.ids[i];
+        const AstNode *branch_node = &ctx->file->ast.nodes[branch_id];
+
+        assert(branch_node->kind == AST_BRANCH);
+
+        const AstNodeId condition_id  = branch_node->as.branch.condition;
+        const AstNode *condition_node = &ctx->file->ast.nodes[condition_id];
+
+        const AstNodeId body_id  = branch_node->as.branch.body;
+        const AstNode *body_node = &ctx->file->ast.nodes[body_id];
+
+        // get branch's blocks
+
+        LLVMBasicBlockRef condition_block = condition_blocks[i];
+        LLVMBasicBlockRef body_block      = body_blocks[i];
+
+        LLVMPositionBuilderAtEnd(ctx->llvm_builder, condition_block);
+        ctx->current_block = condition_block;
+
+        // ==== branch condition ====
+
+        LLVMValueRef condition = codegen_expression(ctx, condition_node);
+
+        if (!condition) {
+            result = false;
+            goto exit_codegen_if_statement;
+        }
+
+        // ==== next branch if false, else goto body ====
+        LLVMBasicBlockRef next_branch_block = merge_block;
+
+        if (i + 1 < branch_count) {
+            next_branch_block = condition_blocks[i + 1];
+        } else if (else_block != null) {
+            next_branch_block = else_block;
+        }
+
+        LLVMBuildCondBr(ctx->llvm_builder, condition, body_block, next_branch_block);
+
+        // ==== branch body ====
+        LLVMPositionBuilderAtEnd(ctx->llvm_builder, body_block);
+        ctx->current_block = body_block;
+
+        BlockResult body_result = codegen_block(ctx, body_node);
+
+        if (body_result == BLOCK_ERROR) {
+            result = false;
+            goto exit_codegen_if_statement;
+        }
+
+        if (body_result == BLOCK_NOT_TERMINATED) {
+            LLVMBuildBr(ctx->llvm_builder, merge_block);
+        }
+    }
+
+    // ==== else block ====
+    if (else_block != null) {
+        // ==== branch body ====
+        LLVMPositionBuilderAtEnd(ctx->llvm_builder, else_block);
+        ctx->current_block = else_block;
+
+        BlockResult body_result = codegen_block(ctx, else_node);
+
+        if (body_result == BLOCK_ERROR) {
+            result = false;
+            goto exit_codegen_if_statement;
+        }
+
+        if (body_result == BLOCK_NOT_TERMINATED) {
+            LLVMBuildBr(ctx->llvm_builder, merge_block);
+        }
+    }
+
+exit_codegen_if_statement:
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, merge_block);
+    ctx->current_block = merge_block;
+
+    free(condition_blocks);
+    free(body_blocks);
+
+    return result;
 }

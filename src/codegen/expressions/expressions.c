@@ -490,7 +490,7 @@ static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node) {
             return null;
         }
 
-        LLVMValueRef zero = LLVMConstInt(type_to_llvm_type(ctx->ws->builtin_types.type_i8), 0, 0);
+        LLVMValueRef zero = LLVMConstInt(LLVMInt1TypeInContext(ctx->llvm_ctx), 0, 0);
 
         if (!zero) {
             return null;
