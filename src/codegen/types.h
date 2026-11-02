@@ -153,6 +153,13 @@ typedef struct {
 
     /*
      *
+     * Current function
+     *
+     */
+    LLVMValueRef current_function;
+
+    /*
+     *
      * The current workspace
      *
      */

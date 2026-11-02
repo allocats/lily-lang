@@ -133,6 +133,9 @@ static bool codegen_file(const File *file) {
     ctx->declarations_block = null;
     ctx->current_block      = null;
 
+    // ===== function =====
+    ctx->current_function = null;
+
     // ===== defers ======
     ctx->defer_ctx.stack = null;
     arena_reset(&ctx->defer_ctx.arena);
@@ -265,6 +268,7 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
 
     ctx->declarations_block = null;
     ctx->current_block      = null;
+    ctx->current_function   = null;
 
     // ====== Defer context ======
     ctx->defer_ctx.stack = null;

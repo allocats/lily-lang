@@ -21,7 +21,11 @@ static LLVMTypeRef base_type_to_llvm_type(const TypeId id) {
         return LLVMVoidTypeInContext(ctx->llvm_ctx);
     }
 
-    if (builtins->type_i8 == id || builtins->type_u8 == id || builtins->type_bool == id || builtins->type_char == id) {
+    if (builtins->type_bool == id) {
+        return LLVMInt1TypeInContext(ctx->llvm_ctx);
+    }
+
+    if (builtins->type_i8 == id || builtins->type_u8 == id || builtins->type_char == id) {
         return LLVMInt8TypeInContext(ctx->llvm_ctx);
     }
 

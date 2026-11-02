@@ -48,6 +48,7 @@ static LLVMValueRef codegen_binary_op_multiplicative(CodegenCtx *ctx, const AstN
 static LLVMValueRef codegen_binary_op_bitwise(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
 static LLVMValueRef codegen_binary_op_shift(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
 static LLVMValueRef codegen_binary_op_comparison(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
+static LLVMValueRef codegen_binary_op_logical(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op);
 
 /* 
  *
@@ -549,6 +550,9 @@ static LLVMValueRef codegen_binary_op(CodegenCtx *ctx, const AstNode *node) {
     case BINARY_OP_COMPARISON:
         return codegen_binary_op_comparison(ctx, lhs, rhs, op);
 
+    case BINARY_OP_LOGICAL:
+        return codegen_binary_op_logical(ctx, lhs, rhs, op);
+
     default:
         UNREACHABLE("Impossible case %s", TOKEN_KIND_STRINGS[op]);
     }
@@ -784,4 +788,66 @@ static LLVMValueRef codegen_binary_op_comparison(CodegenCtx *ctx, const AstNode 
     default:
         UNREACHABLE("Impossible case: %s", TOKEN_KIND_STRINGS[op]);
     }
+}
+
+static LLVMValueRef codegen_binary_op_logical(CodegenCtx *ctx, const AstNode *lhs, const AstNode *rhs, TokenKind op) {
+    assert(op == TOK_AMP_AMP || op == TOK_PIPE_PIPE);
+
+    bool is_and_op = op == TOK_AMP_AMP;
+
+    // ==== LHS ====
+    LLVMValueRef left = codegen_expression(ctx, lhs);
+
+    if (!left) {
+        return null;
+    }
+
+    LLVMBasicBlockRef lhs_exit_block = LLVMGetInsertBlock(ctx->llvm_builder);
+    LLVMBasicBlockRef rhs_block      = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "");
+    LLVMBasicBlockRef merge_block    = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "");
+
+    if (is_and_op) {
+        LLVMBuildCondBr(ctx->llvm_builder, left, rhs_block, merge_block);
+    } else {
+        LLVMBuildCondBr(ctx->llvm_builder, left, merge_block, rhs_block);
+    }
+
+    // ==== RHS ====
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, rhs_block);
+    ctx->current_block = rhs_block;
+
+    LLVMValueRef right = codegen_expression(ctx, rhs);
+
+    if (!right) {
+        return null;
+    }
+
+    LLVMBasicBlockRef rhs_exit_block = LLVMGetInsertBlock(ctx->llvm_builder);
+
+    LLVMBuildBr(ctx->llvm_builder, merge_block);
+
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, merge_block);
+    ctx->current_block = merge_block;
+
+    // ==== Merge ====
+    LLVMTypeRef bool_type = LLVMInt1TypeInContext(ctx->llvm_ctx);
+
+    LLVMValueRef phi = LLVMBuildPhi(ctx->llvm_builder, bool_type, "phi");
+
+    /*
+     * If it was '&&' we use false, because if we came from the LHS it should not  
+     * evaluate the RHS, and it means the expression failed.
+     *
+     * If it was '||' we use true, because if we came from the LHS, it means the expression
+     * succeeded, and there is no need to evaluate the RHS.
+     *
+     */
+    LLVMValueRef short_circuit_value = LLVMConstInt(bool_type, is_and_op ? false : true, 0);
+
+    LLVMValueRef incoming_values[2]      = {short_circuit_value, right};
+    LLVMBasicBlockRef incoming_blocks[2] = {lhs_exit_block, rhs_exit_block};
+
+    LLVMAddIncoming(phi, incoming_values, incoming_blocks, 2);
+
+    return phi;
 }

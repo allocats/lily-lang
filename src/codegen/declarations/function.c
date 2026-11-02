@@ -129,6 +129,8 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
         return false;
     }
 
+    ctx->current_function = function;
+
     const Symbol *symbol = &ctx->ws->global_symbol_table.symbols[symbol_id];
 
     if (symbol->flags & AST_FLAG_FOREIGN || symbol->flags & AST_FLAG_INTRINSIC) {
