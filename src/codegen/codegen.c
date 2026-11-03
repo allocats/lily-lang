@@ -21,6 +21,7 @@
 #include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
+#include <llvm-c/Linker.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
 #include <llvm-c/Transforms/PassBuilder.h>
@@ -169,7 +170,7 @@ static bool codegen_file(const File *file) {
 
     LLVMErrorRef error = LLVMRunPasses(
         ctx->llvm_module,
-        ctx->is_release_mode ? "thinlto-pre-link<O2>" : "default<O0>",
+        ctx->is_release_mode ? "default<O2>" : "default<O0>",
         ctx->llvm_target_machine,
         ctx->llvm_pass_builder_options
     );
