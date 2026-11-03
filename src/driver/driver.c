@@ -3,6 +3,7 @@
 #include "codegen/types.h"
 #include "diagnostics/diagnostics.h"
 #include "diagnostics/types.h"
+#include "driver/flags.h"
 #include "driver/types.h"
 #include "files/files.h"
 #include "ids.h"
@@ -42,6 +43,8 @@ static void standard_library_list_init(Driver *driver);
 
 void driver_init(Driver *driver, const char *home) {
     assert(driver != null);
+
+    driver->flags = DRIVER_FLAG_NONE;
 
     /*
      *
@@ -219,7 +222,15 @@ bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
         }
 
         if (arg[0] == '-') {
+            if (strncmp(arg, "-emit-llvm-ir", arg_len) == 0) {
+                driver->flags |= DRIVER_FLAG_EMIT_LLVM_IR;
+                continue;
+            }
 
+            if (strncmp(arg, "-release", arg_len) == 0) {
+                driver->flags |= DRIVER_FLAG_RELEASE_MODE;
+                continue;
+            }
         } else {
             if (arg_len < 6) {
                 diagnostic_add_generic(

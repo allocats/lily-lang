@@ -18,6 +18,8 @@ typedef struct {
 } StandardLibraryList;
 
 typedef struct {
+    u64 flags;
+
     Workspace **workspaces;
     u32 workspace_count;
 

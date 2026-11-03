@@ -5,6 +5,7 @@
 #include "codegen/declarations/intrinsics/intrinsics.h"
 #include "codegen/types.h"
 #include "diagnostics/diagnostics.h"
+#include "driver/flags.h"
 #include "driver/types.h"
 #include "files/types.h"
 #include "threadpool/threadpool.h"
@@ -262,8 +263,8 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
 
     bool result = true;
 
-    ctx->is_release_mode = false; // TODO: make this actually work
-    ctx->emit_llvm_ir    = false; // TODO: make this actually work
+    ctx->is_release_mode = driver.flags & DRIVER_FLAG_RELEASE_MODE;
+    ctx->emit_llvm_ir    = driver.flags & DRIVER_FLAG_EMIT_LLVM_IR;
     ctx->build_directory = build_directory;
 
     ctx->declarations_block = null;
