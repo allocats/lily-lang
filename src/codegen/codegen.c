@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <linux/limits.h>
 #include <llvm-c/Analysis.h>
+#include <llvm-c/BitWriter.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/Target.h>
@@ -169,7 +170,7 @@ static bool codegen_file(const File *file) {
 
     LLVMErrorRef error = LLVMRunPasses(
         ctx->llvm_module,
-        ctx->is_release_mode ? "default<O2>" : "default<O0>",
+        ctx->is_release_mode ? "thinlto-pre-link<O2>" : "default<O0>",
         ctx->llvm_target_machine,
         ctx->llvm_pass_builder_options
     );
@@ -186,25 +187,37 @@ static bool codegen_file(const File *file) {
 
     /*
      *
-     * Emit to .o file
+     * Emit to .o or .bc depending on release mode
      *
      */
     char path[PATH_MAX] = {0};
 
-    i32 len = snprintf(path, sizeof(path), "%sfile_%u.o", ctx->build_directory, file->id);
+    char *format = ctx->is_release_mode ? "%sfile_%u.bc" : "%sfile_%u.o";
+
+    i32 len = snprintf(path, sizeof(path), format, ctx->build_directory, file->id);
 
     ctx->file->object_path = (str8){
         .ptr = strdup(path),
         .len = len
     };
 
-    if (LLVMTargetMachineEmitToFile(ctx->llvm_target_machine, ctx->llvm_module, path, LLVMObjectFile, &msg) != 0) {
-        diagnostic_add_generic(thread_context.diagnostic_engine, DIAG_ERROR, "LLVM: %s\n", msg);
+    if (!ctx->is_release_mode) {
+        if (LLVMTargetMachineEmitToFile(ctx->llvm_target_machine, ctx->llvm_module, path, LLVMObjectFile, &msg) != 0) {
+            diagnostic_add_generic(thread_context.diagnostic_engine, DIAG_ERROR, "LLVM: %s\n", msg);
 
-        LLVMDisposeModule(ctx->llvm_module);
-        LLVMDisposeMessage(msg);
+            LLVMDisposeModule(ctx->llvm_module);
+            LLVMDisposeMessage(msg);
 
-        return false;
+            return false;
+        }
+    } else {
+        if (LLVMWriteBitcodeToFile(ctx->llvm_module, path) != 0) {
+            diagnostic_add_generic(thread_context.diagnostic_engine, DIAG_ERROR, "LLVM: Unable to write bitcode\n");
+
+            LLVMDisposeModule(ctx->llvm_module);
+
+            return false;
+        }
     }
 
     if (ctx->emit_llvm_ir) {

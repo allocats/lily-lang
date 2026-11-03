@@ -172,7 +172,6 @@ typedef struct {
      */
     File *file;
 
-    // TODO:
     bool is_release_mode;
     bool emit_llvm_ir;
 

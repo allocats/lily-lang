@@ -1,3 +1,4 @@
+#include "driver/flags.h"
 #include "driver/types.h"
 #include "workspace/types.h"
 
@@ -50,11 +51,16 @@ i32 linker_run(Workspace *ws) {
 
     snprintf(threads_arg, sizeof(threads_arg), "-Wl,--threads=%u", driver.thread_pool.thread_count);
 
-    char **args   = arena_alloc(&driver.scratch_arena, (file_count + 5) * sizeof(char *));
+    char **args   = arena_alloc(&driver.scratch_arena, (file_count + 6) * sizeof(char *));
     u32 arg_count = 0;
 
     args[arg_count++] = "cc";
     args[arg_count++] = "-fuse-ld=lld";
+
+    if (driver.flags & DRIVER_FLAG_RELEASE_MODE) {
+        args[arg_count++] = "-flto=thin";
+    }
+
     args[arg_count++] = threads_arg;
     args[arg_count++] = "-Wl,--gc-sections";
 
