@@ -85,6 +85,8 @@ void workspace_destroy(Workspace *ws) {
     global_string_interner_destroy(&ws->global_string_interner);
 
     arena_destroy(&ws->standard_library_map.arena);
+
+    free(ws->object_paths);
 }
 
 /*

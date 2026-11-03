@@ -34,7 +34,6 @@ typedef struct {
     u32 path_hash;
     str8 path;
     str8 buffer;
-    str8 object_path;
 
     Ast ast;
 

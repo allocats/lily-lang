@@ -98,6 +98,14 @@ typedef struct {
 
     /*
      *
+     * Flat array of the paths to the object files, it is either the thread count or file interner count
+     *
+     */
+    str8 *object_paths;
+    u32 object_path_count;
+
+    /*
+     *
      * The symbol table for AFTER the first pass, the first pass register all the top level symbols for each file in j
      * parallel into an array of `LocalSymbolTable`, afterwards a merge pass merges all the local symbols and 
      * resolves imports into one single global symbol table

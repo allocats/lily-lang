@@ -50,10 +50,17 @@ static bool codegen_ast(CodegenCtx *ctx);
 static bool codegen_node(CodegenCtx *ctx, const AstNode *node);
 
 bool codegen(Workspace *ws) {
+    // ==== initialisation ====
     intrinsic_table_init(&ws->global_string_interner);
 
     llvm_failed = false;
 
+    u32 file_count = ws->file_interner.count;
+
+    ws->object_paths      = lily_calloc(file_count, sizeof(str8));
+    ws->object_path_count = file_count;
+
+    // ==== .build directory ====
     char build_dir[PATH_MAX] = {0};
 
     snprintf(build_dir, sizeof(build_dir), "./.build/workspace_%u/", ws->id);
@@ -83,6 +90,7 @@ bool codegen(Workspace *ws) {
         }
     }
 
+    // ==== initialisation ====
     string_map_size = ws->global_string_interner.count * sizeof(LLVMValueRef);
     symbol_map_size = ws->global_symbol_table.symbol_count * sizeof(LLVMValueRef);
 
@@ -94,7 +102,8 @@ bool codegen(Workspace *ws) {
         codegen_context_init(&driver.codegen_contexts[i], ws, build_dir);
     }
 
-    for (u32 i = 0; i < ws->file_interner.count; i += 1) {
+    // ==== emit LLVM IR ====
+    for (u32 i = 0; i < file_count; i += 1) {
         if (atomic_load(&llvm_failed) == true) {
             threadpool_wait(&driver.thread_pool);
             break;
@@ -107,6 +116,7 @@ bool codegen(Workspace *ws) {
 
     threadpool_wait(&driver.thread_pool);
 
+    // ==== destruction ====
     for (u8 i = 0; i < driver.codegen_context_count; i += 1) {
         codegen_context_destroy(&driver.codegen_contexts[i]);
     }
@@ -187,14 +197,14 @@ static bool codegen_file(const File *file) {
 
     /*
      *
-     * Emit to .o or .bc depending on release mode
+     * Emit to '.o' file
      *
      */
     char path[PATH_MAX] = {0};
 
     i32 len = snprintf(path, sizeof(path), "%sfile_%u.o", ctx->build_directory, file->id);
 
-    ctx->file->object_path = (str8){
+    ctx->ws->object_paths[file->id] = (str8){
         .ptr = strdup(path),
         .len = len
     };

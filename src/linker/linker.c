@@ -1,5 +1,6 @@
 #include "cmd/cmd.h"
 #include "driver/types.h"
+#include "utils/macros.h"
 #include "workspace/types.h"
 
 #include <stdio.h>
@@ -25,10 +26,10 @@ i32 linker_run(Workspace *ws) {
     args[arg_count++] = threads_arg;
     args[arg_count++] = "-Wl,--gc-sections";
 
-    for (u32 i = 0; i < file_count; i++) {
-        char *path = ws->file_interner.entries[i]->object_path.ptr;
+    for (u32 i = 0; i < ws->object_path_count; i++) {
+        str8 path = ws->object_paths[i];
 
-        args[arg_count++] = path;
+        args[arg_count++] = path.ptr;
     }
 
     args[arg_count] = null;
