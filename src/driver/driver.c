@@ -231,6 +231,11 @@ bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
                 driver->flags |= DRIVER_FLAG_RELEASE_MODE;
                 continue;
             }
+
+            if (strncmp(arg, "-static", arg_len) == 0) {
+                driver->flags |= DRIVER_FLAG_STATIC_BUILD;
+                continue;
+            }
         } else {
             if (arg_len < 6) {
                 diagnostic_add_generic(
