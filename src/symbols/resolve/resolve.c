@@ -674,8 +674,15 @@ bool resolve_block(Resolver *r, AstNodeId id) {
             break;
         }
 
+        case AST_WHILE_LOOP: {
+            if (!resolve_while_loop(r, stmt)) {
+                result = false;
+            }
+
+            break;
+        }
+
         case AST_EXECUTE_DIRECTIVE:
-        case AST_WHILE_LOOP:
         case AST_FOR_LOOP:
         case AST_BLOCK: {
             break;

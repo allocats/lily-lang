@@ -23,6 +23,9 @@ static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node);
 // ====== If Statements =======
 static BlockResult codegen_if_statement(CodegenCtx *ctx, const AstNode *node);
 
+// ====== While Loop =======
+static bool codegen_while_loop(CodegenCtx *ctx, const AstNode *node);
+
 /* 
  *
  * ==================================
@@ -66,6 +69,14 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
 
             if (result == BLOCK_ERROR || result == BLOCK_TERMINATED) {
                 return result;
+            }
+
+            break;
+        }
+
+        case AST_WHILE_LOOP: {
+            if (!codegen_while_loop(ctx, statement_node)) {
+                return BLOCK_ERROR;
             }
 
             break;
@@ -328,4 +339,63 @@ static BlockResult codegen_if_statement(CodegenCtx *ctx, const AstNode *node) {
     ctx->current_block = merge_block;
 
     return BLOCK_NOT_TERMINATED;
+}
+
+/* 
+ *
+ * =============================
+ *
+ *        While Loops
+ *
+ * =============================
+ * 
+ */
+
+static bool codegen_while_loop(CodegenCtx *ctx, const AstNode *node) {
+    assert(node->kind == AST_WHILE_LOOP);
+
+    // ==== blocks ====
+    LLVMBasicBlockRef cond_block  = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "while.cond");
+    LLVMBasicBlockRef body_block  = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "while.body");
+    LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "while.merge");
+
+    LLVMBuildBr(ctx->llvm_builder, cond_block);
+
+    // ==== condition ====
+    const AstNodeId condition_id  = node->as.while_loop.condition;
+    const AstNode *condition_node = &ctx->file->ast.nodes[condition_id];
+
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, cond_block);
+    ctx->current_block = cond_block;
+
+    LLVMValueRef condition = codegen_expression(ctx, condition_node);
+
+    if (!condition) {
+        return false;
+    }
+
+    LLVMBuildCondBr(ctx->llvm_builder, condition, body_block, merge_block);
+
+    // ==== body ====
+    const AstNodeId body_id  = node->as.while_loop.body;
+    const AstNode *body_node = &ctx->file->ast.nodes[body_id];
+
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, body_block);
+    ctx->current_block = body_block;
+
+    BlockResult body_result = codegen_block(ctx, body_node);
+
+    if (body_result == BLOCK_ERROR) {
+        return false;
+    }
+
+    if (body_result == BLOCK_NOT_TERMINATED) {
+        LLVMBuildBr(ctx->llvm_builder, cond_block);
+    }
+
+    // ==== merge ====
+    LLVMPositionBuilderAtEnd(ctx->llvm_builder, merge_block);
+    ctx->current_block = merge_block;
+
+    return true;
 }

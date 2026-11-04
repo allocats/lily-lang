@@ -225,3 +225,39 @@ bool resolve_if_statement(Resolver *r, AstNode *node) {
 
     return true;
 }
+
+/*
+ *  ==============================
+ *
+ *          While Loop
+ *
+ *  ==============================
+ */
+
+bool resolve_while_loop(Resolver *r, AstNode *node) {
+    assert(node->kind == AST_WHILE_LOOP);
+
+    TypeId bool_type = r->builtin_types.type_bool;
+
+    AstNodeId condition_id  = node->as.while_loop.condition;
+    AstNode *condition_node = &r->ast->nodes[condition_id];
+
+    TypeId condition_type = resolve_expression(r, condition_node, bool_type);
+
+    if (condition_type == TYPE_ID_NONE) {
+        return false;
+    }
+
+    if (condition_type != bool_type) {
+        resolver_mismatched_types(r, condition_node, bool_type, condition_type);
+        return false;
+    }
+
+    resolver_enter_scope(r);
+
+    bool block_result = resolve_block(r, node->as.while_loop.body);
+
+    resolver_exit_scope(r);
+
+    return block_result;
+}
