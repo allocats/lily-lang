@@ -570,6 +570,206 @@ static LLVMValueRef codegen_binary_op_assign(CodegenCtx *ctx, const AstNode *lhs
         return LLVMBuildStore(ctx->llvm_builder, value, address);
     }
 
+    case TOK_PLUS_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_PLUS,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_MINUS_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_MINUS,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_STAR_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_STAR,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_SLASH_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_SLASH,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_PERCENT_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_PERCENT,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_AMP_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_AMP,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_PIPE_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_PIPE,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_CARET_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_CARET,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_SHL_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_SHL,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
+    case TOK_SHR_EQ: {
+        LLVMValueRef address = codegen_lvalue(ctx, lhs);
+        assert(address != null);
+
+        const AstNode node = {
+            .kind = AST_BINARY_OP,
+
+            .as.binary_op.op  = TOK_SHR,
+            .as.binary_op.lhs = lhs->id,
+            .as.binary_op.rhs = rhs->id,
+
+            .resolved_type_id = lhs->resolved_type_id
+        };
+
+        LLVMValueRef value = codegen_expression(ctx, &node);
+        assert(value != null);
+
+        return LLVMBuildStore(ctx->llvm_builder, value, address);
+    }
+
     default:
         UNREACHABLE("Impossible operator %s", TOKEN_KIND_STRINGS[op]);
     }

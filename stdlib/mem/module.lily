@@ -1,10 +1,10 @@
-calloc        :: foreign fn(size: usize) -> *void;
-malloc        :: foreign fn(size: usize) -> *void;
-realloc       :: foreign fn(ptr: *void, size: usize) -> *void;
-aligned_alloc :: foreign fn(alignment: usize, size: usize) -> *void;
+malloc        :: foreign fn(size_in_bytes: usize) -> *void;
+realloc       :: foreign fn(ptr: *void, size_in_bytes: usize) -> *void;
+calloc        :: foreign fn(number_of_elements: usize, element_size_in_bytes: usize) -> *void;
+aligned_alloc :: foreign fn(alignment: usize, size_in_bytes: usize) -> *void;
 
 free :: foreign fn(ptr: *void);
 
-memset  :: intrinsic fn(dest: *void, byte: i8,   size: isize);
-memcpy  :: intrinsic fn(dest: *void, src: *void, size: isize);
-memmove :: intrinsic fn(dest: *void, src: *void, size: isize);
+memset  :: intrinsic fn(dest: *void, byte: i8,   size_in_bytes: isize);
+memcpy  :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
+memmove :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
