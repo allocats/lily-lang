@@ -50,7 +50,10 @@ void parse_file(File *file) {
 
         switch (token.kind) {
         case TOK_EOF: {
-            file->stage = FILE_PARSED;
+            if (file->stage != FILE_ERROR) {
+                file->stage = FILE_PARSED;
+            }
+
             return;
         }
 
