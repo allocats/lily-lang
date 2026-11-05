@@ -570,29 +570,42 @@ static bool resolve_variable(Resolver *r, SymbolId id) {
      */
     assert(node->kind == AST_VARIABLE_DECL);
 
-    TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
+    if (node->as.variable_decl.type_expr != AST_NODE_ID_NONE) {
+        TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
 
-    if (type_id == TYPE_ID_NONE) {
-        result = false;
-    }
+        if (type_id == TYPE_ID_NONE) {
+            result = false;
+        }
 
-    node->resolved_type_id = type_id;
+        node->resolved_type_id = type_id;
 
-    if (result && node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+        if (result && node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+            AstNodeId init_expr_id  = node->as.variable_decl.init_expr;
+            AstNode *init_expr_node = &r->ast->nodes[init_expr_id];
+
+            TypeId init_expr_type_id = resolve_expression(r, init_expr_node, type_id);
+
+            if (init_expr_type_id == TYPE_ID_NONE) {
+                result = false;
+            }
+
+            if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, init_expr_type_id)) {
+                result = false;
+
+                resolver_mismatched_types(r, init_expr_node, type_id, init_expr_type_id);
+            }
+        }
+    } else {
         AstNodeId init_expr_id  = node->as.variable_decl.init_expr;
         AstNode *init_expr_node = &r->ast->nodes[init_expr_id];
 
-        TypeId init_expr_type_id = resolve_expression(r, init_expr_node, type_id);
+        TypeId init_expr_type_id = resolve_expression(r, init_expr_node, TYPE_ID_NONE);
 
         if (init_expr_type_id == TYPE_ID_NONE) {
             result = false;
         }
 
-        if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, init_expr_type_id)) {
-            result = false;
-
-            resolver_mismatched_types(r, init_expr_node, type_id, init_expr_type_id);
-        }
+        node->resolved_type_id = init_expr_type_id;
     }
 
     /*

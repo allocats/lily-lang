@@ -435,7 +435,9 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
                 return TYPE_ID_NONE;
             }
         } else {
-            resolve_expression(r, argument_node, TYPE_ID_NONE);
+            if (resolve_expression(r, argument_node, TYPE_ID_NONE) == TYPE_ID_NONE) {
+                return TYPE_ID_NONE;
+            }
         }
     }
 

@@ -55,33 +55,49 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     symbol->file_id     = r->file->id;
     symbol->ast_node_id = node->id;
 
-    TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
-
-    node->resolved_type_id   = type_id;
     node->resolved_symbol_id = symbol_id;
 
-    symbol->as.variable_symbol.type_id = type_id;
+    if (node->as.variable_decl.type_expr != AST_NODE_ID_NONE) {
+        TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
 
-    if (type_id == TYPE_ID_NONE) {
-        symbol->state = RESOLVE_ERROR;
-        return false;
-    }
+        node->resolved_type_id   = type_id;
 
-    if (node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+        symbol->as.variable_symbol.type_id = type_id;
+
+        if (type_id == TYPE_ID_NONE) {
+            symbol->state = RESOLVE_ERROR;
+            return false;
+        }
+
+        if (node->as.variable_decl.init_expr != AST_NODE_ID_NONE) {
+            AstNode *init_expr_node = &r->ast->nodes[node->as.variable_decl.init_expr];
+
+            TypeId expr_type_id = resolve_expression(r, init_expr_node, type_id);
+
+            if (expr_type_id == TYPE_ID_NONE) {
+                symbol->state = RESOLVE_ERROR;
+                return false;
+            }
+
+            if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, expr_type_id)) {
+                resolver_mismatched_types(r, init_expr_node, type_id, expr_type_id);
+                symbol->state = RESOLVE_ERROR;
+                return false;
+            }
+        }
+    } else {
         AstNode *init_expr_node = &r->ast->nodes[node->as.variable_decl.init_expr];
 
-        TypeId expr_type_id = resolve_expression(r, init_expr_node, type_id);
+        TypeId type_id = resolve_expression(r, init_expr_node, TYPE_ID_NONE);
 
-        if (expr_type_id == TYPE_ID_NONE) {
+        if (type_id == TYPE_ID_NONE) {
             symbol->state = RESOLVE_ERROR;
             return false;
         }
 
-        if (!types_are_assignable(r->type_table, &r->builtin_types, type_id, expr_type_id)) {
-            resolver_mismatched_types(r, init_expr_node, type_id, expr_type_id);
-            symbol->state = RESOLVE_ERROR;
-            return false;
-        }
+        node->resolved_type_id = type_id;
+
+        symbol->as.variable_symbol.type_id = type_id;
     }
 
     symbol->state = RESOLVE_RESOLVED;

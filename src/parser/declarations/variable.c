@@ -40,17 +40,24 @@ AstNodeId parse_variable_declaration(Parser *p) {
     parser_advance(p); // advance past `identifier`
     parser_advance(p); // advance past `:`
 
-    AstNodeId type_expression_id  = parse_type_expression(p);
-    AstNode *type_expression_node = parser_get_node(p, type_expression_id);
+    /*
+     *
+     * Type, only parse type expr if it exists
+     *
+     */
+    if (!parser_check(p, TOK_EQ)) {
+        AstNodeId type_expression_id  = parse_type_expression(p);
+        AstNode *type_expression_node = parser_get_node(p, type_expression_id);
 
-    if (type_expression_node->kind == AST_ERROR) {
-        return parser_error(p, id, RECOVERY_NONE);
+        if (type_expression_node->kind == AST_ERROR) {
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
+        node = parser_get_node(p, id);
+
+        node->as.variable_decl.type_expr = type_expression_id;
+        node->flags |= type_expression_node->flags;
     }
-
-    node = parser_get_node(p, id);
-
-    node->as.variable_decl.type_expr = type_expression_id;
-    node->flags |= type_expression_node->flags;
 
     if (parser_check(p, TOK_EQ)) {
         parser_advance(p);
