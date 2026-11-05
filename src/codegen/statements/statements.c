@@ -82,6 +82,20 @@ BlockResult codegen_block(CodegenCtx *ctx, const AstNode *node) {
             break;
         }
 
+        case AST_BREAK_STMT: {
+            LLVMBuildBr(ctx->llvm_builder, ctx->control_flow_merge);
+            defer_context_exit(ctx);
+
+            return BLOCK_TERMINATED;
+        }
+
+        case AST_CONTINUE_STMT: {
+            LLVMBuildBr(ctx->llvm_builder, ctx->control_flow_condition);
+            defer_context_exit(ctx);
+
+            return BLOCK_TERMINATED;
+        }
+
         case AST_UNARY_OP:
         case AST_BINARY_OP:
         case AST_FUNCTION_CALL: {
@@ -359,6 +373,13 @@ static bool codegen_while_loop(CodegenCtx *ctx, const AstNode *node) {
     LLVMBasicBlockRef body_block  = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "while.body");
     LLVMBasicBlockRef merge_block = LLVMAppendBasicBlockInContext(ctx->llvm_ctx, ctx->current_function, "while.merge");
 
+    // ==== cfg blocks ====
+    LLVMBasicBlockRef previous_control_flow_condition_block = ctx->control_flow_condition;
+    LLVMBasicBlockRef previous_control_flow_merge_block     = ctx->control_flow_merge;
+
+    ctx->control_flow_condition = cond_block;
+    ctx->control_flow_merge     = merge_block;
+
     LLVMBuildBr(ctx->llvm_builder, cond_block);
 
     // ==== condition ====
@@ -396,6 +417,9 @@ static bool codegen_while_loop(CodegenCtx *ctx, const AstNode *node) {
     // ==== merge ====
     LLVMPositionBuilderAtEnd(ctx->llvm_builder, merge_block);
     ctx->current_block = merge_block;
+
+    ctx->control_flow_condition = previous_control_flow_condition_block;
+    ctx->control_flow_merge     = previous_control_flow_merge_block;
 
     return true;
 }

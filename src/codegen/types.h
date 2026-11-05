@@ -160,6 +160,20 @@ typedef struct {
 
     /*
      *
+     * Control flow condition (used for `continue`)
+     *
+     */
+    LLVMBasicBlockRef control_flow_condition;
+
+    /*
+     *
+     * Control flow exit (used for `break`)
+     *
+     */
+    LLVMBasicBlockRef control_flow_merge;
+
+    /*
+     *
      * The current workspace
      *
      */

@@ -144,6 +144,10 @@ static bool codegen_file(const File *file) {
     ctx->declarations_block = null;
     ctx->current_block      = null;
 
+    // ===== control flow ======
+    ctx->control_flow_condition = null;
+    ctx->control_flow_merge     = null;
+
     // ===== function =====
     ctx->current_function = null;
 
