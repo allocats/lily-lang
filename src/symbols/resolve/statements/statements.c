@@ -1,6 +1,7 @@
 #include "symbols/resolve/statements/statements.h"
 #include "ast/kinds.h"
 #include "ast/types.h"
+#include "diagnostics/diagnostics.h"
 #include "driver/types.h"
 #include "ids.h"
 #include "resolver_stack/types.h"
@@ -13,6 +14,7 @@
 #include "symbols/symbol/symbol.h"
 #include "symbols/table/global/table.h"
 #include "types/entries/entries.h"
+#include "utils/macros.h"
 
 #include <assert.h>
 
@@ -60,7 +62,7 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
     if (node->as.variable_decl.type_expr != AST_NODE_ID_NONE) {
         TypeId type_id = resolve_type_expression(r, node->as.variable_decl.type_expr);
 
-        node->resolved_type_id   = type_id;
+        node->resolved_type_id = type_id;
 
         symbol->as.variable_symbol.type_id = type_id;
 
@@ -98,6 +100,26 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
         node->resolved_type_id = type_id;
 
         symbol->as.variable_symbol.type_id = type_id;
+    }
+
+    if (node->resolved_type_id == r->builtin_types.type_void) {
+        str8 msg = DIAGNOSTIC_ALLOC_MSG((&driver.global_diagnostic_engine));
+
+        str8 name_str = r->ws->global_string_interner.entries[global_string_id].str;
+
+        snprintf(msg.ptr, msg.len, "'%.*s' cannot be of type 'void'", STR8_FMT(name_str));
+
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            node->tokens,
+            msg.ptr,
+            "add indirection '*void' or use a different type"
+        );
+
+        symbol->state = RESOLVE_ERROR;
+        return false;
     }
 
     symbol->state = RESOLVE_RESOLVED;

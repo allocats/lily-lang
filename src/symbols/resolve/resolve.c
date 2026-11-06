@@ -608,6 +608,26 @@ static bool resolve_variable(Resolver *r, SymbolId id) {
         node->resolved_type_id = init_expr_type_id;
     }
 
+    if (node->resolved_type_id == r->builtin_types.type_void) {
+        str8 msg = DIAGNOSTIC_ALLOC_MSG((&driver.global_diagnostic_engine));
+
+        str8 name_str = r->ws->global_string_interner.entries[node->as.variable_decl.name].str;
+
+        snprintf(msg.ptr, msg.len, "'%.*s' cannot be of type 'void'", STR8_FMT(name_str));
+
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            node->tokens,
+            msg.ptr,
+            "add indirection '*void' or use a different type"
+        );
+
+        symbol->state = RESOLVE_ERROR;
+        return false;
+    }
+
     /*
      *
      * Restore the state

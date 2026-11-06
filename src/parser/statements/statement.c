@@ -22,7 +22,7 @@ AstNodeId parse_statement(Parser *p) {
     }
 
     case TOK_IDENTIFIER: {
-        if (parser_peek_ahead_by(p, 1).kind == TOK_COLON) {
+        if (parser_peek_ahead_by(p, 1).kind == TOK_COLON || parser_peek_ahead_by(p, 1).kind == TOK_COLON_COLON) {
             return parse_variable_declaration(p);
         } else {
             AstNodeId id = parse_expression(p);
