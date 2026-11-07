@@ -1,10 +1,9 @@
-malloc        :: foreign fn(size_in_bytes: usize) -> *void;
-realloc       :: foreign fn(ptr: *void, size_in_bytes: usize) -> *void;
-calloc        :: foreign fn(number_of_elements: usize, element_size_in_bytes: usize) -> *void;
-aligned_alloc :: foreign fn(alignment: usize, size_in_bytes: usize) -> *void;
-
-free :: foreign fn(ptr: *void);
+#include "libc.lily";
 
 memset  :: intrinsic fn(dest: *void, byte: i8,   size_in_bytes: isize);
 memcpy  :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
 memmove :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
+
+compare :: fn(ptr_a: *void, ptr_b: *void, size_in_bytes: isize) -> bool {
+    return memcmp(ptr_a, ptr_b, size_in_bytes) == 0;
+}

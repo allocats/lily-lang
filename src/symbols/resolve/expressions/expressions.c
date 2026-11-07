@@ -253,7 +253,8 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
 }
 
 static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type) {
-    TokenKind op = node->as.binary_op.op;
+    TokenKind op         = node->as.binary_op.op;
+    BinaryOpKind op_kind = binary_op_kind_lut[op];
 
     AstNodeId lhs_id = node->as.binary_op.lhs;
     AstNodeId rhs_id = node->as.binary_op.rhs;
@@ -261,12 +262,35 @@ static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type
     AstNode *lhs_node = &r->ast->nodes[lhs_id];
     AstNode *rhs_node = &r->ast->nodes[rhs_id];
 
-    TypeId lhs_type = resolve_expression(r, lhs_node, expected_type);
+    TypeId lhs_hint = TYPE_ID_NONE;
+
+    switch (op_kind) {
+    case BINARY_OP_ADDITIVE:
+    case BINARY_OP_MULTIPLICATIVE:
+    case BINARY_OP_BITWISE:
+    case BINARY_OP_SHIFT:
+        lhs_hint = expected_type;
+        break;
+
+    case BINARY_OP_LOGICAL:
+        lhs_hint = r->builtin_types.type_bool;
+        break;
+
+    case BINARY_OP_ASSIGN:
+    case BINARY_OP_COMPARISON:
+    default:
+        lhs_hint = TYPE_ID_NONE;
+        break;
+    }
+
+    TypeId lhs_type = resolve_expression(r, lhs_node, lhs_hint);
     if (lhs_type == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
     }
 
-    TypeId rhs_type = resolve_expression(r, rhs_node, lhs_type);
+    TypeId rhs_hint = (op_kind == BINARY_OP_SHIFT) ? TYPE_ID_NONE : lhs_type;
+
+    TypeId rhs_type = resolve_expression(r, rhs_node, rhs_hint);
     if (rhs_type == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
     }
@@ -275,7 +299,7 @@ static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type
         lhs_type = resolve_expression(r, lhs_node, rhs_type);
     }
 
-    switch (binary_op_kind_lut[op]) {
+    switch (op_kind) {
     case BINARY_OP_ASSIGN:
         return resolve_binary_op_assign(r, lhs_node, rhs_node, op);
 

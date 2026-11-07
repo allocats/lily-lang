@@ -1,4 +1,4 @@
-#include "libc_stdio.lily";
+#include "libc.lily";
 
 println :: fn(fmt: *u8, args: ...) {
     vprintf(fmt, args);
