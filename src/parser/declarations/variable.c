@@ -103,6 +103,22 @@ AstNodeId parse_variable_declaration(Parser *p) {
     }
 
     if (parser_check(p, TOK_EQ)) {
+        if (node->flags & AST_FLAG_FOREIGN) {
+            Token token = parser_peek(p);
+
+            diagnostic_add_token(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "foreign variable cannot have an initializer",
+                "remove the initializer here"
+            );
+
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
         parser_advance(p);
 
         AstNodeId initializer_id = parse_expression(p);

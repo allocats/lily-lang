@@ -44,6 +44,12 @@ AstNodeId parse_type_expression(Parser *p) {
         parser_advance(p);
     }
 
+    if (parser_check(p, TOK_KW_FOREIGN)) {
+        flags |= AST_FLAG_FOREIGN;
+
+        parser_advance(p);
+    }
+
     TypeModifier modifiers[type_modifier_max];
     u32 modifier_count = 0;
 

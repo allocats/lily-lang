@@ -403,6 +403,9 @@ static bool codegen_node(CodegenCtx *ctx, const AstNode *node) {
     case AST_FUNCTION_DECL:
         return codegen_function(ctx, node);
 
+    case AST_VARIABLE_DECL:
+        return codegen_global_variable(ctx, node);
+
     default:
         return true;
         // UNREACHABLE("Impossible top level node %s", AST_KIND_STRINGS[node->kind]);

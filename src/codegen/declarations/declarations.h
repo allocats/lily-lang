@@ -6,5 +6,6 @@
 LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id);
 
 bool codegen_function(CodegenCtx *ctx, const AstNode *node);
+bool codegen_global_variable(CodegenCtx *ctx, const AstNode *node);
 
 #endif // !LILY_CODEGEN_DECLARATIONS_H

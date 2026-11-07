@@ -206,6 +206,13 @@ static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node) {
 
     LLVMTypeRef type = type_to_llvm_type(node->resolved_type_id);
 
+    if (node->flags & AST_FLAG_FOREIGN) {
+        LLVMValueRef foreign_variable = LLVMAddGlobal(ctx->llvm_module, type, "");
+        LLVMSetInitializer(foreign_variable, null);
+        LLVMSetLinkage(foreign_variable, LLVMExternalLinkage);
+        return true;
+    }
+
     // Move builder to the declarations block
     LLVMPositionBuilderAtEnd(ctx->llvm_builder, ctx->declarations_block);
 
