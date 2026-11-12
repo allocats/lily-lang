@@ -7,6 +7,7 @@
 #include "string_interner/global/interner.h"
 #include "symbols/resolve/errors/errors.h"
 #include "symbols/resolve/types.h"
+#include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
 #include "symbols/table/global/table.h"
 #include "types/table/table.h"
@@ -81,7 +82,53 @@ static TypeId resolve_base_type(Resolver *r, AstNodeId id) {
             return TYPE_ID_NONE;
         }
 
-        return type_table_lookup_nominal(r->type_table, symbol_id);
+        const Symbol *symbol = &r->symbol_table->symbols[symbol_id];
+
+        TypeKind kind = TYPE_ERROR;
+
+        switch (symbol->kind) {
+        case SYMBOL_STRUCT: {
+            kind = TYPE_STRUCT;
+            break;
+        }
+
+        case SYMBOL_UNION: {
+            kind = TYPE_UNION;
+            break;
+        }
+
+        case SYMBOL_ENUM: {
+            kind = TYPE_ENUM;
+            break;
+        }
+
+        case SYMBOL_TYPE: {
+            kind = TYPE_BASE;
+            break;
+        }
+
+        default: {
+            DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+            str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+            str8 name = r->interner->entries[global_string_id].str;
+
+            snprintf(msg.ptr, msg.len, "'%.*s' is not a type", STR8_FMT(name));
+
+            diagnostic_add_token_span(
+                engine,
+                r->file,
+                DIAG_ERROR,
+                node->tokens,
+                msg.ptr,
+                "expected a type"
+            );
+
+            return TYPE_ID_NONE;
+        }
+        }
+
+        return type_table_intern_nominal(r->type_table, kind, symbol_id);
     }
 
     case AST_MEMBER_ACCESS: {

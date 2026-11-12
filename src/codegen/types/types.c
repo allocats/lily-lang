@@ -1,9 +1,12 @@
-#include "codegen/types.h"
+#include "codegen/types/types.h"
+#include "ast/types.h"
+#include "symbols/symbol/types.h"
 #include "threadpool/types.h"
 #include "types/builtins/types.h"
 #include "types/entries/kinds.h"
 #include "types/entries/types.h"
 #include "utils/macros.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 
@@ -60,6 +63,34 @@ static LLVMTypeRef base_type_to_llvm_type(const TypeId id) {
     UNREACHABLE("Invalid base type");
 }
 
+static LLVMTypeRef struct_type_to_llvm_type(TypeId id) {
+    CodegenCtx *ctx = thread_context.codegen_ctx;
+
+    const Type *type     = &ctx->ws->type_table.entries[id];
+    const Symbol *symbol = &ctx->ws->global_symbol_table.symbols[type->symbol_id];
+
+    const bool is_packed = symbol->flags & AST_FLAG_PACKED;
+
+    u32 field_count = type->as.struct_type.field_count;
+
+    LLVMTypeRef *llvm_field_types = lily_alloc(sizeof(LLVMTypeRef) * field_count);
+
+    for (u32 i = 0; i < field_count; i += 1) {
+        const TypeId field_type_id = type->as.struct_type.fields[i];
+
+        LLVMTypeRef llvm_field_type = type_to_llvm_type(field_type_id);
+        assert(llvm_field_type != null);
+
+        llvm_field_types[i] = llvm_field_type;
+    }
+
+    LLVMTypeRef llvm_type = LLVMStructTypeInContext(ctx->llvm_ctx, llvm_field_types, field_count, is_packed);
+
+    free(llvm_field_types);
+
+    return llvm_type;
+}
+
 LLVMTypeRef type_to_llvm_type(TypeId id) {
     CodegenCtx *ctx = thread_context.codegen_ctx;
 
@@ -76,6 +107,9 @@ LLVMTypeRef type_to_llvm_type(TypeId id) {
 
     case TYPE_POINTER:
         return ctx->type_map[id] = LLVMPointerType(type_to_llvm_type(type->as.pointer_type.pointee_id), 0);
+
+    case TYPE_STRUCT:
+        return ctx->type_map[id] = struct_type_to_llvm_type(id);
 
     default:
         UNREACHABLE("Invalid type");

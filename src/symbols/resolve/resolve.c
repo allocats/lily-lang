@@ -17,6 +17,8 @@
 #include "symbols/table/global/table.h"
 #include "types/builtins/types.h"
 #include "types/entries/entries.h"
+#include "types/entries/kinds.h"
+#include "types/table/table.h"
 #include "utils/macros.h"
 #include "utils/types.h"
 #include "workspace/types.h"
@@ -44,6 +46,7 @@ static StringId main_string_id = GLOBAL_STRING_ID_NONE;
 static bool resolve_symbol_body(Workspace *ws, SymbolId id);
 
 static bool resolve_import(Resolver *r, SymbolId id);
+static bool resolve_struct(Resolver *r, SymbolId id);
 static bool resolve_function(Resolver *r, SymbolId id);
 static bool resolve_variable(Resolver *r, SymbolId id);
 
@@ -204,11 +207,14 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     };
 
     switch (symbol->kind) {
-    case SYMBOL_FUNCTION:
-        return resolve_function(&r, id);
-
     case SYMBOL_IMPORT:
         return resolve_import(&r, id);
+
+    case SYMBOL_STRUCT:
+        return resolve_struct(&r, id);
+
+    case SYMBOL_FUNCTION:
+        return resolve_function(&r, id);
 
     case SYMBOL_VARIABLE:
         return resolve_variable(&r, id);
@@ -219,6 +225,152 @@ static bool resolve_symbol_body(Workspace *ws, SymbolId id) {
     default:
         UNREACHABLE("Found %s, ID=%u", SYMBOL_KIND_STRINGS[symbol->kind], id);
     }
+}
+
+static bool resolve_import(Resolver *r, SymbolId id) {
+    Symbol *symbol = &r->symbol_table->symbols[id];
+
+    File *file = r->ws->file_interner.entries[symbol->as.import_symbol.file_id];
+
+    symbol->as.import_symbol.scope_id = file->scope_id;
+
+    return true;
+}
+
+static bool resolve_struct(Resolver *r, SymbolId id) {
+    Symbol *symbol = resolver_get_symbol(r, id);
+    assert(symbol->kind == SYMBOL_STRUCT);
+
+    TypeId struct_type_id = type_table_intern_nominal(r->type_table, TYPE_STRUCT, id);
+    assert(struct_type_id != TYPE_ID_NONE);
+
+    Type *struct_type = &r->type_table->entries[struct_type_id];
+
+    symbol->as.struct_symbol.resolved_type_id = struct_type_id;
+
+    u32 field_count = symbol->as.struct_symbol.field_count;
+
+    if (field_count != 0) {
+        u64 fields_size = sizeof(SymbolId) * field_count;
+
+        symbol->as.struct_symbol.fields      = arena_alloc(&r->symbol_table->symbol_data_arena, fields_size);
+        symbol->as.struct_symbol.field_count = field_count;
+        memset(symbol->as.struct_symbol.fields, U8_MAX, fields_size);
+
+        struct_type->as.struct_type.fields      = arena_alloc(&r->type_table->gpa, fields_size);
+        struct_type->as.struct_type.field_count = field_count;
+        memset(struct_type->as.struct_type.fields, U8_MAX, fields_size);
+    }
+
+    bool result = true;
+
+    /*
+     *
+     * backup the state
+     *
+     */
+    File *r_file_restore    = r->file;
+    ScopeId r_scope_restore = r->scope_id;
+
+    /*
+     *
+     * set the new state
+     *
+     */
+    File *file = r->ws->file_interner.entries[symbol->file_id];
+
+    AstNode *node = &file->ast.nodes[symbol->ast_node_id];
+
+    node->resolved_type_id   = struct_type_id;
+    node->resolved_symbol_id = id;
+
+    r->file     = file;
+    r->ast      = &file->ast;
+    r->scope_id = file->scope_id;
+
+    // Enter new scope
+    symbol->as.struct_symbol.scope_id = resolver_enter_scope(r);
+
+    for (u32 i = 0; i < field_count; i += 1) {
+        AstNodeId field_id  = node->as.struct_decl.fields.ids[i];
+        AstNode *field_node = &file->ast.nodes[field_id];
+
+        StringId field_name_id = global_string_from_local_id(field_node->as.field_decl.name);
+
+        field_node->as.field_decl.name = field_name_id;
+
+        SymbolId field_symbol_id = global_symbol_table_lookup(r->symbol_table, r->scope_id, field_name_id);
+
+        symbol = resolver_get_symbol(r, id);
+
+        if (field_symbol_id != GLOBAL_SYMBOL_ID_NONE) {
+            resolver_error_symbol_redefined(r, field_node, field_symbol_id, field_name_id);
+            result = false;
+            break;
+        }
+
+        TypeId field_type_id = resolve_type_expression(r, field_node->as.field_decl.type_expr);
+
+        if (field_type_id == TYPE_ID_NONE) {
+            result = false;
+            break;
+        }
+
+        const Type *field_type = &r->type_table->entries[field_type_id];
+
+        if (field_type->kind == TYPE_STRUCT) {
+            bool struct_is_a_legal_field = resolve_symbol(r->ws, field_type->symbol_id);
+
+            symbol = resolver_get_symbol(r, id);
+
+            if (!struct_is_a_legal_field) {
+                result = false;
+                break;
+            }
+        }
+
+        field_symbol_id = global_scope_intern(r->symbol_table, r->scope_id, field_name_id);
+
+        Symbol *field_symbol = resolver_get_symbol(r, field_symbol_id);
+
+        field_symbol->kind        = SYMBOL_FIELD;
+        field_symbol->state       = RESOLVE_RESOLVED;
+        field_symbol->file_id     = r->file->id;
+        field_symbol->ast_node_id = field_id;
+        field_symbol->flags       = field_node->flags;
+
+        field_symbol->as.field_symbol.type_id = field_type_id;
+        field_symbol->as.field_symbol.index   = i;
+
+        /*
+         *
+         * Type and tag the AST
+         *
+         */
+        field_node->resolved_type_id   = field_type_id;
+        field_node->resolved_symbol_id = field_symbol_id;
+
+        symbol = resolver_get_symbol(r, id);
+
+        symbol->as.struct_symbol.fields[i] = field_symbol_id;
+
+        struct_type = &r->type_table->entries[struct_type_id];
+
+        struct_type->as.struct_type.fields[i] = field_type_id;
+    }
+
+    resolver_exit_scope(r);
+
+    /*
+     *
+     * restore the state
+     *
+     */
+    r->file     = r_file_restore;
+    r->ast      = &r_file_restore->ast;
+    r->scope_id = r_scope_restore;
+
+    return result;
 }
 
 bool resolve_function_signature(Resolver *r, SymbolId id) {
@@ -525,16 +677,6 @@ static bool resolve_function(Resolver *r, SymbolId id) {
     return result;
 }
 
-static bool resolve_import(Resolver *r, SymbolId id) {
-    Symbol *symbol = &r->symbol_table->symbols[id];
-
-    File *file = r->ws->file_interner.entries[symbol->as.import_symbol.file_id];
-
-    symbol->as.import_symbol.scope_id = file->scope_id;
-
-    return true;
-}
-
 static bool resolve_variable(Resolver *r, SymbolId id) {
     Symbol *symbol = &r->symbol_table->symbols[id];
 
@@ -625,7 +767,8 @@ static bool resolve_variable(Resolver *r, SymbolId id) {
         );
 
         symbol->state = RESOLVE_ERROR;
-        return false;
+
+        result = false;
     }
 
     /*

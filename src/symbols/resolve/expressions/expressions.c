@@ -874,18 +874,22 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
             return GLOBAL_SYMBOL_ID_NONE;
         }
 
-        Symbol *object_symbol = &r->symbol_table->symbols[object_id];
+        const Symbol *object_symbol = &r->symbol_table->symbols[object_id];
 
-        if (object_symbol->kind == SYMBOL_VARIABLE || object_symbol->kind == SYMBOL_PARAMETER) {
-            TypeId type_id = TYPE_ID_NONE;
+        ScopeId object_scope_id = GLOBAL_SCOPE_ID_NONE;
 
-            if (object_symbol->kind == SYMBOL_VARIABLE) {
-                type_id = object_symbol->as.variable_symbol.type_id;
-            } else {
-                type_id = object_symbol->as.parameter_symbol.type_id;
+        const SymbolKind kind = object_symbol->kind;
+
+        if (kind == SYMBOL_VARIABLE || kind == SYMBOL_PARAMETER || kind == SYMBOL_FIELD) {
+            TypeId type_id = symbol_get_type(r->symbol_table, object_id);
+
+            if (type_id == TYPE_ID_NONE) {
+                return GLOBAL_SYMBOL_ID_NONE;
             }
 
-            Type *type = &r->type_table->entries[type_id];
+            object_node->resolved_type_id = type_id;
+
+            const Type *type = &r->type_table->entries[type_id];
 
             /*
              *
@@ -896,7 +900,9 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
                 type = &r->type_table->entries[type->as.pointer_type.pointee_id];
             }
 
-            if (type->symbol_id == GLOBAL_SYMBOL_ID_NONE) {
+            const SymbolId type_symbol_id = type->symbol_id;
+
+            if (type_symbol_id == GLOBAL_SYMBOL_ID_NONE) {
                 DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
                 str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
@@ -916,10 +922,16 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
                 return GLOBAL_SYMBOL_ID_NONE;
             }
 
-            object_symbol = &r->symbol_table->symbols[type->symbol_id];
-        }
+            if (!resolve_symbol(r->ws, type_symbol_id)) {
+                return GLOBAL_SYMBOL_ID_NONE;
+            }
 
-        ScopeId object_scope_id = symbol_get_members_scope(object_symbol);
+            object_symbol = &r->symbol_table->symbols[type_symbol_id];
+
+            object_scope_id = symbol_get_members_scope(&r->symbol_table->symbols[type_symbol_id]);
+        } else {
+            object_scope_id = symbol_get_members_scope((Symbol *)object_symbol);
+        }
 
         if (object_scope_id == GLOBAL_SCOPE_ID_NONE) {
             DiagnosticEngine *engine = &driver.global_diagnostic_engine;
@@ -948,7 +960,26 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
         SymbolId member_id = global_scope_lookup(r->symbol_table, object_scope_id, member_string_id);
 
         if (member_id == GLOBAL_SYMBOL_ID_NONE) {
-            resolver_undeclared_identifier(r, member_node, member_string_id);
+            DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+            str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+            str8 help = DIAGNOSTIC_ALLOC_MSG(engine);
+
+            str8 name        = r->interner->entries[object_symbol->name_id].str;
+            str8 member_name = r->interner->entries[member_string_id].str;
+
+            snprintf(msg.ptr, msg.len, "'%.*s' has no member named '%.*s'", STR8_FMT(name), STR8_FMT(member_name));
+            snprintf(help.ptr, help.len, "'%.*s' does not exist", STR8_FMT(member_name));
+
+            diagnostic_add_token_span(
+                engine,
+                r->file,
+                DIAG_ERROR,
+                member_node->tokens,
+                msg.ptr,
+                help.ptr
+            );
+
             return GLOBAL_SYMBOL_ID_NONE;
         }
 
@@ -956,6 +987,13 @@ static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node) {
         member_node->resolved_symbol_id = member_id;
 
         node->resolved_symbol_id = member_id;
+
+        if (resolve_symbol(r->ws, member_id)) {
+            const TypeId member_type = symbol_get_type(r->symbol_table, member_id);
+
+            member_node->resolved_type_id = member_type;
+            node->resolved_type_id        = member_type;
+        }
 
         return member_id;
     }

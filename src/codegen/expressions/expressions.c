@@ -37,6 +37,9 @@ static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node)
 static LLVMValueRef codegen_literal(CodegenCtx *ctx, const AstNode *node);
 static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id);
 
+// =========== Member Access =============
+static LLVMValueRef codegen_member_access(CodegenCtx *ctx, const AstNode *node);
+
 // =========== Unary Op =============
 static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node);
 
@@ -70,6 +73,9 @@ LLVMValueRef codegen_expression(CodegenCtx *ctx, const AstNode *node) {
 
     case AST_FUNCTION_CALL:
         return codegen_function_call(ctx, node);
+
+    case AST_MEMBER_ACCESS:
+        return codegen_member_access(ctx, node);
 
     case AST_UNARY_OP:
         return codegen_unary_op(ctx, node);
@@ -105,6 +111,37 @@ static LLVMValueRef codegen_lvalue(CodegenCtx *ctx, const AstNode *node) {
         const AstNode *operand_node = &ctx->file->ast.nodes[operand_id];
 
         return codegen_expression(ctx, operand_node);
+    }
+
+    case AST_MEMBER_ACCESS: {
+        const TypeTable *types = &ctx->ws->type_table;
+        const AstNode *object  = &ctx->file->ast.nodes[node->as.member_access.object];
+
+        TypeId type_id = object->resolved_type_id;
+
+        LLVMValueRef address = null;
+
+        if (type_is_kind(types, type_id, TYPE_POINTER)) {
+            address = codegen_expression(ctx, object);
+
+            type_id = types->entries[type_id].as.pointer_type.pointee_id;
+
+            while (type_is_kind(types, type_id, TYPE_POINTER)) {
+                address = LLVMBuildLoad2(ctx->llvm_builder, type_to_llvm_type(type_id), address, "");
+
+                type_id = types->entries[type_id].as.pointer_type.pointee_id;
+            }
+        } else {
+            address = codegen_lvalue(ctx, object);
+        }
+
+        assert(address != null);
+
+        const Symbol *field = &ctx->ws->global_symbol_table.symbols[node->resolved_symbol_id];
+
+        LLVMTypeRef type = type_to_llvm_type(type_id);
+
+        return LLVMBuildStructGEP2(ctx->llvm_builder, type, address, field->as.field_symbol.index, "");
     }
 
     default:
@@ -430,6 +467,28 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
     free(copy);
 
     return string;
+}
+
+/* 
+ *
+ * ===========================================
+ *
+ *               Member Acess
+ *
+ * ===========================================
+ * 
+ */
+
+static LLVMValueRef codegen_member_access(CodegenCtx *ctx, const AstNode *node) {
+    const Symbol *symbol = &ctx->ws->global_symbol_table.symbols[node->resolved_symbol_id];
+
+    if (symbol->kind != SYMBOL_FIELD) {
+        return codegen_identifier(ctx, &ctx->file->ast.nodes[node->as.member_access.member]);
+    }
+
+    LLVMValueRef address = codegen_lvalue(ctx, node);
+
+    return LLVMBuildLoad2(ctx->llvm_builder, type_to_llvm_type(node->resolved_type_id), address, "");
 }
 
 /* 
