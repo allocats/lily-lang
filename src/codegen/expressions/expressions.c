@@ -415,37 +415,43 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
 
             char c = str.ptr[i];
 
-            // at end or early break, no point in parsing rest of the string
-            if (c == '0') {
-                *cursor++ = '\0';
-                break;
-            }
-
             switch (c) {
+            case '0': {
+                *cursor++ = '\0';
+            } break;
+
             case 'a': {
                 *cursor++ = '\a';
             } break;
+
             case 'b': {
                 *cursor++ = '\b';
             } break;
+
             case 'f': {
                 *cursor++ = '\f';
             } break;
+
             case 'n': {
                 *cursor++ = '\n';
             } break;
+
             case 'r': {
                 *cursor++ = '\r';
             } break;
+
             case 't': {
                 *cursor++ = '\t';
             } break;
+
             case 'v': {
                 *cursor++ = '\v';
             } break;
+
             case '\\': {
                 *cursor++ = '\\';
             } break;
+
             case '"': {
                 *cursor++ = '\"';
             } break;
@@ -460,7 +466,22 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
         }
     }
 
-    LLVMValueRef string = LLVMBuildGlobalString(ctx->llvm_builder, copy, name);
+    const usize length = cursor - copy;
+
+    LLVMValueRef data   = LLVMConstStringInContext(ctx->llvm_ctx, copy, length, 0);
+    LLVMValueRef global = LLVMAddGlobal(ctx->llvm_module, LLVMTypeOf(data), name);
+
+    LLVMSetInitializer(global, data);
+    LLVMSetGlobalConstant(global, 1);
+    LLVMSetLinkage(global, LLVMPrivateLinkage);
+    LLVMSetUnnamedAddr(global, 1);
+
+    LLVMValueRef fields[2] = {
+        global,
+        LLVMConstInt(type_to_llvm_type(ctx->ws->builtin_types.type_usize), length, 0),
+    };
+
+    LLVMValueRef string = LLVMConstStructInContext(ctx->llvm_ctx, fields, 2, 0);
 
     ctx->string_map[id] = string;
 
@@ -473,7 +494,7 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
  *
  * ===========================================
  *
- *               Member Acess
+ *               Member Access
  *
  * ===========================================
  * 

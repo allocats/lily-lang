@@ -1,5 +1,5 @@
 #include "libc.lily";
 
-len :: fn(str: *u8) -> i32 {
-    return strlen(str);
+len :: fn(str: string) -> usize {
+    return str.len;
 }

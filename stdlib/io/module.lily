@@ -1,10 +1,10 @@
 #include "libc.lily";
 
-println :: fn(fmt: *u8, args: ...) {
-    vprintf(fmt, args);
+println :: fn(fmt: string, args: ...) {
+    vprintf(fmt.ptr, args);
     putchar(10);
 }
 
-print :: fn(fmt: *u8, args: ...) {
-    vprintf(fmt, args);
+print :: fn(fmt: string, args: ...) {
+    vprintf(fmt.ptr, args);
 }
