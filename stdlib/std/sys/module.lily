@@ -1,0 +1,2 @@
+abort :: foreign fn();
+exit  :: foreign fn(code: i32);

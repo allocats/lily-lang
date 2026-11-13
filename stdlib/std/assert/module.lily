@@ -1,0 +1,9 @@
+#import "std/io";
+#import "std/sys";
+
+assert :: fn(expression: bool, message: string) {
+    if !expression {
+        println("Runtime assertion: %s", message);
+        abort();
+    }
+}

@@ -117,7 +117,6 @@ inline void local_string_interner_destroy(LocalStringInterner *interner) {
 StringId local_string_intern_str8(LocalStringInterner *interner, str8 str) {
     assert(interner != null);
     assert(str.ptr != null);
-    assert(str.len != 0);
 
     debug_log("Intering string: %.*s", str.len, str.ptr);
 
@@ -172,7 +171,6 @@ StringId local_string_intern_str8(LocalStringInterner *interner, str8 str) {
 StringId local_string_lookup_str8(LocalStringInterner *interner, str8 str) {
     assert(interner != null);
     assert(str.ptr != null);
-    assert(str.len != 0);
 
     debug_log("Looking for string: %.*s", str.len, str.ptr);
 

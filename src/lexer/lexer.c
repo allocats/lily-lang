@@ -1,5 +1,6 @@
 #include "lexer/lexer.h"
 #include "diagnostics/diagnostics.h"
+#include "diagnostics/types.h"
 #include "files/types.h"
 #include "lexer/types.h"
 #include "threadpool/types.h"
@@ -359,6 +360,10 @@ static void lex_operator(Lexer *lexer) {
     const char *cursor = lexer->cursor;
     const char *start  = cursor;
 
+    // init
+    token->start  = start - buffer_ptr;
+    token->length = 1;
+
     cursor += 1;
 
     switch (*start) {
@@ -490,6 +495,60 @@ static void lex_operator(Lexer *lexer) {
 
             while (*cursor != 0 && *cursor != '\n') {
                 cursor += 1;
+            }
+
+            if (*cursor != 0) {
+                cursor += 1;
+            }
+
+            break;
+        }
+
+        if (*cursor == '*') {
+            u32 depth = 1;
+
+            lexer->file->tokens.count--;
+
+            while (depth > 0 && *cursor != 0) {
+                cursor += 1;
+
+                if (*cursor == '*') {
+                    cursor += 1;
+
+                    if (*cursor == 0) {
+                        diagnostic_add_token(
+                            thread_context.diagnostic_engine,
+                            lexer->file,
+                            DIAG_ERROR,
+                            token,
+                            DIAG_LOC_WHOLE_TOK,
+                            "unterminated comment",
+                            "add a terminating '*/'"
+                        );
+
+                        lexer->cursor = cursor;
+                        return;
+                    }
+
+                    if (*cursor == '/') {
+                        depth -= 1;
+                    }
+                }
+            }
+
+            if (depth > 0) {
+                diagnostic_add_token(
+                    thread_context.diagnostic_engine,
+                    lexer->file,
+                    DIAG_ERROR,
+                    token,
+                    DIAG_LOC_WHOLE_TOK,
+                    "unterminated comment",
+                    "add a terminating '*/'"
+                );
+
+                lexer->cursor = cursor;
+                return;
             }
 
             if (*cursor != 0) {

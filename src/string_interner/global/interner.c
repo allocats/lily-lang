@@ -121,7 +121,6 @@ void global_string_interner_destroy(GlobalStringInterner *interner) {
 StringId global_string_intern_str8(GlobalStringInterner *interner, str8 str) {
     assert(interner != null);
     assert(str.ptr != null);
-    assert(str.len != 0);
 
     if (UNLIKELY(interner->count >= interner->resize_threshold_as_u32)) {
         resize_buckets(interner);
@@ -168,7 +167,6 @@ StringId global_string_intern_str8(GlobalStringInterner *interner, str8 str) {
 StringId global_string_lookup_str8(GlobalStringInterner *interner, str8 str) {
     assert(interner != null);
     assert(str.ptr != null);
-    assert(str.len != 0);
 
     u32 hash  = hash_str8(str);
     u32 mask  = interner->bucket_capacity - 1;
@@ -209,7 +207,6 @@ static StringId global_string_intern_local_entry(GlobalStringInterner *interner,
     assert(interner != null);
     assert(entry.hash != 0);
     assert(entry.str.ptr != null);
-    assert(entry.str.len != 0);
 
     str8 str = entry.str;
 

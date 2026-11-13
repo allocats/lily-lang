@@ -5,4 +5,4 @@ aligned_alloc :: foreign fn(alignment: usize, size_in_bytes: usize) -> *void;
 
 free :: foreign fn(ptr: *void);
 
-memcmp  :: foreign fn(ptr_a: *void, ptr_b: *void, size_in_bytes: isize) -> i32;
+memcmp :: foreign fn(ptr_a: *void, ptr_b: *void, size_in_bytes: isize) -> i32;

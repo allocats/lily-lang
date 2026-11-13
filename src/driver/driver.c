@@ -28,6 +28,7 @@
 #define LIBC_DIR ".local/lily/libc"
 
 static char standard_library_path[PATH_MAX] = {0};
+static char libc_library_path[PATH_MAX]     = {0};
 
 /*
  *
@@ -68,9 +69,9 @@ void driver_init(Driver *driver, const char *home) {
 
     driver->standard_library_directory = standard_library_path;
 
-    snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, LIBC_DIR);
+    snprintf(libc_library_path, sizeof(libc_library_path), "%s/%s", home, LIBC_DIR);
 
-    driver->libc_library_directory = standard_library_path;
+    driver->libc_library_directory = libc_library_path;
 
     standard_library_list_init(driver);
 
