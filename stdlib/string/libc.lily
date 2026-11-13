@@ -1,1 +1,0 @@
-strlen :: foreign fn(str: *u8) -> i32;

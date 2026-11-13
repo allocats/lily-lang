@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #define STDLIB_DIR ".local/lily/std"
+#define LIBC_DIR ".local/lily/libc"
 
 static char standard_library_path[PATH_MAX] = {0};
 
@@ -66,6 +67,10 @@ void driver_init(Driver *driver, const char *home) {
     snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, STDLIB_DIR);
 
     driver->standard_library_directory = standard_library_path;
+
+    snprintf(standard_library_path, sizeof(standard_library_path), "%s/%s", home, LIBC_DIR);
+
+    driver->libc_library_directory = standard_library_path;
 
     standard_library_list_init(driver);
 
@@ -227,6 +232,11 @@ bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
                 continue;
             }
 
+            if (strncmp(arg, "-verify-llvm-ir", arg_len) == 0) {
+                driver->flags |= DRIVER_FLAG_VERIFY_IR;
+                continue;
+            }
+
             if (strncmp(arg, "-release", arg_len) == 0) {
                 driver->flags |= DRIVER_FLAG_RELEASE_MODE;
                 continue;
@@ -369,6 +379,54 @@ static void standard_library_list_init(Driver *driver) {
         char *name = arena_alloc(&list->arena, size);
 
         i32 length = snprintf(name, size, "std/%s", entry->d_name);
+
+        str8 path = {
+            .ptr = name,
+            .len = length,
+        };
+
+        if (UNLIKELY(list->count >= list->capacity)) {
+            u64 old_size = list->capacity * sizeof(str8);
+            u64 new_size = old_size * 2;
+
+            list->paths = arena_realloc(&list->arena, list->paths, old_size, new_size);
+            list->capacity *= 2;
+        }
+
+        list->paths[list->count++] = path;
+    }
+
+    closedir(directory);
+
+    directory = opendir(driver->libc_library_directory);
+
+    if (!directory) {
+        diagnostic_add_generic(
+            &driver->global_diagnostic_engine,
+            DIAG_ERROR,
+            "unable to load libc library!\nPath: %s",
+            driver->libc_library_directory
+        );
+
+        return;
+    }
+
+    entry = null;
+
+    while ((entry = readdir(directory)) != null) {
+        if (entry->d_type != DT_DIR)
+            continue;
+
+        if (strcmp(entry->d_name, ".") == 0)
+            continue;
+        if (strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        const usize size = strlen(entry->d_name) + sizeof("libc/");
+
+        char *name = arena_alloc(&list->arena, size);
+
+        i32 length = snprintf(name, size, "libc/%s", entry->d_name);
 
         str8 path = {
             .ptr = name,

@@ -1,5 +1,3 @@
-#include "libc.lily";
-
 len :: fn(str: string) -> usize {
     return str.len;
 }

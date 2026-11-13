@@ -13,6 +13,8 @@ bool type_is_unsigned_int(BuiltinTypeIds builtins, TypeId id);
 bool type_is_float(BuiltinTypeIds builtins, TypeId id);
 bool type_is_numeric(BuiltinTypeIds builtins, TypeId id);
 
+bool type_is_structure(TypeTable *table, TypeId id);
+
 bool types_are_assignable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);
 bool types_are_arithmeticable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);
 bool types_are_comparable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs);

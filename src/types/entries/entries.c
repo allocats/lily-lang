@@ -27,6 +27,10 @@ inline bool type_is_numeric(BuiltinTypeIds builtins, TypeId id) {
     return (id >= builtins.type_u8 && id <= builtins.type_f64);
 }
 
+bool type_is_structure(TypeTable *table, TypeId id) {
+    return type_is_kind(table, id, TYPE_STRUCT) || type_is_kind(table, id, TYPE_UNION);
+}
+
 bool types_are_assignable(TypeTable *table, BuiltinTypeIds *builtins, TypeId lhs, TypeId rhs) {
     if (lhs == TYPE_ID_NONE || rhs == TYPE_ID_NONE) {
         return false;

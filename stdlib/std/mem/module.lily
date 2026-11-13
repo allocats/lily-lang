@@ -1,4 +1,4 @@
-#include "libc.lily";
+#import "libc/mem";
 
 memset  :: intrinsic fn(dest: *void, byte: i8,   size_in_bytes: isize);
 memcpy  :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);

@@ -188,6 +188,7 @@ typedef struct {
 
     bool is_release_mode;
     bool emit_llvm_ir;
+    bool verify_llvm_ir;
 
     char *build_directory;
 

@@ -1,4 +1,4 @@
-#include "libc.lily";
+#import "libc/io";
 
 println :: fn(fmt: string, args: ...) {
     vprintf(fmt.ptr, args);

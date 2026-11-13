@@ -84,7 +84,19 @@ static LLVMTypeRef struct_type_to_llvm_type(TypeId id) {
         llvm_field_types[i] = llvm_field_type;
     }
 
-    LLVMTypeRef llvm_type = LLVMStructTypeInContext(ctx->llvm_ctx, llvm_field_types, field_count, is_packed);
+    // get the name
+    str8 name_str = ctx->ws->global_string_interner.entries[symbol->name_id].str;
+
+    // null terminate the string temporarily
+    char putback                   = *(name_str.ptr + name_str.len);
+    *(name_str.ptr + name_str.len) = 0;
+
+    LLVMTypeRef llvm_type = LLVMStructCreateNamed(ctx->llvm_ctx, name_str.ptr);
+
+    // putback the char
+    *(name_str.ptr + name_str.len) = putback;
+
+    LLVMStructSetBody(llvm_type, llvm_field_types, field_count, is_packed);
 
     free(llvm_field_types);
 

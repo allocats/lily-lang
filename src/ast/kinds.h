@@ -355,11 +355,6 @@ typedef struct {
     AstNodeIdList field_inits;
 } AstStructLiteral;
 
-typedef struct {
-    StringId field;
-    AstNodeId value;
-} AstFieldInit;
-
 /*
  *
  * AST Type Expressions

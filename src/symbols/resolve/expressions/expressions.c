@@ -9,6 +9,7 @@
 #include "symbols/resolve/errors/errors.h"
 #include "symbols/resolve/expressions/types.h"
 #include "symbols/resolve/resolve.h"
+#include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/resolve/types.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
@@ -23,6 +24,7 @@
 #include "utils/macros.h"
 
 #include <assert.h>
+#include <pthread.h>
 #include <stdio.h>
 
 extern Driver driver;
@@ -33,6 +35,7 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
 static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_type);
+static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected_type);
 
 /*
  *
@@ -82,7 +85,7 @@ static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
         UNREACHABLE("Index not yet supported");
 
     case AST_STRUCT_LITERAL:
-        UNREACHABLE("Struct literal not yet supported");
+        return resolve_struct_literal(r, node, expected_type);
 
     default:
         UNREACHABLE("Impossilbe expression %s", AST_KIND_STRINGS[node->kind]);
@@ -489,6 +492,164 @@ static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_
     node->resolved_symbol_id = id;
 
     return symbol_get_type(r->symbol_table, id);
+}
+
+static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected_type) {
+    DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+    AstNode *type_expr_node = &r->file->ast.nodes[node->as.struct_literal.type_expr];
+
+    TypeId struct_type_id = resolve_expression(r, type_expr_node, expected_type);
+
+    if (struct_type_id == TYPE_ID_NONE) {
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_structure(r->type_table, struct_type_id)) {
+        diagnostic_add_token_span(
+            engine,
+            r->file,
+            DIAG_ERROR,
+            type_expr_node->tokens,
+            "type is not a struct or union in struct literal",
+            null
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (expected_type != TYPE_ID_NONE && expected_type != struct_type_id) {
+        resolver_mismatched_types(r, type_expr_node, expected_type, struct_type_id);
+        return TYPE_ID_NONE;
+    }
+
+    const Type *struct_type         = &r->type_table->entries[struct_type_id];
+    const SymbolId struct_symbol_id = struct_type->symbol_id;
+
+    node->resolved_type_id   = struct_type_id;
+    node->resolved_symbol_id = struct_symbol_id;
+
+    type_expr_node->resolved_type_id   = struct_type_id;
+    type_expr_node->resolved_symbol_id = struct_symbol_id;
+
+    const Symbol *struct_symbol   = &r->symbol_table->symbols[struct_symbol_id];
+    const ScopeId struct_scope_id = symbol_get_members_scope((Symbol *)struct_symbol);
+    const StringId struct_name_id = struct_symbol->name_id;
+
+    const AstNodeIdList *inits = &node->as.struct_literal.field_inits;
+
+    for (u32 i = 0; i < inits->count; i += 1) {
+        AstNode *init_node = &r->ast->nodes[inits->ids[i]];
+
+        assert(init_node->kind == AST_BINARY_OP);
+        assert(init_node->as.binary_op.op == TOK_EQ);
+
+        AstNode *field_node = &r->ast->nodes[init_node->as.binary_op.lhs];
+        AstNode *value_node = &r->ast->nodes[init_node->as.binary_op.rhs];
+
+        assert(field_node->kind == AST_IDENTIFIER);
+
+        StringId field_name_id = global_string_from_local_id(field_node->as.identifier.name);
+
+        field_node->as.identifier.name = field_name_id;
+
+        SymbolId field_id = GLOBAL_SYMBOL_ID_NONE;
+
+        if (struct_scope_id != GLOBAL_SCOPE_ID_NONE) {
+            field_id = global_scope_lookup(r->symbol_table, struct_scope_id, field_name_id);
+        }
+
+        if (field_id == GLOBAL_SYMBOL_ID_NONE || r->symbol_table->symbols[field_id].kind != SYMBOL_FIELD) {
+            str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+            str8 help = DIAGNOSTIC_ALLOC_MSG(engine);
+
+            str8 struct_name = r->interner->entries[struct_name_id].str;
+            str8 field_name  = r->interner->entries[field_name_id].str;
+
+            snprintf(
+                msg.ptr,
+                msg.len,
+                "'%.*s' has no field named '%.*s'",
+                STR8_FMT(struct_name),
+                STR8_FMT(field_name)
+            );
+
+            snprintf(help.ptr, help.len, "'%.*s' does not exist", STR8_FMT(field_name));
+
+            diagnostic_add_token_span(
+                engine,
+                r->file,
+                DIAG_ERROR,
+                field_node->tokens,
+                msg.ptr,
+                help.ptr
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        /*
+         * Fields can only be set once!
+         */
+        bool duplicate = false;
+
+        for (u32 j = 0; j < i; j += 1) {
+            const AstNode *previous = &r->ast->nodes[inits->ids[j]];
+
+            if (previous->resolved_symbol_id == field_id) {
+                duplicate = true;
+                break;
+            }
+        }
+
+        if (duplicate) {
+            str8 msg = DIAGNOSTIC_ALLOC_MSG(engine);
+
+            str8 field_name = r->interner->entries[field_name_id].str;
+
+            snprintf(msg.ptr, msg.len, "field '%.*s' is initialized more than once", STR8_FMT(field_name));
+
+            diagnostic_add_token_span(
+                engine,
+                r->file,
+                DIAG_ERROR,
+                field_node->tokens,
+                msg.ptr,
+                "this field was already initialized earlier in the literal"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        init_node->resolved_symbol_id  = field_id;
+        field_node->resolved_symbol_id = field_id;
+
+        if (!resolve_symbol(r->ws, field_id)) {
+            return TYPE_ID_NONE;
+        }
+
+        TypeId field_type_id = symbol_get_type(r->symbol_table, field_id);
+
+        if (field_type_id == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        TypeId value_type_id = resolve_expression(r, value_node, field_type_id);
+
+        if (value_type_id == TYPE_ID_NONE) {
+            return TYPE_ID_NONE;
+        }
+
+        if (!types_are_assignable(r->type_table, &r->builtin_types, field_type_id, value_type_id)) {
+            resolver_mismatched_types(r, value_node, field_type_id, value_type_id);
+            return TYPE_ID_NONE;
+        }
+
+        init_node->resolved_type_id  = field_type_id;
+        field_node->resolved_type_id = field_type_id;
+    }
+
+    return struct_type_id;
 }
 
 /*

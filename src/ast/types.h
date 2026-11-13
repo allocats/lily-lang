@@ -102,7 +102,6 @@ typedef struct {
         AstIndex index;
 
         AstStructLiteral struct_literal;
-        AstFieldInit field_init;
 
         /*
          * types

@@ -743,51 +743,43 @@ static AstNodeId parse_struct_literal(Parser *p, AstNodeId left) {
     parser_advance(p); // advance past `{`
 
     while (!parser_check(p, TOK_R_BRACE)) {
-        Token field_name_tok = parser_peek(p);
-
-        if (field_name_tok.kind != TOK_IDENTIFIER) {
-            diagnostic_add_token(
-                thread_context.diagnostic_engine,
-                p->file,
-                DIAG_ERROR,
-                &field_name_tok,
-                DIAG_LOC_WHOLE_TOK,
-                "invalid field name",
-                "field names must be identifier"
-            );
-
-            return parser_error(p, id, RECOVERY_EXPRESSION);
-        }
-
-        StringId field_name_id = local_string_intern_token(thread_context.string_interner, p->file, field_name_tok);
-
-        parser_advance(p); // advance past `identifier`
-
-        if (!parser_check(p, TOK_EQ)) {
-            diagnostic_add_token(
-                thread_context.diagnostic_engine,
-                p->file,
-                DIAG_ERROR,
-                &field_name_tok,
-                DIAG_LOC_END_OF_TOK,
-                "expected '=' for struct field initializer",
-                "add a '=' here"
-            );
-
-            return parser_error(p, id, RECOVERY_EXPRESSION);
-        }
-
-        parser_advance(p); // advance past `=`
-
-        AstNodeId value_expr = parse_expression(p);
-
-        AstNodeId field_init_id  = parser_create_node(p);
+        AstNodeId field_init_id  = parse_expression(p);
         AstNode *field_init_node = parser_get_node(p, field_init_id);
 
-        field_init_node->kind = AST_STRUCT_FIELD_INIT;
+        if (field_init_node->kind == AST_ERROR) {
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
 
-        field_init_node->as.field_init.field = field_name_id;
-        field_init_node->as.field_init.value = value_expr;
+        if (field_init_node->kind != AST_BINARY_OP) {
+            diagnostic_add_token_span(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                field_init_node->tokens,
+                "invalid field initializer in struct literal",
+                "expected 'field = value'"
+            );
+
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
+
+        if (field_init_node->as.binary_op.op != TOK_EQ) {
+            AstNode *lhs = parser_get_node(p, field_init_node->as.binary_op.lhs);
+
+            Token token = p->file->tokens.items[lhs->tokens.end + 1];
+
+            diagnostic_add_token(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "invalid operator in field initializer inside struct literal",
+                "expected '='"
+            );
+
+            return parser_error(p, id, RECOVERY_EXPRESSION);
+        }
 
         node = parser_get_node(p, id);
 
@@ -821,7 +813,6 @@ static AstNodeId parse_struct_literal(Parser *p, AstNodeId left) {
     parser_advance(p); // advance past `}`
 
     return id;
-    ;
 }
 
 static void parse_call_args(Parser *p, AstNodeId id) {

@@ -41,6 +41,7 @@ typedef struct {
 
     const char *home_directory;
     const char *standard_library_directory;
+    const char *libc_library_directory;
 
     StandardLibraryList standard_library_path_list;
 

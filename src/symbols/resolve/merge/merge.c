@@ -16,7 +16,9 @@ static void resolve_imports_for_file(Resolver *r);
 static void resolve_include(Resolver *r, AstNode *node);
 static void resolve_import_directive(Resolver *r, AstNode *node);
 
-static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id);
+static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id);
+
+static bool is_exportable(const Symbol *symbol, FileId src_file_id);
 
 static void error_symbol_redefined(Resolver *r, SymbolId original_id, SymbolId redefined_id, StringId name);
 
@@ -70,37 +72,51 @@ static void resolve_imports_for_file(Resolver *r) {
 static void resolve_include(Resolver *r, AstNode *node) {
     File *file = r->ws->file_interner.entries[node->as.include_directive.file_id];
 
-    merge_scopes(r, r->scope_id, file->scope_id);
+    merge_scopes(r, r->scope_id, file->scope_id, file->id);
 }
 
 static void resolve_import_directive(Resolver *r, AstNode *node) {
     File *file = r->ws->file_interner.entries[node->as.import_directive.file_id];
 
-    merge_scopes(r, r->scope_id, file->scope_id);
+    merge_scopes(r, r->scope_id, file->scope_id, file->id);
 }
 
-static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id) {
+static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id) {
     GlobalSymbolTable *table = r->symbol_table;
 
-    Scope src_scope = table->scopes[src_id];
+    const Scope src_scope = table->scopes[src_id];
 
     for (u32 i = 0; i < src_scope.capacity; i += 1) {
-        SymbolId id = src_scope.entries[i];
+        const SymbolId id = src_scope.entries[i];
 
-        if (id != GLOBAL_SYMBOL_ID_NONE) {
-            Symbol symbol = table->symbols[id];
+        if (id == GLOBAL_SYMBOL_ID_NONE) {
+            continue;
+        }
 
-            StringId name_id = symbol.name_id;
+        const Symbol *symbol = &table->symbols[id];
 
-            SymbolId entry_id = global_scope_lookup(table, dest_id, name_id);
+        if (!is_exportable(symbol, src_file_id)) {
+            continue;
+        }
 
-            if (entry_id != GLOBAL_SYMBOL_ID_NONE) {
-                error_symbol_redefined(r, id, entry_id, name_id);
-            } else {
-                global_scope_add_symbol(table, dest_id, id);
-            }
+        const StringId name_id = symbol->name_id;
+
+        const SymbolId entry_id = global_scope_lookup(table, dest_id, name_id);
+
+        if (entry_id == id) {
+            continue;
+        }
+
+        if (entry_id != GLOBAL_SYMBOL_ID_NONE) {
+            error_symbol_redefined(r, id, entry_id, name_id);
+        } else {
+            global_scope_add_symbol(table, dest_id, id);
         }
     }
+}
+
+static bool is_exportable(const Symbol *symbol, FileId src_file_id) {
+    return symbol->file_id == src_file_id && symbol->kind != SYMBOL_IMPORT;
 }
 
 /*

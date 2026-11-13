@@ -481,7 +481,7 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
         LLVMConstInt(type_to_llvm_type(ctx->ws->builtin_types.type_usize), length, 0),
     };
 
-    LLVMValueRef string = LLVMConstStructInContext(ctx->llvm_ctx, fields, 2, 0);
+    LLVMValueRef string = LLVMConstNamedStruct(type_to_llvm_type(ctx->ws->builtin_types.type_string), fields, 2);
 
     ctx->string_map[id] = string;
 
