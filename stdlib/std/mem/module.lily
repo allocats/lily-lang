@@ -1,9 +1,70 @@
-#import "libc/mem";
+libc :: #import "libc/mem";
 
+#import "std/assert";
+
+/*
+
+    LLVM intrinsic for memory functions
+
+*/
 memset  :: intrinsic fn(dest: *void, byte: i8,   size_in_bytes: isize);
 memcpy  :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
 memmove :: intrinsic fn(dest: *void, src: *void, size_in_bytes: isize);
 
+is_power_of_two_unsigned :: fn(n: u64) -> bool {
+    if n == 0 {
+        return false;
+    }
+
+    return (n & (n - 1)) == 0;
+}
+
+is_power_of_two_signed :: fn(n: i64) -> bool {
+    if n <= 0 {
+        return false;
+    }
+    
+    return (n & (n - 1)) == 0;
+}
+
+alloc :: fn(size_in_bytes: usize) -> *void {
+    if size_in_bytes == 0 {
+        return null;
+    }
+    
+    return libc.malloc(size_in_bytes);
+}
+
+realloc :: fn(ptr: *void, size_in_bytes: usize) -> *void {
+    if ptr == null || size_in_bytes == 0 {
+        return null;
+    }
+
+    return libc.realloc(ptr, size_in_bytes);
+}
+
+calloc :: fn(number_of_elements: usize, element_size_in_bytes: usize) -> *void {
+    if number_of_elements == 0 || element_size_in_bytes == 0 {
+        return null;
+    }
+
+    return libc.calloc(number_of_elements, element_size_in_bytes);
+}
+
+aligned_alloc :: fn(alignment: usize, size_in_bytes: usize) -> *void {
+    assert(is_power_of_two_unsigned(alignment), "Alignment must be a power of two");
+
+    if size_in_bytes == 0 {
+        return null;
+    }
+
+    return libc.aligned_alloc(alignment, size_in_bytes);
+}
+
+free :: fn(ptr: *void) {
+    libc.free(ptr);
+}
+
 compare :: fn(ptr_a: *void, ptr_b: *void, size_in_bytes: isize) -> bool {
-    return memcmp(ptr_a, ptr_b, size_in_bytes) == 0;
+    return libc.memcmp(ptr_a, ptr_b, size_in_bytes) == 0;
 }

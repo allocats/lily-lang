@@ -130,6 +130,35 @@ AstNodeId parse_variable_declaration(Parser *p) {
         node = parser_get_node(p, id);
 
         node->as.variable_decl.init_expr = initializer_id;
+    } else if (parser_check(p, TOK_COLON)) {
+        if (node->flags & AST_FLAG_FOREIGN) {
+            Token token = parser_peek(p);
+
+            diagnostic_add_token(
+                thread_context.diagnostic_engine,
+                p->file,
+                DIAG_ERROR,
+                &token,
+                DIAG_LOC_WHOLE_TOK,
+                "foreign variable cannot have an initializer",
+                "remove the initializer here"
+            );
+
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
+        parser_advance(p);
+
+        AstNodeId initializer_id = parse_expression(p);
+
+        if (parser_is_node(p, initializer_id, AST_ERROR)) {
+            return parser_error(p, id, RECOVERY_NONE);
+        }
+
+        node = parser_get_node(p, id);
+
+        node->as.variable_decl.init_expr = initializer_id;
+        node->flags |= AST_FLAG_CONSTANT;
     }
 
     if (!parser_check(p, TOK_SEMI)) {

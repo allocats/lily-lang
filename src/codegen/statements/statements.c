@@ -6,8 +6,6 @@
 #include "codegen/types.h"
 #include "codegen/types/types.h"
 #include "ids.h"
-#include "types/entries/entries.h"
-#include "types/entries/kinds.h"
 #include "utils/macros.h"
 
 #include <assert.h>
@@ -235,15 +233,13 @@ static bool codegen_variable_declaration(CodegenCtx *ctx, const AstNode *node) {
 
         LLVMBuildStore(ctx->llvm_builder, value, address);
     } else {
-        if (type_is_kind(&ctx->ws->type_table, node->resolved_type_id, TYPE_POINTER)) {
-            LLVMValueRef null_value = LLVMConstPointerNull(type);
+        LLVMValueRef zero_initializer = LLVMConstNull(type);
 
-            if (null_value == null) {
-                return false;
-            }
-
-            LLVMBuildStore(ctx->llvm_builder, null_value, address);
+        if (zero_initializer == null) {
+            return false;
         }
+
+        LLVMBuildStore(ctx->llvm_builder, zero_initializer, address);
     }
 
     return true;

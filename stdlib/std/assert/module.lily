@@ -1,9 +1,9 @@
 #import "std/io";
 #import "std/sys";
 
-assert :: fn(expression: bool, message: string) {
+assert :: fn(expression: bool, msg: string) {
     if !expression {
-        println("Runtime assertion: %s", message);
+        println("Runtime assertion: %.*s", msg.len, msg.ptr);
         abort();
     }
 }

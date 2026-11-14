@@ -40,6 +40,9 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id);
 // =========== Member Access =============
 static LLVMValueRef codegen_member_access(CodegenCtx *ctx, const AstNode *node);
 
+// =========== Struct Literal =============
+static LLVMValueRef codegen_struct_literal(CodegenCtx *ctx, const AstNode *node);
+
 // =========== Unary Op =============
 static LLVMValueRef codegen_unary_op(CodegenCtx *ctx, const AstNode *node);
 
@@ -76,6 +79,9 @@ LLVMValueRef codegen_expression(CodegenCtx *ctx, const AstNode *node) {
 
     case AST_MEMBER_ACCESS:
         return codegen_member_access(ctx, node);
+
+    case AST_STRUCT_LITERAL:
+        return codegen_struct_literal(ctx, node);
 
     case AST_UNARY_OP:
         return codegen_unary_op(ctx, node);
@@ -510,6 +516,96 @@ static LLVMValueRef codegen_member_access(CodegenCtx *ctx, const AstNode *node) 
     LLVMValueRef address = codegen_lvalue(ctx, node);
 
     return LLVMBuildLoad2(ctx->llvm_builder, type_to_llvm_type(node->resolved_type_id), address, "");
+}
+
+/* 
+ *
+ * ===========================================
+ *
+ *              Struct Literal
+ *
+ * ===========================================
+ * 
+ */
+
+static LLVMValueRef codegen_struct_literal(CodegenCtx *ctx, const AstNode *node) {
+    const TypeId type_id = node->resolved_type_id;
+
+    if (type_is_kind(&ctx->ws->type_table, type_id, TYPE_STRUCT)) {
+        // ===== Struct type =====
+        LLVMTypeRef struct_type = type_to_llvm_type(type_id);
+
+        const SymbolId symbol_id = node->resolved_symbol_id;
+        const Symbol *symbol     = &ctx->ws->global_symbol_table.symbols[symbol_id];
+
+        const u32 field_count = symbol->as.struct_symbol.field_count;
+
+        LLVMValueRef *values = lily_calloc(field_count, sizeof(LLVMValueRef));
+        LLVMTypeRef *types   = lily_calloc(field_count, sizeof(LLVMTypeRef));
+
+        LLVMGetStructElementTypes(struct_type, types);
+
+        // ===== All the expressions =====
+        const u32 count = node->as.struct_literal.field_inits.count;
+
+        bool all_fields_are_constant = true;
+
+        for (u32 i = 0; i < count; i += 1) {
+            const AstNodeId field_init_id  = node->as.struct_literal.field_inits.ids[i];
+            const AstNode *field_init_node = &ctx->file->ast.nodes[field_init_id];
+
+            assert(field_init_node->kind == AST_BINARY_OP);
+
+            const AstNodeId field_id  = field_init_node->as.binary_op.lhs;
+            const AstNode *field_node = &ctx->file->ast.nodes[field_id];
+
+            const Symbol *field_symbol = &ctx->ws->global_symbol_table.symbols[field_node->resolved_symbol_id];
+            const u32 field_index      = field_symbol->as.field_symbol.index;
+
+            const AstNodeId expression_id  = field_init_node->as.binary_op.rhs;
+            const AstNode *expression_node = &ctx->file->ast.nodes[expression_id];
+
+            LLVMValueRef expression_value = codegen_expression(ctx, expression_node);
+
+            if (expression_value == null) {
+                free(values);
+                free(types);
+
+                return null;
+            }
+
+            if (!LLVMIsConstant(expression_value)) {
+                all_fields_are_constant = false;
+            }
+
+            values[field_index] = expression_value;
+        }
+
+        for (u32 i = 0; i < field_count; i += 1) {
+            if (values[i] == null) {
+                values[i] = LLVMConstNull(types[i]);
+            }
+        }
+
+        LLVMValueRef result = null;
+
+        if (all_fields_are_constant) {
+            result = LLVMConstNamedStruct(struct_type, values, field_count);
+        } else {
+            result = LLVMGetPoison(struct_type);
+
+            for (u32 i = 0; i < field_count; i += 1) {
+                result = LLVMBuildInsertValue(ctx->llvm_builder, result, values[i], i, "");
+            }
+        }
+
+        free(values);
+        free(types);
+
+        return result;
+    } else {
+        UNREACHABLE("");
+    }
 }
 
 /* 

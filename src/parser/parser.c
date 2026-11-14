@@ -88,7 +88,7 @@ void parse_file(File *file) {
                     thread_context.diagnostic_engine,
                     file,
                     DIAG_ERROR,
-                    &token,
+                    &operator,
                     DIAG_LOC_WHOLE_TOK,
                     "unexpected token",
                     "expected (':' | '::') after identifier"
