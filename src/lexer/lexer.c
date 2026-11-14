@@ -512,7 +512,28 @@ static void lex_operator(Lexer *lexer) {
             while (depth > 0 && *cursor != 0) {
                 cursor += 1;
 
-                if (*cursor == '*') {
+                if (*cursor == '/') {
+                    cursor += 1;
+
+                    if (*cursor == 0) {
+                        diagnostic_add_token(
+                            thread_context.diagnostic_engine,
+                            lexer->file,
+                            DIAG_ERROR,
+                            token,
+                            DIAG_LOC_WHOLE_TOK,
+                            "unterminated comment",
+                            "add a terminating '*/'"
+                        );
+
+                        lexer->cursor = cursor;
+                        return;
+                    }
+
+                    if (*cursor == '*') {
+                        depth += 1;
+                    }
+                } else if (*cursor == '*') {
                     cursor += 1;
 
                     if (*cursor == 0) {
