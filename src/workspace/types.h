@@ -3,7 +3,6 @@
 
 #include "files/types.h"
 #include "ids.h"
-#include "libraries/types.h"
 #include "string_interner/global/types.h"
 #include "symbols/table/global/types.h"
 #include "types/builtins/types.h"
@@ -137,13 +136,6 @@ typedef struct {
      *
      */
     SymbolId entry_point_id;
-
-    /*
-     *
-     * All the foreign libraries to be linked with :3
-     *
-     */
-    ForeignLibraries foreign_libraries;
 
     /*
      *

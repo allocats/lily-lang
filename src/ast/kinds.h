@@ -21,8 +21,6 @@
     X(AST_INCLUDE_DIRECTIVE) \
     X(AST_PACKED_DIRECTIVE)  \
     X(AST_ALIGN_DIRECTIVE)   \
-    X(AST_SYS_LIB_DIRECTIVE) \
-    X(AST_LIBRARY_DIRECTIVE) \
                              \
     X(AST_IMPORT_DECL)       \
                              \
@@ -144,14 +142,6 @@ typedef struct {
 typedef struct {
     AstNodeId expr;
 } AstAlignDirective;
-
-typedef struct {
-    StringId name;
-} AstSystemLibraryDirective;
-
-typedef struct {
-    StringId path;
-} AstLibraryDirective;
 
 typedef struct {
     StringId name;
