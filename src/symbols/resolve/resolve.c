@@ -771,6 +771,8 @@ static bool resolve_variable(Resolver *r, SymbolId id) {
         result = false;
     }
 
+    symbol->as.variable_symbol.type_id = node->resolved_type_id;
+
     /*
      *
      * Restore the state

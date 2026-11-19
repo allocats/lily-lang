@@ -26,9 +26,10 @@ AstNodeId parse_variable_declaration(Parser *p) {
      * initiate the node's values, no unitialised bs please
      *
      */
-    node->as.variable_decl.name      = LOCAL_STRING_ID_NONE;
-    node->as.variable_decl.type_expr = AST_NODE_ID_NONE;
-    node->as.variable_decl.init_expr = AST_NODE_ID_NONE;
+    node->as.variable_decl.name                     = LOCAL_STRING_ID_NONE;
+    node->as.variable_decl.type_expr                = AST_NODE_ID_NONE;
+    node->as.variable_decl.init_expr                = AST_NODE_ID_NONE;
+    node->as.variable_decl.name_converted_to_global = false;
 
     Token name_token = parser_peek(p);
 

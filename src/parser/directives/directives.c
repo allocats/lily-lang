@@ -36,7 +36,7 @@ static thread_local char relative_scratch[PATH_MAX] = {0};
  * this MUST be updated as new directives are added
  *
  */
-static constexpr u32 directive_count          = 5;
+static constexpr u32 directive_count          = 7;
 static AstKind directive_lut[directive_count] = {0};
 
 /*
@@ -49,6 +49,8 @@ static AstNodeId parse_import_directive(Parser *p, AstNodeId id);
 static AstNodeId parse_include_directive(Parser *p, AstNodeId id);
 static AstNodeId parse_execute_directive(Parser *p, AstNodeId id);
 static AstNodeId parse_align_directive(Parser *p, AstNodeId id);
+static AstNodeId parse_system_library_directive(Parser *p, AstNodeId id);
+static AstNodeId parse_library_directive(Parser *p, AstNodeId id);
 
 /*
  *
@@ -58,12 +60,19 @@ static AstNodeId parse_align_directive(Parser *p, AstNodeId id);
 
 void init_directive_lut(LocalStringInterner *string_interner) {
     assert(local_string_get_id(local_string_intern_cstr(string_interner, "import")) == 0);
+    assert(local_string_get_id(local_string_intern_cstr(string_interner, "library")) < directive_count);
 
-    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "import"))]  = AST_IMPORT_DIRECTIVE;
-    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "include"))] = AST_INCLUDE_DIRECTIVE;
-    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "execute"))] = AST_EXECUTE_DIRECTIVE;
-    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "packed"))]  = AST_PACKED_DIRECTIVE;
-    directive_lut[local_string_get_id(local_string_intern_cstr(string_interner, "align"))]   = AST_ALIGN_DIRECTIVE;
+#define intern(string) local_string_get_id(local_string_intern_cstr(string_interner, string))
+
+    directive_lut[intern("import")]  = AST_IMPORT_DIRECTIVE;
+    directive_lut[intern("include")] = AST_INCLUDE_DIRECTIVE;
+    directive_lut[intern("execute")] = AST_EXECUTE_DIRECTIVE;
+    directive_lut[intern("packed")]  = AST_PACKED_DIRECTIVE;
+    directive_lut[intern("align")]   = AST_ALIGN_DIRECTIVE;
+    directive_lut[intern("sys_lib")] = AST_SYS_LIB_DIRECTIVE;
+    directive_lut[intern("library")] = AST_LIBRARY_DIRECTIVE;
+
+#undef intern
 
     debug_log("Directive lookup table has been set up");
 }
@@ -134,6 +143,12 @@ AstNodeId parse_directive(Parser *p) {
 
     case AST_ALIGN_DIRECTIVE:
         return parse_align_directive(p, id);
+
+    case AST_SYS_LIB_DIRECTIVE:
+        return parse_system_library_directive(p, id);
+
+    case AST_LIBRARY_DIRECTIVE:
+        return parse_library_directive(p, id);
 
     default:
         UNREACHABLE("Found %s", AST_KIND_STRINGS[directive_kind]);
@@ -423,6 +438,109 @@ static AstNodeId parse_align_directive(Parser *p, AstNodeId id) {
     node->as.align_directive.expr = alignment_expression_id;
 
     node->tokens.end = p->cursor - 1;
+
+    return id;
+}
+
+static AstNodeId parse_system_library_directive(Parser *p, AstNodeId id) {
+    Token name_token = parser_advance(p);
+
+    if (name_token.kind != TOK_STRING_LIT) {
+        diagnostic_add_token(
+            thread_context.diagnostic_engine,
+            p->file,
+            DIAG_ERROR,
+            &name_token,
+            DIAG_LOC_WHOLE_TOK,
+            "expected string literal",
+            "#sys_lib takes in a string literal, i.e #sys_lib \"library\""
+        );
+
+        return parser_error(p, id, RECOVERY_NONE);
+    }
+
+    if (!parser_check(p, TOK_SEMI)) {
+        diagnostic_add_token(
+            thread_context.diagnostic_engine,
+            p->file,
+            DIAG_ERROR,
+            &name_token,
+            DIAG_LOC_END_OF_TOK,
+            "expected ';'",
+            "add a ';' here"
+        );
+
+        return parser_error(p, id, RECOVERY_NONE);
+    }
+
+    StringId name_id = local_string_intern_token(thread_context.string_interner, p->file, name_token);
+
+    AstNode *node = parser_get_node(p, id);
+
+    node->as.system_library_directive.name = name_id;
+    node->tokens.end                       = p->cursor;
+
+    parser_advance(p); // advance past ';'
+
+    return id;
+}
+
+static AstNodeId parse_library_directive(Parser *p, AstNodeId id) {
+    Token path_token = parser_advance(p);
+
+    if (path_token.kind != TOK_STRING_LIT) {
+        diagnostic_add_token(
+            thread_context.diagnostic_engine,
+            p->file,
+            DIAG_ERROR,
+            &path_token,
+            DIAG_LOC_WHOLE_TOK,
+            "expected string literal",
+            "#libary takes in a string literal, i.e #sys_lib \"path/to/library\""
+        );
+
+        return parser_error(p, id, RECOVERY_NONE);
+    }
+
+    if (!parser_check(p, TOK_SEMI)) {
+        diagnostic_add_token(
+            thread_context.diagnostic_engine,
+            p->file,
+            DIAG_ERROR,
+            &path_token,
+            DIAG_LOC_END_OF_TOK,
+            "expected ';'",
+            "add a ';' here"
+        );
+
+        return parser_error(p, id, RECOVERY_NONE);
+    }
+
+    StringId path_id = local_string_intern_token(thread_context.string_interner, p->file, path_token);
+
+    str8 library_path = thread_context.string_interner->entries[local_string_get_id(path_id)].str;
+    str8 cw_file_path = p->file->path;
+
+    char *last_slash = strrchr(cw_file_path.ptr, '/');
+
+    snprintf(
+        relative_scratch,
+        sizeof(relative_scratch),
+        "%.*s/%.*s",
+        (int)(last_slash - cw_file_path.ptr),
+        cw_file_path.ptr,
+        library_path.len - 2,
+        library_path.ptr + 1
+    );
+
+    path_id = local_string_intern_cstr(thread_context.string_interner, relative_scratch);
+
+    AstNode *node = parser_get_node(p, id);
+
+    node->as.library_directive.path = path_id;
+    node->tokens.end                = p->cursor;
+
+    parser_advance(p); // advance past ';'
 
     return id;
 }

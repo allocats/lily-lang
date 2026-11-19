@@ -2,32 +2,40 @@
 #include "ids.h"
 #include "types/builtins/types.h"
 #include "types/entries/kinds.h"
+#include <assert.h>
 
 inline bool type_is_kind(const TypeTable *table, TypeId id, TypeKind kind) {
+    assert(id != TYPE_ID_NONE);
     return table->entries[id].kind == kind;
 }
 
 inline bool type_is_int(BuiltinTypeIds builtins, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return (id >= builtins.type_u8 && id <= builtins.type_isize);
 }
 
 inline bool type_is_signed_int(BuiltinTypeIds builtins, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return (id >= builtins.type_i8 && id <= builtins.type_isize);
 }
 
 inline bool type_is_unsigned_int(BuiltinTypeIds builtins, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return (id >= builtins.type_u8 && id <= builtins.type_usize);
 }
 
 inline bool type_is_float(BuiltinTypeIds builtins, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return (id == builtins.type_f32 || id == builtins.type_f64);
 }
 
 inline bool type_is_numeric(BuiltinTypeIds builtins, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return (id >= builtins.type_u8 && id <= builtins.type_f64);
 }
 
-bool type_is_structure(TypeTable *table, TypeId id) {
+inline bool type_is_structure(TypeTable *table, TypeId id) {
+    assert(id != TYPE_ID_NONE);
     return type_is_kind(table, id, TYPE_STRUCT) || type_is_kind(table, id, TYPE_UNION);
 }
 

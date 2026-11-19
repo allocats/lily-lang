@@ -69,6 +69,8 @@ void local_string_interner_init(LocalStringInterner *interner, u8 id) {
     local_string_intern_cstr(interner, "execute");
     local_string_intern_cstr(interner, "packed");
     local_string_intern_cstr(interner, "align");
+    local_string_intern_cstr(interner, "sys_lib");
+    local_string_intern_cstr(interner, "library");
 
     local_string_intern_cstr(interner, "fn");
     local_string_intern_cstr(interner, "enum");

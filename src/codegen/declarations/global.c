@@ -34,5 +34,7 @@ bool codegen_global_variable(CodegenCtx *ctx, const AstNode *node) {
         LLVMSetLinkage(variable, LLVMExternalLinkage);
     }
 
+    ctx->symbol_map[node->resolved_symbol_id] = variable;
+
     return true;
 }

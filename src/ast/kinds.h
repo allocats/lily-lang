@@ -21,6 +21,8 @@
     X(AST_INCLUDE_DIRECTIVE) \
     X(AST_PACKED_DIRECTIVE)  \
     X(AST_ALIGN_DIRECTIVE)   \
+    X(AST_SYS_LIB_DIRECTIVE) \
+    X(AST_LIBRARY_DIRECTIVE) \
                              \
     X(AST_IMPORT_DECL)       \
                              \
@@ -145,6 +147,14 @@ typedef struct {
 
 typedef struct {
     StringId name;
+} AstSystemLibraryDirective;
+
+typedef struct {
+    StringId path;
+} AstLibraryDirective;
+
+typedef struct {
+    StringId name;
     AstNodeId import;
 } AstImportDeclaration;
 
@@ -201,7 +211,7 @@ typedef struct {
 } AstVariantDeclaration;
 
 typedef struct {
-    bool name_convertd_to_global;
+    bool name_converted_to_global;
     StringId name;
     AstNodeId type_expr;
     AstNodeId init_expr;

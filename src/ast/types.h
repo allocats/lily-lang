@@ -50,6 +50,8 @@ typedef struct {
         AstImportDirective import_directive;
         AstIncludeDirective include_directive;
         AstAlignDirective align_directive;
+        AstSystemLibraryDirective system_library_directive;
+        AstLibraryDirective library_directive;
 
         /*
          * declarations

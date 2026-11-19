@@ -9,7 +9,6 @@
 #include "symbols/resolve/errors/errors.h"
 #include "symbols/resolve/expressions/types.h"
 #include "symbols/resolve/resolve.h"
-#include "symbols/resolve/type_expressions/type_expressions.h"
 #include "symbols/resolve/types.h"
 #include "symbols/symbol/kinds.h"
 #include "symbols/symbol/symbol.h"
@@ -25,10 +24,12 @@
 
 #include <assert.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <stdio.h>
 
 extern Driver driver;
 
+// ====================== Expressions =====================
 static TypeId resolve_identifier(Resolver *r, AstNode *node);
 static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type);
@@ -37,11 +38,7 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
 static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_type);
 static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected_type);
 
-/*
- *
- * Binary operatorions!
- *
- */
+// ====================== Binary Operations =========================
 static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
 static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
 static TypeId resolve_binary_op_multiplicative(Resolver *r, AstNode *lhs, AstNode *rhs);
@@ -50,15 +47,18 @@ static TypeId resolve_binary_op_shift(Resolver *r, AstNode *lhs, AstNode *rhs);
 static TypeId resolve_binary_op_comparison(Resolver *r, AstNode *lhs, AstNode *rhs, TokenKind op);
 static TypeId resolve_binary_op_logical(Resolver *r, AstNode *lhs, AstNode *rhs);
 
+// ======================= Helpers =========================
 static SymbolId resolve_symbol_from_identifier(Resolver *r, AstNode *node);
 
 static bool is_expression_addressable(Resolver *r, AstNode *node);
 static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_const_error);
 
 /*
+ * ===============================================
  *
- * The actual expression dispatcher
+ *                  Dispatcher
  *
+ * ===============================================
  */
 
 static TypeId resolve(Resolver *r, AstNode *node, TypeId expected_type) {
@@ -172,12 +172,43 @@ static TypeId resolve_literal(Resolver *r, AstNode *node, TypeId expected_type) 
         }
     }
     }
+
+    return TYPE_ID_NONE;
 }
 
 static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type) {
     AstNode *operand_node = &r->ast->nodes[node->as.unary_op.operand];
 
-    TypeId operand_type_id = resolve_expression(r, operand_node, TYPE_ID_NONE);
+    // ===== Operand type hint =====
+    TypeId operand_type_hint = TYPE_ID_NONE;
+
+    switch (node->as.unary_op.op) {
+    case TOK_AMP: {
+        if (expected_type != TYPE_ID_NONE && type_is_kind(r->type_table, expected_type, TYPE_POINTER)) {
+            operand_type_hint = r->type_table->entries[expected_type].as.pointer_type.pointee_id;
+        }
+
+        break;
+    }
+
+    case TOK_BANG: {
+        operand_type_hint = r->builtin_types.type_bool;
+        break;
+    }
+
+    case TOK_PLUS:
+    case TOK_MINUS:
+    case TOK_TILDE: {
+        operand_type_hint = expected_type;
+        break;
+    }
+
+    default:
+        break;
+    }
+
+    // ===== resolve the operand =====
+    TypeId operand_type_id = resolve_expression(r, operand_node, operand_type_hint);
 
     if (operand_type_id == TYPE_ID_NONE) {
         return TYPE_ID_NONE;
@@ -204,14 +235,29 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
             return TYPE_ID_NONE;
         }
 
-        return r->type_table->entries[operand_type_id].as.pointer_type.pointee_id;
+        TypeId pointee_id = r->type_table->entries[operand_type_id].as.pointer_type.pointee_id;
+
+        if (pointee_id == r->builtin_types.type_void) {
+            diagnostic_add_token_span(
+                &driver.global_diagnostic_engine,
+                r->file,
+                DIAG_ERROR,
+                node->tokens,
+                "cannot derefence a pointer to 'void'",
+                "cast this to another type before dereferencing"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
+        return pointee_id;
     }
 
     case TOK_BANG: {
         TypeId bool_type_id = r->builtin_types.type_bool;
 
         if (operand_type_id != bool_type_id) {
-            resolver_mismatched_types(r, node, bool_type_id, operand_type_id);
+            resolver_mismatched_types(r, operand_node, bool_type_id, operand_type_id);
             return TYPE_ID_NONE;
         }
 
@@ -243,7 +289,7 @@ static TypeId resolve_unary_op(Resolver *r, AstNode *node, TypeId expected_type)
     case TOK_TILDE: {
         BuiltinTypeIds builtins = r->builtin_types;
 
-        if (operand_type_id != builtins.type_bool && !type_is_signed_int(builtins, operand_type_id)) {
+        if (operand_type_id != builtins.type_bool && !type_is_int(builtins, operand_type_id)) {
             resolver_cannot_apply_unary_op(r, node, '~', operand_type_id);
             return TYPE_ID_NONE;
         }
@@ -273,7 +319,9 @@ static TypeId resolve_binary_op(Resolver *r, AstNode *node, TypeId expected_type
     case BINARY_OP_MULTIPLICATIVE:
     case BINARY_OP_BITWISE:
     case BINARY_OP_SHIFT:
-        lhs_hint = expected_type;
+        if (expected_type == TYPE_ID_NONE || !type_is_kind(r->type_table, expected_type, TYPE_POINTER)) {
+            lhs_hint = expected_type;
+        }
         break;
 
     case BINARY_OP_LOGICAL:
@@ -348,7 +396,26 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     }
 
     const Symbol *callee_symbol = &r->symbol_table->symbols[callee_symbol_id];
-    assert(callee_symbol->kind == SYMBOL_FUNCTION);
+
+    if (callee_symbol->kind != SYMBOL_FUNCTION) {
+        DiagnosticEngine *engine = &driver.global_diagnostic_engine;
+
+        str8 msg  = DIAGNOSTIC_ALLOC_MSG(engine);
+        str8 name = r->ws->global_string_interner.entries[callee_symbol->name_id].str;
+
+        snprintf(msg.ptr, msg.len, "'%.*s' is not a callable function", STR8_FMT(name));
+
+        diagnostic_add_token_span(
+            engine,
+            r->file,
+            DIAG_ERROR,
+            callee_node->tokens,
+            msg.ptr,
+            "only functions can be called"
+        );
+
+        return TYPE_ID_NONE;
+    }
 
     node->resolved_symbol_id = callee_symbol_id;
 
@@ -392,12 +459,18 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
     // refetch
     callee_symbol = &r->symbol_table->symbols[callee_symbol_id];
 
+    TypeId callee_type_id = symbol_get_type(r->symbol_table, callee_symbol_id);
+
+    callee_node->resolved_type_id   = callee_type_id;
+    callee_node->resolved_symbol_id = callee_symbol_id;
+
     bool is_variadic = callee_symbol->flags & AST_FLAG_VARIADIC;
+    bool failed      = false;
 
     u32 argument_count  = node->as.func_call.arguments.count;
     u32 parameter_count = callee_symbol->as.function_symbol.parameter_count;
 
-    if (is_variadic) {
+    if (is_variadic && parameter_count > 0) {
         parameter_count -= 1;
     }
 
@@ -417,6 +490,8 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
             msg.ptr,
             null
         );
+
+        failed = true;
     } else if (!is_variadic && argument_count != parameter_count) {
         DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
@@ -440,6 +515,8 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
             msg.ptr,
             null
         );
+
+        failed = true;
     }
 
     for (u32 i = 0; i < argument_count; i += 1) {
@@ -454,20 +531,27 @@ static TypeId resolve_function_call(Resolver *r, AstNode *node, TypeId expected_
             TypeId argument_type_id  = resolve_expression(r, argument_node, parameter_type_id);
 
             if (argument_type_id == TYPE_ID_NONE) {
-                return TYPE_ID_NONE;
+                failed = true;
+                continue;
             }
 
             if (!types_are_assignable(r->type_table, &r->builtin_types, parameter_type_id, argument_type_id)) {
                 resolver_mismatched_types(r, argument_node, parameter_type_id, argument_type_id);
 
-                return TYPE_ID_NONE;
+                failed = true;
             }
         } else {
             if (resolve_expression(r, argument_node, TYPE_ID_NONE) == TYPE_ID_NONE) {
-                return TYPE_ID_NONE;
+                failed = true;
             }
         }
     }
+
+    if (failed) {
+        return TYPE_ID_NONE;
+    }
+
+    callee_symbol = &r->symbol_table->symbols[callee_symbol_id];
 
     TypeId return_type_id = callee_symbol->as.function_symbol.return_type_id;
 
@@ -489,15 +573,18 @@ static TypeId resolve_member_access(Resolver *r, AstNode *node, TypeId expected_
         return TYPE_ID_NONE;
     }
 
-    node->resolved_symbol_id = id;
+    TypeId type = symbol_get_type(r->symbol_table, id);
 
-    return symbol_get_type(r->symbol_table, id);
+    node->resolved_symbol_id = id;
+    node->resolved_type_id   = type;
+
+    return type;
 }
 
 static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected_type) {
     DiagnosticEngine *engine = &driver.global_diagnostic_engine;
 
-    AstNode *type_expr_node = &r->file->ast.nodes[node->as.struct_literal.type_expr];
+    AstNode *type_expr_node = &r->ast->nodes[node->as.struct_literal.type_expr];
 
     TypeId struct_type_id = resolve_expression(r, type_expr_node, expected_type);
 
@@ -526,6 +613,10 @@ static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected
     const Type *struct_type         = &r->type_table->entries[struct_type_id];
     const SymbolId struct_symbol_id = struct_type->symbol_id;
 
+    assert(struct_symbol_id != GLOBAL_SYMBOL_ID_NONE);
+
+    bool is_union = struct_type->kind == TYPE_UNION;
+
     node->resolved_type_id   = struct_type_id;
     node->resolved_symbol_id = struct_symbol_id;
 
@@ -537,6 +628,21 @@ static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected
     const StringId struct_name_id = struct_symbol->name_id;
 
     const AstNodeIdList *inits = &node->as.struct_literal.field_inits;
+
+    bool failed = false;
+
+    if (is_union && inits->count > 1) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            node->tokens,
+            "a union literal can only initialize one field",
+            null
+        );
+
+        failed = true;
+    }
 
     for (u32 i = 0; i < inits->count; i += 1) {
         AstNode *init_node = &r->ast->nodes[inits->ids[i]];
@@ -585,7 +691,11 @@ static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected
                 help.ptr
             );
 
-            return TYPE_ID_NONE;
+            // resolve it anyways to tag it, trying to fix some segfaulting behaviour rn
+            resolve_expression(r, value_node, TYPE_ID_NONE);
+
+            failed = true;
+            continue;
         }
 
         /*
@@ -618,35 +728,44 @@ static TypeId resolve_struct_literal(Resolver *r, AstNode *node, TypeId expected
                 "this field was already initialized earlier in the literal"
             );
 
-            return TYPE_ID_NONE;
+            failed = true;
         }
 
         init_node->resolved_symbol_id  = field_id;
         field_node->resolved_symbol_id = field_id;
 
-        if (!resolve_symbol(r->ws, field_id)) {
-            return TYPE_ID_NONE;
-        }
+        TypeId field_type_id = TYPE_ID_NONE;
 
-        TypeId field_type_id = symbol_get_type(r->symbol_table, field_id);
+        if (resolve_symbol(r->ws, field_id)) {
+            field_type_id = symbol_get_type(r->symbol_table, field_id);
+        }
 
         if (field_type_id == TYPE_ID_NONE) {
-            return TYPE_ID_NONE;
-        }
+            resolve_expression(r, value_node, TYPE_ID_NONE);
 
-        TypeId value_type_id = resolve_expression(r, value_node, field_type_id);
-
-        if (value_type_id == TYPE_ID_NONE) {
-            return TYPE_ID_NONE;
-        }
-
-        if (!types_are_assignable(r->type_table, &r->builtin_types, field_type_id, value_type_id)) {
-            resolver_mismatched_types(r, value_node, field_type_id, value_type_id);
-            return TYPE_ID_NONE;
+            failed = true;
+            continue;
         }
 
         init_node->resolved_type_id  = field_type_id;
         field_node->resolved_type_id = field_type_id;
+
+        TypeId value_type_id = resolve_expression(r, value_node, field_type_id);
+
+        if (value_type_id == TYPE_ID_NONE) {
+            failed = true;
+            continue;
+        }
+
+        if (!types_are_assignable(r->type_table, &r->builtin_types, field_type_id, value_type_id)) {
+            resolver_mismatched_types(r, value_node, field_type_id, value_type_id);
+
+            failed = true;
+        }
+    }
+
+    if (failed) {
+        return TYPE_ID_NONE;
     }
 
     return struct_type_id;
@@ -721,6 +840,19 @@ static TypeId resolve_binary_op_assign(Resolver *r, AstNode *lhs, AstNode *rhs, 
             return TYPE_ID_NONE;
         }
     } else {
+        if (op != TOK_EQ && !type_is_numeric(r->builtin_types, lhs_type)) {
+            diagnostic_add_token_span(
+                &driver.global_diagnostic_engine,
+                r->file,
+                DIAG_ERROR,
+                lhs->tokens,
+                "invalid operand in compound assignment",
+                "expected a numeric e.g. i32, f32, isize"
+            );
+
+            return TYPE_ID_NONE;
+        }
+
         if (!types_are_assignable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
             resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
             return TYPE_ID_NONE;
@@ -765,6 +897,7 @@ static TypeId resolve_binary_op_additive(Resolver *r, AstNode *lhs, AstNode *rhs
             }
 
             if (rhs_is_ptr) {
+                // TODO: maybe add a check here for the same pointer types? My pointers work as integers tho
                 return r->builtin_types.type_isize;
             }
 
@@ -844,6 +977,32 @@ static TypeId resolve_binary_op_multiplicative(Resolver *r, AstNode *lhs, AstNod
     assert(lhs_type != TYPE_ID_NONE);
     assert(rhs_type != TYPE_ID_NONE);
 
+    if (!type_is_numeric(r->builtin_types, lhs_type)) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            lhs->tokens,
+            "invalid operand in compound assignment",
+            "expected a numeric e.g. i32, f32, isize"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
+    if (!type_is_numeric(r->builtin_types, rhs_type)) {
+        diagnostic_add_token_span(
+            &driver.global_diagnostic_engine,
+            r->file,
+            DIAG_ERROR,
+            rhs->tokens,
+            "invalid operand in compound assignment",
+            "expected a numeric e.g. i32, f32, isize"
+        );
+
+        return TYPE_ID_NONE;
+    }
+
     if (!types_are_arithmeticable(r->type_table, &r->builtin_types, lhs_type, rhs_type)) {
         resolver_mismatched_types(r, rhs, lhs_type, rhs_type);
         return TYPE_ID_NONE;
@@ -860,7 +1019,7 @@ static TypeId resolve_binary_op_bitwise(Resolver *r, AstNode *lhs, AstNode *rhs)
     assert(rhs_type != TYPE_ID_NONE);
 
     if (!type_is_int(r->builtin_types, lhs_type) && lhs_type != r->builtin_types.type_bool) {
-        resolver_expected_int(r, rhs, rhs_type);
+        resolver_expected_int(r, lhs, lhs_type);
         return TYPE_ID_NONE;
     }
 
@@ -885,11 +1044,13 @@ static TypeId resolve_binary_op_shift(Resolver *r, AstNode *lhs, AstNode *rhs) {
     assert(rhs_type != TYPE_ID_NONE);
 
     if (!type_is_int(r->builtin_types, lhs_type)) {
-        resolver_expected_int(r, rhs, rhs_type);
+        resolver_expected_int(r, lhs, lhs_type);
         return TYPE_ID_NONE;
     }
 
-    if (!type_is_unsigned_int(r->builtin_types, rhs_type)) {
+    bool rhs_is_literal = rhs->kind == AST_LITERAL && rhs->as.literal.kind == LITERAL_INTEGER;
+
+    if (!type_is_unsigned_int(r->builtin_types, rhs_type) && !rhs_is_literal) {
         resolver_expected_unsigned_int(r, rhs, rhs_type);
         return TYPE_ID_NONE;
     }
@@ -1191,6 +1352,7 @@ static bool is_expression_addressable(Resolver *r, AstNode *node) {
 
         switch (symbol->kind) {
         case SYMBOL_VARIABLE:
+        case SYMBOL_FUNCTION:
             return true;
 
         case SYMBOL_FIELD: {
@@ -1276,6 +1438,10 @@ static bool is_expression_assignable(Resolver *r, AstNode *node, bool *emitted_c
         }
 
         const Symbol *symbol = &r->symbol_table->symbols[node->resolved_symbol_id];
+
+        if (symbol->kind == SYMBOL_FUNCTION) {
+            return false;
+        }
 
         if (symbol->flags & AST_FLAG_CONSTANT) {
             if (type_is_kind(r->type_table, node->resolved_type_id, TYPE_POINTER)) {

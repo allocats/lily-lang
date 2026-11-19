@@ -16,7 +16,8 @@ static void resolve_imports_for_file(Resolver *r);
 static void resolve_include(Resolver *r, AstNode *node);
 static void resolve_import_directive(Resolver *r, AstNode *node);
 
-static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id);
+static void merge_scopes_for_includes(Resolver *r, ScopeId dest_id, ScopeId src_id);
+static void merge_scopes_for_imports(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id);
 
 static bool is_exportable(const Symbol *symbol, FileId src_file_id);
 
@@ -72,16 +73,40 @@ static void resolve_imports_for_file(Resolver *r) {
 static void resolve_include(Resolver *r, AstNode *node) {
     File *file = r->ws->file_interner.entries[node->as.include_directive.file_id];
 
-    merge_scopes(r, r->scope_id, file->scope_id, file->id);
+    merge_scopes_for_includes(r, r->scope_id, file->scope_id);
 }
 
 static void resolve_import_directive(Resolver *r, AstNode *node) {
     File *file = r->ws->file_interner.entries[node->as.import_directive.file_id];
 
-    merge_scopes(r, r->scope_id, file->scope_id, file->id);
+    merge_scopes_for_imports(r, r->scope_id, file->scope_id, file->id);
 }
 
-static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id) {
+static void merge_scopes_for_includes(Resolver *r, ScopeId dest_id, ScopeId src_id) {
+    GlobalSymbolTable *table = r->symbol_table;
+
+    const Scope src_scope = table->scopes[src_id];
+
+    for (u32 i = 0; i < src_scope.capacity; i += 1) {
+        const SymbolId id = src_scope.entries[i];
+
+        if (id == GLOBAL_SYMBOL_ID_NONE) {
+            continue;
+        }
+
+        const Symbol *symbol    = &table->symbols[id];
+        const StringId name_id  = symbol->name_id;
+        const SymbolId entry_id = global_scope_lookup(table, dest_id, name_id);
+
+        if (entry_id != GLOBAL_SYMBOL_ID_NONE) {
+            error_symbol_redefined(r, id, entry_id, name_id);
+        } else {
+            global_scope_add_symbol(table, dest_id, id);
+        }
+    }
+}
+
+static void merge_scopes_for_imports(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId src_file_id) {
     GlobalSymbolTable *table = r->symbol_table;
 
     const Scope src_scope = table->scopes[src_id];
@@ -99,8 +124,7 @@ static void merge_scopes(Resolver *r, ScopeId dest_id, ScopeId src_id, FileId sr
             continue;
         }
 
-        const StringId name_id = symbol->name_id;
-
+        const StringId name_id  = symbol->name_id;
         const SymbolId entry_id = global_scope_lookup(table, dest_id, name_id);
 
         if (entry_id == id) {

@@ -33,11 +33,11 @@ bool resolve_variable_declaration(Resolver *r, AstNode *node) {
 
     StringId global_string_id = node->as.variable_decl.name;
 
-    if (node->as.variable_decl.name_convertd_to_global == false) {
+    if (node->as.variable_decl.name_converted_to_global == false) {
         global_string_id = global_string_from_local_id(node->as.variable_decl.name);
 
-        node->as.variable_decl.name                    = global_string_id;
-        node->as.variable_decl.name_convertd_to_global = true;
+        node->as.variable_decl.name                     = global_string_id;
+        node->as.variable_decl.name_converted_to_global = true;
     }
 
     SymbolId symbol_id = global_symbol_table_lookup(r->symbol_table, r->scope_id, global_string_id);

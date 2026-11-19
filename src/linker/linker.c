@@ -18,7 +18,7 @@ i32 linker_run(Workspace *ws) {
 
     snprintf(threads_arg, sizeof(threads_arg), "-Wl,--threads=%u", driver.thread_pool.thread_count);
 
-    char **args   = arena_alloc(&driver.scratch_arena, (file_count + 8) * sizeof(char *));
+    char **args   = arena_alloc(&driver.scratch_arena, (file_count + 16) * sizeof(char *));
     u32 arg_count = 0;
 
     args[arg_count++] = "cc";

@@ -8,6 +8,7 @@
 #include "files/types.h"
 #include "ids.h"
 #include "lexer/lexer.h"
+#include "libraries/libraries.h"
 #include "linker/linker.h"
 #include "parser/directives/directives.h"
 #include "parser/parser.h"
@@ -71,6 +72,8 @@ void workspace_init(Workspace *ws, WorkspaceId id, const char *name) {
     standard_library_map_init(ws);
 
     type_table_init(&ws->type_table);
+
+    foreign_library_init(&ws->foreign_libraries);
 }
 
 void workspace_destroy(Workspace *ws) {
@@ -85,6 +88,8 @@ void workspace_destroy(Workspace *ws) {
     global_string_interner_destroy(&ws->global_string_interner);
 
     arena_destroy(&ws->standard_library_map.arena);
+
+    foreign_library_destroy(&ws->foreign_libraries);
 
     free(ws->object_paths);
 }
