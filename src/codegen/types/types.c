@@ -127,3 +127,7 @@ LLVMTypeRef type_to_llvm_type(TypeId id) {
         UNREACHABLE("Invalid type");
     }
 }
+
+inline bool type_is_string(CodegenCtx *ctx, TypeId id) {
+    return id == ctx->ws->builtin_types.type_string;
+}

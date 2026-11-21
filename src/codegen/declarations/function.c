@@ -77,7 +77,9 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
         is_variadic = true;
     }
 
-    LLVMTypeRef *parameter_types = lily_alloc(sizeof(LLVMTypeRef) * parameter_count);
+    LLVMTypeRef *parameter_types = lily_alloc(sizeof(LLVMTypeRef) * parameter_count * 2);
+
+    u32 paramter_index = 0;
 
     for (u32 i = 0; i < parameter_count; i += 1) {
         SymbolId parameter_id = symbol->as.function_symbol.parameters[i];
@@ -87,10 +89,16 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
         assert(parameter_symbol->kind == SYMBOL_PARAMETER);
 
         TypeId parameter_type_id = parameter_symbol->as.parameter_symbol.type_id;
-        parameter_types[i]       = type_to_llvm_type(parameter_type_id);
+
+        if (type_is_string(ctx, parameter_type_id)) {
+            parameter_types[paramter_index++] = LLVMPointerTypeInContext(ctx->llvm_ctx, 0);
+            parameter_types[paramter_index++] = type_to_llvm_type(ctx->ws->builtin_types.type_usize);
+        } else {
+            parameter_types[paramter_index++] = type_to_llvm_type(parameter_type_id);
+        }
     }
 
-    LLVMTypeRef function_type = LLVMFunctionType(return_type, parameter_types, parameter_count, is_variadic);
+    LLVMTypeRef function_type = LLVMFunctionType(return_type, parameter_types, paramter_index, is_variadic);
     LLVMValueRef function     = LLVMGetOrInsertFunction(ctx->llvm_module, mangled_name.ptr, mangled_name.len, function_type);
 
     if (symbol->flags & AST_FLAG_INLINE) {
@@ -181,13 +189,28 @@ bool codegen_function(CodegenCtx *ctx, const AstNode *node) {
 
     ctx->current_block = entry_block;
 
+    u32 parameter_index = 0;
+
     for (u32 i = 0; i < parameter_count; i += 1) {
-        const SymbolId parameter_id = symbol->as.function_symbol.parameters[i];
+        const SymbolId parameter_id    = symbol->as.function_symbol.parameters[i];
+        const Symbol *paramter_symbol  = &ctx->ws->global_symbol_table.symbols[parameter_id];
+        const TypeId parameter_type_id = paramter_symbol->as.parameter_symbol.type_id;
 
         LLVMValueRef parameter_address = ctx->symbol_map[parameter_id];
-        LLVMValueRef parameter_value   = LLVMGetParam(function, i);
 
-        LLVMBuildStore(ctx->llvm_builder, parameter_value, parameter_address);
+        if (type_is_string(ctx, parameter_type_id)) {
+            LLVMTypeRef struct_type = type_to_llvm_type(parameter_type_id);
+
+            LLVMValueRef ptr_field = LLVMBuildStructGEP2(ctx->llvm_builder, struct_type, parameter_address, 0, "");
+            LLVMValueRef len_field = LLVMBuildStructGEP2(ctx->llvm_builder, struct_type, parameter_address, 1, "");
+
+            LLVMBuildStore(ctx->llvm_builder, LLVMGetParam(function, parameter_index++), ptr_field);
+            LLVMBuildStore(ctx->llvm_builder, LLVMGetParam(function, parameter_index++), len_field);
+        } else {
+            LLVMValueRef parameter_value = LLVMGetParam(function, parameter_index++);
+
+            LLVMBuildStore(ctx->llvm_builder, parameter_value, parameter_address);
+        }
     }
 
     if (is_variadic) {

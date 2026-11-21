@@ -250,7 +250,9 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
 
     u32 argument_count = node->as.func_call.arguments.count;
 
-    LLVMValueRef *arguments = lily_alloc(argument_count * sizeof(LLVMValueRef));
+    LLVMValueRef *arguments = lily_alloc(argument_count * sizeof(LLVMValueRef) * 2);
+
+    u32 argument_index = 0;
 
     for (u32 i = 0; i < argument_count; i += 1) {
         const AstNodeId argument_id  = node->as.func_call.arguments.ids[i];
@@ -259,10 +261,15 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
         LLVMValueRef argument = codegen_expression(ctx, argument_node);
         assert(argument != null);
 
-        arguments[i] = argument;
+        if (type_is_string(ctx, argument_node->resolved_type_id)) {
+            arguments[argument_index++] = LLVMBuildExtractValue(ctx->llvm_builder, argument, 0, "");
+            arguments[argument_index++] = LLVMBuildExtractValue(ctx->llvm_builder, argument, 1, "");
+        } else {
+            arguments[argument_index++] = argument;
+        }
     }
 
-    LLVMValueRef call = LLVMBuildCall2(ctx->llvm_builder, function_type, function, arguments, argument_count, "");
+    LLVMValueRef call = LLVMBuildCall2(ctx->llvm_builder, function_type, function, arguments, argument_index, "");
 
     free(arguments);
 
