@@ -8,6 +8,8 @@
 #include <llvm-c/Transforms/PassBuilder.h>
 #include <llvm-c/Types.h>
 
+#define STACK_ALLOCATION_THRESHOLD 8
+
 /* 
  *
  * =========================================

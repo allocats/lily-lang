@@ -250,7 +250,14 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
 
     u32 argument_count = node->as.func_call.arguments.count;
 
-    LLVMValueRef *arguments = lily_alloc(argument_count * sizeof(LLVMValueRef) * 2);
+    // We use a stack allocatin if the parameter count fits in a certain threshold
+    LLVMValueRef arguments_stack_allocation[STACK_ALLOCATION_THRESHOLD];
+
+    u32 argument_count_doubled = argument_count * 2;
+
+    LLVMValueRef *arguments = argument_count_doubled <= STACK_ALLOCATION_THRESHOLD
+                                  ? arguments_stack_allocation
+                                  : lily_alloc(argument_count_doubled * sizeof(LLVMValueRef));
 
     u32 argument_index = 0;
 
@@ -271,7 +278,9 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
 
     LLVMValueRef call = LLVMBuildCall2(ctx->llvm_builder, function_type, function, arguments, argument_index, "");
 
-    free(arguments);
+    if (arguments != arguments_stack_allocation) {
+        free(arguments);
+    }
 
     return call;
 }
@@ -318,7 +327,11 @@ static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node)
 
     u32 argument_count = node->as.func_call.arguments.count;
 
-    LLVMValueRef *arguments = lily_alloc(argument_count * sizeof(LLVMValueRef));
+    LLVMValueRef arguments_stack_allocation[8];
+
+    LLVMValueRef *arguments = argument_count <= 8
+                                  ? arguments_stack_allocation
+                                  : lily_alloc(argument_count * sizeof(LLVMValueRef));
 
     for (u32 i = 0; i < argument_count; i += 1) {
         const AstNodeId argument_id  = node->as.func_call.arguments.ids[i];
@@ -372,7 +385,9 @@ static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node)
         UNREACHABLE("Impossible case: %s", INTRINSIC_KIND_STRINGS[kind]);
     }
 
-    free(arguments);
+    if (arguments != arguments_stack_allocation) {
+        free(arguments);
+    }
 
     return call;
 }

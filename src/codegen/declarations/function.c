@@ -77,7 +77,14 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
         is_variadic = true;
     }
 
-    LLVMTypeRef *parameter_types = lily_alloc(sizeof(LLVMTypeRef) * parameter_count * 2);
+    // We use a stack if the number of parameters doesn't exceed a certain number
+    LLVMTypeRef paramter_types_stack_allocation[STACK_ALLOCATION_THRESHOLD];
+
+    u32 paramter_count_doubled = parameter_count * 2;
+
+    LLVMTypeRef *parameter_types = paramter_count_doubled <= STACK_ALLOCATION_THRESHOLD
+                                       ? paramter_types_stack_allocation
+                                       : lily_alloc(sizeof(LLVMTypeRef) * paramter_count_doubled);
 
     u32 paramter_index = 0;
 
@@ -118,10 +125,12 @@ LLVMValueRef codegen_function_signature(CodegenCtx *ctx, SymbolId symbol_id) {
 
     ctx->symbol_map[symbol_id] = function;
 
-    free(parameter_types);
+    if (paramter_types_stack_allocation != parameter_types) {
+        lily_free(parameter_types);
+    }
 
     if (name_needs_free) {
-        free(mangled_name.ptr);
+        lily_free(mangled_name.ptr);
     }
 
     return function;

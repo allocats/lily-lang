@@ -27,7 +27,6 @@
 #include <llvm-c/Types.h>
 #include <stdatomic.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <threads.h>
@@ -360,9 +359,9 @@ static bool codegen_context_init(CodegenCtx *ctx, Workspace *ws, char *build_dir
 }
 
 static void codegen_context_destroy(CodegenCtx *ctx) {
-    free(ctx->type_map);
-    free(ctx->string_map);
-    free(ctx->symbol_map);
+    lily_free(ctx->type_map);
+    lily_free(ctx->string_map);
+    lily_free(ctx->symbol_map);
 
     arena_destroy(&ctx->defer_ctx.arena);
 
