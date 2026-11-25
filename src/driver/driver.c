@@ -19,16 +19,20 @@
 
 #include <assert.h>
 #include <dirent.h>
+#include <stdatomic.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #define STDLIB_DIR ".local/lily/std"
 #define LIBC_DIR ".local/lily/libc"
 
+#define FLAG_CMP(arg, flag) (strncmp((arg), (flag), sizeof((flag)) - 1) == 0)
+
 static char standard_library_path[PATH_MAX] = {0};
 static char libc_library_path[PATH_MAX]     = {0};
+
+atomic_bool failed_to_intern_files = false;
 
 /*
  *
@@ -228,22 +232,22 @@ bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
         }
 
         if (arg[0] == '-') {
-            if (strncmp(arg, "-emit-llvm-ir", arg_len) == 0) {
+            if (FLAG_CMP(arg, "-emit-llvm-ir")) {
                 driver->flags |= DRIVER_FLAG_EMIT_LLVM_IR;
                 continue;
             }
 
-            if (strncmp(arg, "-verify-llvm-ir", arg_len) == 0) {
+            if (FLAG_CMP(arg, "-verify-llvm-ir")) {
                 driver->flags |= DRIVER_FLAG_VERIFY_IR;
                 continue;
             }
 
-            if (strncmp(arg, "-release", arg_len) == 0) {
+            if (FLAG_CMP(arg, "-release")) {
                 driver->flags |= DRIVER_FLAG_RELEASE_MODE;
                 continue;
             }
 
-            if (strncmp(arg, "-static", arg_len) == 0) {
+            if (FLAG_CMP(arg, "-static")) {
                 driver->flags |= DRIVER_FLAG_STATIC_BUILD;
                 continue;
             }
@@ -316,6 +320,10 @@ bool driver_parse_flags(Driver *driver, i32 argc, char **argv) {
      */
     arena_reset(&driver->scratch_arena);
 
+    if (failed_to_intern_files) {
+        result = false;
+    }
+
     return result;
 }
 
@@ -325,12 +333,7 @@ static void dispatch_file_intern_thread(void *argument) {
     FileId id = file_intern(&arg->ws->file_interner, arg->path);
 
     if (id == FILE_ID_NONE) {
-        // diagnostic_add_generic(
-        //     thread_context.diagnostic_engine,
-        //     DIAG_ERROR,
-        //     "cannot find file '%.*s'",
-        //     STR8_FMT(arg -> path)
-        // );
+        atomic_store(&failed_to_intern_files, true);
     }
 }
 

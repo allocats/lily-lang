@@ -53,6 +53,31 @@ typedef enum {
     OS_WINDOWS,
 } TargetOS;
 
+/*
+ *  ====================================
+ *
+ *             Build Options
+ *
+ *  ====================================
+ */
+
+typedef struct {
+    u64 flags;
+
+    char *output_path;
+    char *build_directory;
+
+    TargetOS target_os;
+} WorkspaceBuildOptions;
+
+/*
+ *  ==================================
+ *
+ *              Workspace
+ *
+ *  ==================================
+ */
+
 typedef struct {
     WorkspaceId id;
 

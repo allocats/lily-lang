@@ -78,7 +78,7 @@ void file_interner_init(FileInterner *interner) {
     pthread_mutex_init(&interner->mutex, null);
 }
 
-inline void file_interner_destroy(FileInterner *interner) {
+void file_interner_destroy(FileInterner *interner) {
     assert(interner);
 
     for (u32 i = 0; i < interner->count; i++) {
@@ -109,7 +109,14 @@ FileId file_intern(FileInterner *interner, str8 input_path) {
     str8 path = get_absolute_path(input_path);
 
     if (path.ptr == null) {
-        // diagnostic_add_generic(DIAG_ERROR, "cannot find file %.*s", input_path.len, input_path.ptr);
+        diagnostic_add_generic(
+            thread_context.diagnostic_engine,
+            DIAG_ERROR,
+            "cannot find file %.*s",
+            input_path.len,
+            input_path.ptr
+        );
+
         return FILE_ID_NONE;
     }
 
@@ -123,6 +130,7 @@ FileId file_intern(FileInterner *interner, str8 input_path) {
             path.len,
             path.ptr
         );
+
         return FILE_ID_NONE;
     }
 
@@ -172,8 +180,6 @@ FileId file_intern(FileInterner *interner, str8 input_path) {
     file_init(file, id, path, hash, buffer);
 
     debug_log("Intered file (id=%u): %.*s", id, path.len, path.ptr);
-
-    // lily_free(path.ptr);
 
     pthread_mutex_unlock(&interner->mutex);
 

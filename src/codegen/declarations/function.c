@@ -14,7 +14,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include <llvm-c/Core.h>
 #include <llvm-c/Types.h>
