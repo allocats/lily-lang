@@ -98,7 +98,7 @@ static LLVMTypeRef struct_type_to_llvm_type(TypeId id) {
 
     LLVMStructSetBody(llvm_type, llvm_field_types, field_count, is_packed);
 
-    free(llvm_field_types);
+    lily_free(llvm_field_types);
 
     return llvm_type;
 }

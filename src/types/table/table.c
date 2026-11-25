@@ -59,9 +59,9 @@ void type_table_init(TypeTable *table) {
 void type_table_destroy(TypeTable *table) {
     arena_destroy(&table->gpa);
 
-    free(table->entries);
-    free(table->nominal_buckets);
-    free(table->structural_buckets);
+    lily_free(table->entries);
+    lily_free(table->nominal_buckets);
+    lily_free(table->structural_buckets);
 }
 
 /*

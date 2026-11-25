@@ -1,4 +1,5 @@
 #include "utils/wrappers.h"
+#include "utils/debug.h"
 #include "utils/macros.h"
 #include <assert.h>
 #include <stdio.h>
@@ -58,6 +59,8 @@ void lily_free(void *ptr) {
     if (ptr == null) {
         return;
     }
+
+    debug_log("Freeing %p", ptr);
 
     free(ptr);
 }

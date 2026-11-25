@@ -177,7 +177,7 @@ void driver_destroy(Driver *driver) {
         diagnostic_engine_destroy(&driver->local_diagnostic_engines[i]);
     }
 
-    free(driver->local_diagnostic_engines);
+    lily_free(driver->local_diagnostic_engines);
 
     diagnostic_engine_destroy(&driver->global_diagnostic_engine);
 

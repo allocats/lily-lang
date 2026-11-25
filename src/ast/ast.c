@@ -35,7 +35,7 @@ void ast_init(Ast *ast) {
 inline void ast_destroy(Ast *ast) {
     assert(ast != null);
 
-    free(ast->nodes);
+    lily_free(ast->nodes);
 
     arena_destroy(&ast->gpa);
 }
@@ -56,7 +56,7 @@ AstNodeId ast_alloc_node(Ast *ast) {
 
         AstNode *new_nodes = lily_aligned_alloc(alignof(AstNode), new_size);
         memcpy(new_nodes, ast->nodes, old_size);
-        free(ast->nodes);
+        lily_free(ast->nodes);
 
         ast->nodes = new_nodes;
         ast->capacity *= 2;

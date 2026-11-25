@@ -24,7 +24,7 @@ inline void token_array_destroy(TokenArray *array) {
 
     debug_log("Deleting TokenArray: Count=%lu Capacity=%lu", array->count, array->capacity);
 
-    free(array->items);
+    lily_free(array->items);
 }
 
 /*

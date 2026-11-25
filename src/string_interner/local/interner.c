@@ -106,8 +106,8 @@ void local_string_interner_init(LocalStringInterner *interner, u8 id) {
 inline void local_string_interner_destroy(LocalStringInterner *interner) {
     assert(interner != null);
 
-    free(interner->buckets);
-    free(interner->entries);
+    lily_free(interner->buckets);
+    lily_free(interner->entries);
 }
 
 /*

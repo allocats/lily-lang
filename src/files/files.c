@@ -87,8 +87,8 @@ inline void file_interner_destroy(FileInterner *interner) {
 
     arena_destroy(&interner->interner_arena);
 
-    free(interner->buckets);
-    free(interner->entries);
+    lily_free(interner->buckets);
+    lily_free(interner->entries);
 
     pthread_mutex_destroy(&interner->mutex);
 }
@@ -173,7 +173,7 @@ FileId file_intern(FileInterner *interner, str8 input_path) {
 
     debug_log("Intered file (id=%u): %.*s", id, path.len, path.ptr);
 
-    // free(path.ptr);
+    // lily_free(path.ptr);
 
     pthread_mutex_unlock(&interner->mutex);
 
@@ -300,8 +300,8 @@ static void file_init(File *file, FileId id, str8 path, u32 path_hash, str8 buff
 inline void file_destroy(File *file) {
     assert(file);
 
-    free(file->buffer.ptr);
-    free(file->path.ptr);
+    lily_free(file->buffer.ptr);
+    lily_free(file->path.ptr);
 
     token_array_destroy(&file->tokens);
     ast_destroy(&file->ast);

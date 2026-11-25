@@ -117,7 +117,7 @@ void threadpool_destroy(ThreadPool *pool) {
 
     arena_destroy(&pool->task_arena);
 
-    free(pool->threads);
+    lily_free(pool->threads);
 }
 
 void threadpool_add_task(ThreadPool *pool, void (*fn)(void *), void *arg) {

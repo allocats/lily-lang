@@ -279,7 +279,7 @@ static LLVMValueRef codegen_function_call(CodegenCtx *ctx, const AstNode *node) 
     LLVMValueRef call = LLVMBuildCall2(ctx->llvm_builder, function_type, function, arguments, argument_index, "");
 
     if (arguments != arguments_stack_allocation) {
-        free(arguments);
+        lily_free(arguments);
     }
 
     return call;
@@ -386,7 +386,7 @@ static LLVMValueRef codegen_intrinsic_call(CodegenCtx *ctx, const AstNode *node)
     }
 
     if (arguments != arguments_stack_allocation) {
-        free(arguments);
+        lily_free(arguments);
     }
 
     return call;
@@ -513,7 +513,7 @@ static LLVMValueRef codegen_string_literal(CodegenCtx *ctx, const StringId id) {
 
     ctx->string_map[id] = string;
 
-    free(copy);
+    lily_free(copy);
 
     return string;
 }
@@ -590,8 +590,8 @@ static LLVMValueRef codegen_struct_literal(CodegenCtx *ctx, const AstNode *node)
             LLVMValueRef expression_value = codegen_expression(ctx, expression_node);
 
             if (expression_value == null) {
-                free(values);
-                free(types);
+                lily_free(values);
+                lily_free(types);
 
                 return null;
             }
@@ -621,8 +621,8 @@ static LLVMValueRef codegen_struct_literal(CodegenCtx *ctx, const AstNode *node)
             }
         }
 
-        free(values);
-        free(types);
+        lily_free(values);
+        lily_free(types);
 
         return result;
     } else {

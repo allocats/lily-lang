@@ -7,6 +7,7 @@
 
 #include "utils/debug.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 static constexpr u64 __ARENA_BLOCK_ALIGN = 64;
 
@@ -228,7 +229,7 @@ void arena_destroy(Arena *arena) {
     while (current != null) {
         ArenaBlock *previous = current;
         current              = current->next;
-        free(previous);
+        lily_free(previous);
     }
 }
 

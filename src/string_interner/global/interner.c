@@ -90,7 +90,7 @@ void global_string_interner_init(GlobalStringInterner *interner) {
         local_string_interner_destroy(&driver.local_string_interners[i]);
     }
 
-    free(driver.local_string_interners);
+    lily_free(driver.local_string_interners);
 }
 
 void global_string_interner_destroy(GlobalStringInterner *interner) {
@@ -102,14 +102,14 @@ void global_string_interner_destroy(GlobalStringInterner *interner) {
 
     u32 local_count = driver.local_string_interner_count;
 
-    free(interner->buckets);
-    free(interner->entries);
+    lily_free(interner->buckets);
+    lily_free(interner->entries);
 
     for (u8 i = 0; i < local_count; i += 1) {
-        free(remapper.ids[i]);
+        lily_free(remapper.ids[i]);
     }
 
-    free(remapper.ids);
+    lily_free(remapper.ids);
 }
 
 /*

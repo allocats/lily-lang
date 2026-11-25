@@ -12,11 +12,11 @@
 
 #include <assert.h>
 #include <pthread.h>
-#include <stdlib.h>
 
 extern Driver driver;
 
 static GlobalSymbolTableRemapper remapper = {0};
+static bool remapper_is_allocated         = false;
 
 void global_symbol_table_init(GlobalSymbolTable *table) {
     assert(table != null);
@@ -34,6 +34,8 @@ void global_symbol_table_init(GlobalSymbolTable *table) {
 
         remapper.scope_ids[i] = lily_alloc(sizeof(ScopeId) * local_table->scope_count);
     }
+
+    remapper_is_allocated = true;
 
     symbol_count = NEXT_POWER_OF_TWO(symbol_count);
     scope_count  = NEXT_POWER_OF_TWO(scope_count);
@@ -85,21 +87,25 @@ void global_symbol_table_init(GlobalSymbolTable *table) {
         local_symbol_table_destroy(local_table);
     }
 
-    free(driver.local_symbol_tables);
+    lily_free(driver.local_symbol_tables);
 }
 
 void global_symbol_table_destroy(GlobalSymbolTable *table) {
     arena_destroy(&table->scope_data_arena);
     arena_destroy(&table->symbol_data_arena);
 
-    free(table->scopes);
-    free(table->symbols);
+    lily_free(table->scopes);
+    lily_free(table->symbols);
 
-    for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
-        free(remapper.scope_ids[i]);
+    if (!remapper_is_allocated) {
+        return;
     }
 
-    free(remapper.scope_ids);
+    for (u8 i = 0; i < driver.local_symbol_table_count; i += 1) {
+        lily_free(remapper.scope_ids[i]);
+    }
+
+    lily_free(remapper.scope_ids);
 }
 
 ScopeId global_scope_from_local_scope(ScopeId id) {

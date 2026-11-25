@@ -396,7 +396,7 @@ static LLVMValueRef codegen_intrinsic_function(CodegenCtx *ctx, const SymbolId i
 
     ctx->symbol_map[id] = intrinsic;
 
-    free(full_name.ptr);
+    lily_free(full_name.ptr);
 
     return intrinsic;
 }

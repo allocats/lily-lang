@@ -26,6 +26,7 @@
 #include "utils/macros.h"
 #include "utils/timer.h"
 #include "utils/types.h"
+#include "utils/wrappers.h"
 
 #include <assert.h>
 #include <linux/limits.h>
@@ -86,7 +87,7 @@ void workspace_destroy(Workspace *ws) {
 
     arena_destroy(&ws->standard_library_map.arena);
 
-    free(ws->object_paths);
+    lily_free(ws->object_paths);
 }
 
 /*

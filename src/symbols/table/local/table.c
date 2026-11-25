@@ -50,8 +50,8 @@ void local_symbol_table_init(LocalSymbolTable *table, u32 scope_count_estimate, 
 void local_symbol_table_destroy(LocalSymbolTable *table) {
     arena_destroy(&table->scope_data_arena);
 
-    free(table->scopes);
-    free(table->symbols);
+    lily_free(table->scopes);
+    lily_free(table->symbols);
 
     table = null;
 }
